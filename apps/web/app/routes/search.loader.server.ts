@@ -57,7 +57,7 @@ export async function searchLoader(request: Request): Promise<SearchLoaderData> 
     .replace(/[\u0000-\u001F\u007F]/g, "")
     .trim()
     .slice(0, 140);
-  const museumParam = url.searchParams.get("museum")?.trim().toLowerCase() || "";
+  const museumParam = url.searchParams.get("museum")?.trim() || "";
   const db = getDb();
   const sourceA = sourceFilter("a");
   const enabledMuseums = getEnabledMuseums();
@@ -106,7 +106,10 @@ export async function searchLoader(request: Request): Promise<SearchLoaderData> 
        ORDER BY ABS(color_r - ?) + ABS(color_g - ?) + ABS(color_b - ?)
        LIMIT ? OFFSET ?`
     ).all(...sourceA.params, ...(mf ? mf.params : []), colorTarget.r, colorTarget.g, colorTarget.b, PAGE_SIZE, 0) as SearchResult[];
-    return { query, museum, results: rows, total: rows.length, museumOptions, showMuseumBadge, searchMode: "color", cursor: nextCursor(rows.length), shouldAutoFocus };
+    if (rows.length > 0) {
+      return { query, museum, results: rows, total: rows.length, museumOptions, showMuseumBadge, searchMode: "color", cursor: nextCursor(rows.length), shouldAutoFocus };
+    }
+    // Fall through to CLIP if color search found nothing (e.g. museums without RGB data)
   }
 
   // CLIP semantic search
