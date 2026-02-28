@@ -10,7 +10,7 @@ import { buildImageUrl } from "../../../apps/web/app/lib/images";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = resolve(__dirname, "../kabinett.db");
 const BATCH = 100;
-const CONCURRENCY = 20;
+const CONCURRENCY = 3;
 const RETRIES = 2;
 const RETRY_BASE_DELAY_MS = 300;
 

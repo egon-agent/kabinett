@@ -1,7 +1,7 @@
 const SIZE_MAP = [
   { max: 200, shm: "thumbnail" },
   { max: 400, shm: "medium" },
-  { max: Infinity, shm: "full" },
+  { max: Infinity, shm: "medium" },
 ];
 
 /**
