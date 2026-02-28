@@ -91,28 +91,7 @@ export async function searchLoader(request: Request): Promise<SearchLoaderData> 
     return { query, museum, results, total: results.length, museumOptions, showMuseumBadge, searchMode: "clip", cursor: null, shouldAutoFocus };
   }
 
-  const colorTarget = COLOR_TERMS[query.toLowerCase()];
-  if (colorTarget) {
-    const rows = db.prepare(
-      `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
-              a.focal_x, a.focal_y,
-              m.name as museum_name
-       FROM artworks a
-       LEFT JOIN museums m ON m.id = a.source
-       WHERE a.color_r IS NOT NULL AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
-         AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-         AND ${sourceA.sql}
-         ${mf ? "AND " + mf.sql : ""}
-       ORDER BY ABS(color_r - ?) + ABS(color_g - ?) + ABS(color_b - ?)
-       LIMIT ? OFFSET ?`
-    ).all(...sourceA.params, ...(mf ? mf.params : []), colorTarget.r, colorTarget.g, colorTarget.b, PAGE_SIZE, 0) as SearchResult[];
-    if (rows.length > 0) {
-      return { query, museum, results: rows, total: rows.length, museumOptions, showMuseumBadge, searchMode: "color", cursor: nextCursor(rows.length), shouldAutoFocus };
-    }
-    // Fall through to CLIP if color search found nothing (e.g. museums without RGB data)
-  }
-
-  // CLIP semantic search
+  // CLIP semantic search (always first — understands intent, color, mood, everything)
   try {
     const clipResults = await clipSearch(query, PAGE_SIZE, 0, museum || undefined);
     if (clipResults.length > 0) {
