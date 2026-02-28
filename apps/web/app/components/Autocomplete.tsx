@@ -47,35 +47,44 @@ export default function Autocomplete({
   const [activeIndex, setActiveIndex] = useState(-1);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const submittedRef = useRef(query.trim().length > 0);
   const abortRef = useRef<AbortController | null>(null);
+  // Track whether the user is actively typing (vs programmatic query changes)
+  const userTypingRef = useRef(false);
   const listboxId = useId();
+
+  const killPending = useCallback(() => {
+    if (fetchTimer.current) { clearTimeout(fetchTimer.current); fetchTimer.current = null; }
+    if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
+  }, []);
 
   const closeDropdown = useCallback(() => {
     setIsOpen(false);
     setActiveIndex(-1);
   }, []);
 
-  const selectSuggestion = useCallback((value: string) => {
-    submittedRef.current = true;
-    if (fetchTimer.current) { clearTimeout(fetchTimer.current); fetchTimer.current = null; }
-    if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
-    onQueryChange(value);
+  const dismiss = useCallback(() => {
+    killPending();
+    setSuggestions([]);
     closeDropdown();
+  }, [killPending, closeDropdown]);
+
+  const selectSuggestion = useCallback((value: string) => {
+    userTypingRef.current = false;
+    dismiss();
+    onQueryChange(value);
     onSelect(value);
-  }, [closeDropdown, onQueryChange, onSelect]);
+  }, [dismiss, onQueryChange, onSelect]);
 
+  // Fetch suggestions only when user is typing
   useEffect(() => {
-    if (fetchTimer.current) {
-      clearTimeout(fetchTimer.current);
-      fetchTimer.current = null;
-    }
+    killPending();
 
-    submittedRef.current = false;
     const trimmed = query.trim();
-    if (trimmed.length < minLength) {
-      setSuggestions([]);
-      closeDropdown();
+    if (!userTypingRef.current || trimmed.length < minLength) {
+      if (trimmed.length < minLength) {
+        setSuggestions([]);
+        closeDropdown();
+      }
       return;
     }
 
@@ -86,32 +95,18 @@ export default function Autocomplete({
         const response = await fetch(`/api/autocomplete?q=${encodeURIComponent(trimmed)}`, {
           signal: controller.signal,
         });
-        if (!response.ok) {
-          throw new Error("Autocomplete request failed");
-        }
+        if (!response.ok) throw new Error("Autocomplete request failed");
         const data = await response.json() as Suggestion[];
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || !userTypingRef.current) return;
         setSuggestions(data);
-        if (data.length > 0 && !submittedRef.current) {
+        if (data.length > 0) {
           setIsOpen(true);
           setActiveIndex(-1);
         } else {
-          submittedRef.current = true;
-          if (fetchTimer.current) {
-            clearTimeout(fetchTimer.current);
-            fetchTimer.current = null;
-          }
-          if (abortRef.current) {
-            abortRef.current.abort();
-            abortRef.current = null;
-          }
-          setSuggestions([]);
           closeDropdown();
         }
       } catch (error: unknown) {
-        if ((error as { name?: string }).name === "AbortError") {
-          return;
-        }
+        if ((error as { name?: string }).name === "AbortError") return;
         setSuggestions([]);
         closeDropdown();
       }
@@ -119,12 +114,9 @@ export default function Autocomplete({
 
     return () => {
       controller.abort();
-      if (fetchTimer.current) {
-        clearTimeout(fetchTimer.current);
-        fetchTimer.current = null;
-      }
+      if (fetchTimer.current) { clearTimeout(fetchTimer.current); fetchTimer.current = null; }
     };
-  }, [closeDropdown, minLength, query]);
+  }, [closeDropdown, killPending, minLength, query]);
 
   useEffect(() => {
     return () => {
@@ -136,62 +128,38 @@ export default function Autocomplete({
   const inputProps: AutocompleteInputProps = {
     value: query,
     onChange: (event) => {
+      userTypingRef.current = true;
       onQueryChange(event.target.value);
     },
     onKeyDown: (event) => {
-      if (suggestions.length === 0) {
-        if (event.key === "Escape") {
-          closeDropdown();
-        }
-        return;
-      }
-
-      if (event.key === "ArrowDown") {
+      if (event.key === "ArrowDown" && suggestions.length > 0) {
         event.preventDefault();
         setIsOpen(true);
-        setActiveIndex((prev) => {
-          if (prev < 0) return 0;
-          return (prev + 1) % suggestions.length;
-        });
+        setActiveIndex((prev) => prev < 0 ? 0 : (prev + 1) % suggestions.length);
         return;
       }
-
-      if (event.key === "ArrowUp") {
+      if (event.key === "ArrowUp" && suggestions.length > 0) {
         event.preventDefault();
         setIsOpen(true);
-        setActiveIndex((prev) => {
-          if (prev < 0) return suggestions.length - 1;
-          return (prev - 1 + suggestions.length) % suggestions.length;
-        });
+        setActiveIndex((prev) => prev < 0 ? suggestions.length - 1 : (prev - 1 + suggestions.length) % suggestions.length);
         return;
       }
-
       if (event.key === "Enter") {
         if (isOpen && activeIndex >= 0) {
           event.preventDefault();
           selectSuggestion(suggestions[activeIndex].value);
         } else {
-          submittedRef.current = true;
-          if (fetchTimer.current) {
-            clearTimeout(fetchTimer.current);
-            fetchTimer.current = null;
-          }
-          if (abortRef.current) {
-            abortRef.current.abort();
-            abortRef.current = null;
-          }
-          setSuggestions([]);
-          closeDropdown();
+          userTypingRef.current = false;
+          dismiss();
         }
         return;
       }
-
       if (event.key === "Escape") {
-        closeDropdown();
+        dismiss();
       }
     },
     onFocus: () => {
-      if (suggestions.length > 0 && !submittedRef.current) {
+      if (suggestions.length > 0 && userTypingRef.current) {
         setIsOpen(true);
       }
     },
@@ -249,4 +217,3 @@ export default function Autocomplete({
     </div>
   );
 }
-
