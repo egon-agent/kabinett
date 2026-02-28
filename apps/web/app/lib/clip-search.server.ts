@@ -30,6 +30,7 @@ export type ClipResult = {
   similarity: number;
   museum_name: string | null;
   source: string | null;
+  sub_museum: string | null;
   focal_x: number | null;
   focal_y: number | null;
 };
@@ -45,6 +46,7 @@ type VectorRow = {
   dating_text: string | null;
   museum_name: string | null;
   source: string | null;
+  sub_museum: string | null;
   focal_x: number | null;
   focal_y: number | null;
 };
@@ -112,6 +114,7 @@ function runKnnQuery(
       a.artists,
       a.dating_text,
       a.source,
+      a.sub_museum,
       m.name as museum_name,
       a.focal_x,
       a.focal_y
@@ -142,7 +145,10 @@ export async function clipSearch(q: string, limit = 60, offset = 0, source?: str
     queryEmbedding.byteLength
   );
 
-  const effectiveSource = source?.trim() || null;
+  const effectiveFilter = source?.trim() || null;
+  const isSubMuseum = effectiveFilter?.startsWith("shm:");
+  const subMuseumName = isSubMuseum ? effectiveFilter!.slice(4) : null;
+  const effectiveSource = isSubMuseum ? "shm" : effectiveFilter;
   const desiredCount = offset + limit;
   const allowedSource = sourceFilter("a");
   let candidateK = Math.max(120, desiredCount * 3);
@@ -150,8 +156,11 @@ export async function clipSearch(q: string, limit = 60, offset = 0, source?: str
 
   for (let attempt = 0; attempt < 4; attempt++) {
     const rows = runKnnQuery(queryBuffer, candidateK, allowedSource);
-    filteredRows = effectiveSource
-      ? rows.filter((row) => row.source === effectiveSource)
+    filteredRows = effectiveFilter
+      ? rows.filter((row) => {
+          if (subMuseumName) return row.source === "shm" && row.sub_museum === subMuseumName;
+          return row.source === effectiveSource;
+        })
       : rows;
 
     if (filteredRows.length >= desiredCount || rows.length < candidateK) {
@@ -172,6 +181,7 @@ export async function clipSearch(q: string, limit = 60, offset = 0, source?: str
     similarity: clampSimilarityFromL2(row.distance),
     museum_name: row.museum_name ?? null,
     source: row.source ?? null,
+    sub_museum: row.sub_museum ?? null,
     focal_x: row.focal_x ?? null,
     focal_y: row.focal_y ?? null,
   }));

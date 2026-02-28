@@ -1,6 +1,6 @@
 import { clipSearch } from "../lib/clip-search.server";
 import { getDb } from "../lib/db.server";
-import { getEnabledMuseums, isMuseumEnabled, sourceFilter } from "../lib/museums.server";
+import { getEnabledMuseums, isMuseumEnabled, isValidMuseumFilter, museumFilterSql, getCollectionOptions, sourceFilter } from "../lib/museums.server";
 
 export type SearchMode = "fts" | "clip" | "color";
 export type MuseumOption = { id: string; name: string; count: number };
@@ -62,35 +62,16 @@ export async function searchLoader(request: Request): Promise<SearchLoaderData> 
   const sourceA = sourceFilter("a");
   const enabledMuseums = getEnabledMuseums();
 
-  let museumOptions: MuseumOption[] = [];
-  if (enabledMuseums.length > 0) {
-    const order = `CASE id ${enabledMuseums.map((id, i) => `WHEN '${id}' THEN ${i}`).join(" ")} END`;
-    const countRows = db.prepare(
-      `SELECT source as id, COUNT(*) as count
-       FROM artworks
-       WHERE source IN (${enabledMuseums.map(() => "?").join(",")})
-       GROUP BY source`
-    ).all(...enabledMuseums) as Array<{ id: string; count: number }>;
-    const countMap = new Map(countRows.map((row) => [row.id, row.count]));
-    const rows = db.prepare(
-      `SELECT id, name
-       FROM museums
-       WHERE enabled = 1 AND id IN (${enabledMuseums.map(() => "?").join(",")})
-       ORDER BY ${order}`
-    ).all(...enabledMuseums) as Array<{ id: string; name: string }>;
-    museumOptions = rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      count: countMap.get(row.id) ?? 0,
-    }));
-  }
+  const museumOptions: MuseumOption[] = getCollectionOptions();
 
   const showMuseumBadge = enabledMuseums.length > 1;
-  const museum = museumParam && isMuseumEnabled(museumParam) ? museumParam : "";
+  const museum = museumParam && isValidMuseumFilter(museumParam) ? museumParam : "";
 
   if (!query && !museum) {
     return { query, museum, results: [], total: 0, museumOptions, showMuseumBadge, searchMode: "clip", cursor: null, shouldAutoFocus };
   }
+
+  const mf = museumFilterSql(museum, 'a');
 
   if (!query && museum) {
     const randomSeed = Math.floor(Date.now() / 60_000);
@@ -103,10 +84,10 @@ export async function searchLoader(request: Request): Promise<SearchLoaderData> 
        WHERE a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
          AND a.id NOT IN (SELECT artwork_id FROM broken_images)
          AND ${sourceA.sql}
-         AND a.source = ?
+         AND ${mf!.sql}
        ORDER BY ((a.rowid * 1103515245 + ?) & 2147483647)
        LIMIT 60`
-    ).all(...sourceA.params, museum, randomSeed) as SearchResult[];
+    ).all(...sourceA.params, ...mf!.params, randomSeed) as SearchResult[];
     return { query, museum, results, total: results.length, museumOptions, showMuseumBadge, searchMode: "clip", cursor: null, shouldAutoFocus };
   }
 
@@ -121,10 +102,10 @@ export async function searchLoader(request: Request): Promise<SearchLoaderData> 
        WHERE a.color_r IS NOT NULL AND a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
          AND a.id NOT IN (SELECT artwork_id FROM broken_images)
          AND ${sourceA.sql}
-         ${museum ? "AND a.source = ?" : ""}
+         ${mf ? "AND " + mf.sql : ""}
        ORDER BY ABS(color_r - ?) + ABS(color_g - ?) + ABS(color_b - ?)
        LIMIT ? OFFSET ?`
-    ).all(...sourceA.params, ...(museum ? [museum] : []), colorTarget.r, colorTarget.g, colorTarget.b, PAGE_SIZE, 0) as SearchResult[];
+    ).all(...sourceA.params, ...(mf ? mf.params : []), colorTarget.r, colorTarget.g, colorTarget.b, PAGE_SIZE, 0) as SearchResult[];
     return { query, museum, results: rows, total: rows.length, museumOptions, showMuseumBadge, searchMode: "color", cursor: nextCursor(rows.length), shouldAutoFocus };
   }
 
@@ -165,9 +146,9 @@ export async function searchLoader(request: Request): Promise<SearchLoaderData> 
          AND LENGTH(a.iiif_url) > 40
          AND a.id NOT IN (SELECT artwork_id FROM broken_images)
          AND ${sourceA.sql}
-         ${museum ? "AND a.source = ?" : ""}
+         ${mf ? "AND " + mf.sql : ""}
        ORDER BY rank LIMIT ? OFFSET ?`
-    ).all(ftsQuery, ...sourceA.params, ...(museum ? [museum] : []), PAGE_SIZE, 0) as SearchResult[];
+    ).all(ftsQuery, ...sourceA.params, ...(mf ? mf.params : []), PAGE_SIZE, 0) as SearchResult[];
     total = (db.prepare(
       `SELECT COUNT(*) as count
        FROM artworks_fts JOIN artworks a ON a.id = artworks_fts.rowid
@@ -176,8 +157,8 @@ export async function searchLoader(request: Request): Promise<SearchLoaderData> 
          AND LENGTH(a.iiif_url) > 40
          AND a.id NOT IN (SELECT artwork_id FROM broken_images)
          AND ${sourceA.sql}
-         ${museum ? "AND a.source = ?" : ""}`
-    ).get(ftsQuery, ...sourceA.params, ...(museum ? [museum] : [])) as { count: number }).count;
+         ${mf ? "AND " + mf.sql : ""}`
+    ).get(ftsQuery, ...sourceA.params, ...(mf ? mf.params : [])) as { count: number }).count;
   } catch {
     const like = `%${query}%`;
     results = db.prepare(
@@ -191,9 +172,9 @@ export async function searchLoader(request: Request): Promise<SearchLoaderData> 
          AND LENGTH(a.iiif_url) > 40
          AND a.id NOT IN (SELECT artwork_id FROM broken_images)
          AND ${sourceA.sql}
-         ${museum ? "AND a.source = ?" : ""}
+         ${mf ? "AND " + mf.sql : ""}
        LIMIT ? OFFSET ?`
-    ).all(like, like, ...sourceA.params, ...(museum ? [museum] : []), PAGE_SIZE, 0) as SearchResult[];
+    ).all(like, like, ...sourceA.params, ...(mf ? mf.params : []), PAGE_SIZE, 0) as SearchResult[];
     total = results.length;
   }
 
