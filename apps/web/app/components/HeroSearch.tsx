@@ -27,7 +27,9 @@ export default function HeroSearch({
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      goToSearch(query);
+      // Read directly from input to avoid stale state
+      const inputValue = inputRef.current?.value || query;
+      goToSearch(inputValue);
     },
     [query, goToSearch]
   );
