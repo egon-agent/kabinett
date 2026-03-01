@@ -141,7 +141,6 @@ export async function searchLoader(request: Request): Promise<SearchLoaderData> 
   }
   const results = merged.slice(0, PAGE_SIZE);
   const total = results.length;
-  }
 
-  return { query, museum, results, total, museumOptions, showMuseumBadge, searchMode: "fts", cursor: nextCursor(results.length), shouldAutoFocus };
+  return { query, museum, results, total, museumOptions, showMuseumBadge, searchMode: "clip", cursor: nextCursor(results.length), shouldAutoFocus };
 }
