@@ -1,5 +1,4 @@
 import { getDb } from "../lib/db.server";
-import { sourceFilter } from "../lib/museums.server";
 import type { Route } from "./+types/api.autocomplete";
 
 // CLIP-inspired suggestions — things that work great with semantic search
@@ -21,37 +20,28 @@ export async function loader({ request }: Route.LoaderArgs) {
   if (q.length < 1) return Response.json([]);
 
   const db = getDb();
-  const sourceA = sourceFilter("a");
-
   const results: Array<{ value: string; type: string; count?: number }> = [];
 
-  // 1. Artist matches — sorted by number of works
+  // 1. Artist matches from pre-computed artists table
   if (q.length >= 2) {
     try {
       const artists = db.prepare(
-        `SELECT json_extract(value, '$.name') as name, COUNT(*) as count
-         FROM artworks a, json_each(a.artists)
-         WHERE a.artists IS NOT NULL AND a.artists != '[]'
-           AND json_extract(value, '$.name') LIKE ?
-           AND json_extract(value, '$.name') NOT LIKE '%känd%'
-           AND ${sourceA.sql}
-         GROUP BY name
-         ORDER BY count DESC
+        `SELECT name, artwork_count as count
+         FROM artists
+         WHERE name LIKE ?
+           AND name NOT LIKE '%känd%'
+         ORDER BY artwork_count DESC
          LIMIT 4`
-      ).all(`%${q}%`, ...sourceA.params) as Array<{ name: string; count: number }>;
+      ).all(`%${q}%`) as Array<{ name: string; count: number }>;
 
       for (const artist of artists) {
-        if (artist.name) {
-          results.push({
-            value: artist.name,
-            type: "artist",
-            count: artist.count,
-          });
-        }
+        results.push({
+          value: artist.name,
+          type: "artist",
+          count: artist.count,
+        });
       }
-    } catch (_) {
-      // JSON parsing can fail on malformed rows
-    }
+    } catch (_) {}
   }
 
   // 2. CLIP suggestions that match what the user is typing
@@ -64,7 +54,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     results.push({ value: suggestion, type: "clip" });
   }
 
-  // 3. If very few results so far, show some random CLIP suggestions as inspiration
+  // 3. If very few results, show random CLIP suggestions as inspiration
   if (results.length < 3 && q.length <= 3) {
     const shuffled = CLIP_SUGGESTIONS
       .filter((s) => !matchingClip.includes(s))
