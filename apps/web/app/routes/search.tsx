@@ -195,6 +195,13 @@ export default function Search({ loaderData }: Route.ComponentProps) {
 
   const showResults = Boolean(query) || Boolean(museum);
   const showMuseumFilters = museumOptions.length > 1;
+
+  // Hide museum filters that have zero results for the current query
+  const resultMuseumNames = new Set(results.map((r) => r.museum_name).filter(Boolean));
+  const filteredMuseumOptions = query
+    ? museumOptions.filter((opt) => resultMuseumNames.has(opt.name))
+    : museumOptions;
+
   const buildSearchUrl = (museumId?: string) => {
     const params = new URLSearchParams();
     if (query) params.set("q", query);
@@ -225,7 +232,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
               >
                 Alla
               </a>
-              {museumOptions.map((option: MuseumOption) => (
+              {filteredMuseumOptions.map((option: MuseumOption) => (
                 <a
                   key={option.id}
                   href={buildSearchUrl(option.id)}

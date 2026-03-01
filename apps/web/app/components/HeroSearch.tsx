@@ -46,7 +46,7 @@ export default function HeroSearch({
         dropdownClassName="absolute left-0 right-0 top-full mt-1 z-50 max-w-lg mx-auto bg-[#1C1916] rounded-xl shadow-lg border border-[rgba(245,240,232,0.1)] overflow-hidden"
       >
         {({ inputProps }) => (
-          <form onSubmit={handleSubmit} className="mt-4 md:mt-5 max-w-lg mx-auto">
+          <form action="/search" method="get" onSubmit={handleSubmit} className="mt-4 md:mt-5 max-w-lg mx-auto">
             <label htmlFor="hero-search" className="sr-only">
               Sök bland konstverk
             </label>
@@ -68,6 +68,7 @@ export default function HeroSearch({
                 {...inputProps}
                 ref={inputRef}
                 id="hero-search"
+                name="q"
                 type="search"
                 placeholder="porträtt, blå himmel, stilleben…"
                 className="flex-1 bg-transparent text-[#F5F0E8] placeholder:text-[rgba(245,240,232,0.35)] text-[1rem] md:text-[1.05rem] px-0 py-0 border-none outline-none [&::-webkit-search-cancel-button]:hidden"
