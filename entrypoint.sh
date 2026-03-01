@@ -20,5 +20,25 @@ if [ ! -f /data/kabinett.db ]; then
     cp /app/test-kabinett.db /data/kabinett.db
   fi
 fi
+
+# Ensure artists table exists (for fast autocomplete)
+if command -v sqlite3 > /dev/null 2>&1; then
+  HAS_ARTISTS=$(sqlite3 /data/kabinett.db "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='artists';" 2>/dev/null)
+  if [ "$HAS_ARTISTS" = "0" ] || [ -z "$HAS_ARTISTS" ]; then
+    echo "Creating artists table..."
+    sqlite3 /data/kabinett.db "
+      CREATE TABLE IF NOT EXISTS artists (name TEXT NOT NULL PRIMARY KEY, artwork_count INTEGER NOT NULL DEFAULT 0);
+      INSERT OR REPLACE INTO artists (name, artwork_count)
+      SELECT json_extract(value, '\$.name') as name, COUNT(*) as artwork_count
+      FROM artworks, json_each(artworks.artists)
+      WHERE artists IS NOT NULL AND artists != '[]'
+        AND json_extract(value, '\$.name') IS NOT NULL
+        AND json_extract(value, '\$.name') != ''
+      GROUP BY name;
+    "
+    echo "Artists table created: $(sqlite3 /data/kabinett.db 'SELECT count(*) FROM artists;') entries"
+  fi
+fi
+
 echo "Starting Kabinett..."
 cd /app/apps/web && exec npx react-router-serve ./build/server/index.js
