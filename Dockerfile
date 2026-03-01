@@ -35,6 +35,7 @@ RUN pnpm install --frozen-lockfile --prod
 
 COPY --from=base /app/apps/web/build apps/web/build
 COPY --from=base /app/apps/web/public apps/web/public
+COPY --from=base /app/apps/web/app/lib/clip-projection.bin apps/web/build/server/clip-projection.bin
 
 # DB will be mounted as a volume at /data/kabinett.db
 # Create minimal fallback DB
