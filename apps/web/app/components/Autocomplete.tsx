@@ -2,6 +2,7 @@ import type React from "react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 type Suggestion = {
+  count?: number;
   value: string;
   type: string;
 };
@@ -30,8 +31,7 @@ type AutocompleteProps = {
 
 const TYPE_LABELS: Record<string, string> = {
   artist: "Konstnär",
-  title: "Verk",
-  category: "Kategori",
+  clip: "Prova",
 };
 
 export default function Autocomplete({
@@ -185,33 +185,80 @@ export default function Autocomplete({
           role="listbox"
           className={dropdownClassName || "absolute left-0 right-0 top-full mt-1 z-50 bg-[#1C1916] rounded-xl shadow-lg border border-[rgba(245,240,232,0.1)] overflow-hidden"}
         >
-          {suggestions.map((suggestion, index) => {
-            const isActive = index === activeIndex;
+          {(() => {
+            const artists = suggestions.filter(s => s.type === "artist");
+            const clips = suggestions.filter(s => s.type === "clip");
+            let globalIndex = 0;
             return (
-              <button
-                key={`${suggestion.type}-${suggestion.value}-${index}`}
-                type="button"
-                role="option"
-                aria-selected={isActive}
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  selectSuggestion(suggestion.value);
-                }}
-                onMouseEnter={() => setActiveIndex(index)}
-                className={[
-                  "w-full text-left px-4 py-3 text-sm flex justify-between cursor-pointer",
-                  "hover:bg-[#2E2820] focus-ring",
-                  isActive ? "bg-[#2E2820]" : "",
-                  index > 0 ? "border-t border-[rgba(245,240,232,0.05)]" : "",
-                ].join(" ")}
-              >
-                <span className="text-[#F5F0E8] truncate">{suggestion.value}</span>
-                <span className="text-xs text-[rgba(245,240,232,0.4)] ml-2 shrink-0">
-                  {TYPE_LABELS[suggestion.type] || ""}
-                </span>
-              </button>
+              <>
+                {artists.map((suggestion) => {
+                  const idx = globalIndex++;
+                  const isActive = idx === activeIndex;
+                  return (
+                    <button
+                      key={`${suggestion.type}-${suggestion.value}`}
+                      type="button"
+                      role="option"
+                      aria-selected={isActive}
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        selectSuggestion(suggestion.value);
+                      }}
+                      onMouseEnter={() => setActiveIndex(idx)}
+                      className={[
+                        "w-full text-left px-4 py-3 text-sm flex justify-between items-center cursor-pointer",
+                        "hover:bg-[#2E2820] focus-ring",
+                        isActive ? "bg-[#2E2820]" : "",
+                        idx > 0 ? "border-t border-[rgba(245,240,232,0.05)]" : "",
+                      ].join(" ")}
+                    >
+                      <span className="text-[#F5F0E8] truncate">{suggestion.value}</span>
+                      <span className="text-xs text-[rgba(245,240,232,0.35)] ml-2 shrink-0">
+                        {suggestion.count ? `${suggestion.count} verk` : "Konstnär"}
+                      </span>
+                    </button>
+                  );
+                })}
+                {clips.length > 0 && (
+                  <>
+                    {artists.length > 0 && (
+                      <div className="border-t border-[rgba(245,240,232,0.08)] px-4 pt-2.5 pb-1">
+                        <span className="text-[0.65rem] uppercase tracking-[0.15em] text-[rgba(245,240,232,0.3)]">Prova att söka på</span>
+                      </div>
+                    )}
+                    <div className={`flex flex-wrap gap-1.5 px-4 ${artists.length > 0 ? "pb-3 pt-1" : "py-3"}`}>
+                      {clips.map((suggestion) => {
+                        const idx = globalIndex++;
+                        const isActive = idx === activeIndex;
+                        return (
+                          <button
+                            key={`clip-${suggestion.value}`}
+                            type="button"
+                            role="option"
+                            aria-selected={isActive}
+                            onMouseDown={(event) => {
+                              event.preventDefault();
+                              selectSuggestion(suggestion.value);
+                            }}
+                            onMouseEnter={() => setActiveIndex(idx)}
+                            className={[
+                              "px-3 py-1.5 rounded-full text-sm cursor-pointer transition-colors",
+                              "hover:bg-[#2E2820] focus-ring",
+                              isActive
+                                ? "bg-[#2E2820] text-[#F5F0E8]"
+                                : "bg-[rgba(245,240,232,0.06)] text-[rgba(245,240,232,0.55)]",
+                            ].join(" ")}
+                          >
+                            {suggestion.value}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </>
             );
-          })}
+          })()}
         </div>
       ) : null}
     </div>

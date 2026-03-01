@@ -2,6 +2,15 @@ import { getDb } from "../lib/db.server";
 import { sourceFilter } from "../lib/museums.server";
 import type { Route } from "./+types/api.autocomplete";
 
+// CLIP-inspired suggestions — things that work great with semantic search
+const CLIP_SUGGESTIONS = [
+  "katter", "hundar", "hästar", "blommor", "solnedgång", "snö", "havet",
+  "barn", "dans", "musik", "krig", "guld", "naket", "mat", "frukt",
+  "skog", "berg", "båtar", "fåglar", "natt", "vinter", "sommar",
+  "rött", "blått", "porträtt", "stilleben", "ruiner", "kaniner",
+  "skulpturer", "hattar", "skepp", "telefoner", "trädgård", "kyrka",
+];
+
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const q = (url.searchParams.get("q") || "")
@@ -9,79 +18,62 @@ export async function loader({ request }: Route.LoaderArgs) {
     .trim()
     .slice(0, 80);
 
-  if (q.length < 2) return Response.json([]);
+  if (q.length < 1) return Response.json([]);
 
   const db = getDb();
-  const source = sourceFilter();
   const sourceA = sourceFilter("a");
 
-  try {
-    const ftsQuery = q
-      .split(/\s+/)
-      .map((word) => word.replace(/"/g, "").trim())
-      .filter(Boolean)
-      .map((word) => `"${word}"*`)
-      .join(" ");
+  const results: Array<{ value: string; type: string; count?: number }> = [];
 
-    if (!ftsQuery) {
-      return Response.json([]);
-    }
-
-    // Get matching artworks with context
-    const rows = db
-      .prepare(
-        `SELECT a.title_sv as title, a.artists, a.category
-         FROM artworks_fts
-         JOIN artworks a ON a.id = artworks_fts.rowid
-         WHERE artworks_fts MATCH ?
+  // 1. Artist matches — sorted by number of works
+  if (q.length >= 2) {
+    try {
+      const artists = db.prepare(
+        `SELECT json_extract(value, '$.name') as name, COUNT(*) as count
+         FROM artworks a, json_each(a.artists)
+         WHERE a.artists IS NOT NULL AND a.artists != '[]'
+           AND json_extract(value, '$.name') LIKE ?
+           AND json_extract(value, '$.name') NOT LIKE '%känd%'
            AND ${sourceA.sql}
-         ORDER BY rank
-         LIMIT 20`
-      )
-      .all(ftsQuery, ...sourceA.params) as any[];
+         GROUP BY name
+         ORDER BY count DESC
+         LIMIT 4`
+      ).all(`%${q}%`, ...sourceA.params) as Array<{ name: string; count: number }>;
 
-    // Extract unique artists and categories
-    const seen = new Set<string>();
-    const results: Array<{ value: string; type: string }> = [];
-
-    for (const row of rows) {
-      // Artists
-      try {
-        const artists = JSON.parse(row.artists || "[]");
-        const name = artists[0]?.name;
-        if (name && name.toLowerCase().includes(q.toLowerCase()) && !seen.has(`a:${name}`)) {
-          seen.add(`a:${name}`);
-          results.push({ value: name, type: "artist" });
+      for (const artist of artists) {
+        if (artist.name) {
+          results.push({
+            value: artist.name,
+            type: "artist",
+            count: artist.count,
+          });
         }
-      } catch (_) {
-        // artists JSON can be malformed on legacy rows; skip safely
       }
-
-      // Titles
-      if (row.title && !seen.has(`t:${row.title}`) && results.filter(r => r.type === "title").length < 4) {
-        seen.add(`t:${row.title}`);
-        results.push({ value: row.title, type: "title" });
-      }
+    } catch (_) {
+      // JSON parsing can fail on malformed rows
     }
-
-    // Categories
-    const cats = db.prepare(
-      `SELECT DISTINCT category as value
-       FROM artworks
-       WHERE category LIKE ?
-         AND ${source.sql}
-       LIMIT 2`
-    ).all(`%${q}%`, ...source.params) as any[];
-    for (const c of cats) {
-      if (c.value && !seen.has(`c:${c.value}`)) {
-        seen.add(`c:${c.value}`);
-        results.push({ value: c.value.split(" (")[0], type: "category" });
-      }
-    }
-
-    return Response.json(results.slice(0, 8));
-  } catch (err) {
-    console.error(err);
-    return Response.json([], { headers: { "X-Error": "1" } });
   }
+
+  // 2. CLIP suggestions that match what the user is typing
+  const qLower = q.toLowerCase();
+  const matchingClip = CLIP_SUGGESTIONS
+    .filter((s) => s.startsWith(qLower) || s.includes(qLower))
+    .slice(0, 3);
+
+  for (const suggestion of matchingClip) {
+    results.push({ value: suggestion, type: "clip" });
+  }
+
+  // 3. If very few results so far, show some random CLIP suggestions as inspiration
+  if (results.length < 3 && q.length <= 3) {
+    const shuffled = CLIP_SUGGESTIONS
+      .filter((s) => !matchingClip.includes(s))
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 3 - results.filter(r => r.type === "clip").length);
+    for (const s of shuffled) {
+      results.push({ value: s, type: "clip" });
+    }
+  }
+
+  return Response.json(results.slice(0, 7));
 }
