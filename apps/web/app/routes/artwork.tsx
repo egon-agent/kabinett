@@ -132,7 +132,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   const sourceA = sourceFilter("a");
   const row = db
     .prepare(
-      `SELECT a.*, m.name as museum_name, m.url as museum_url
+      `SELECT a.*, COALESCE(a.sub_museum, m.name) as museum_name, m.url as museum_url
        FROM artworks a
        LEFT JOIN museums m ON m.id = a.source
        WHERE a.id = ? AND ${sourceA.sql}`

@@ -99,7 +99,7 @@ export async function fetchFeed(options: {
       .prepare(
         `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
                 a.focal_x, a.focal_y,
-                m.name as museum_name,
+                COALESCE(a.sub_museum, m.name) as museum_name,
                 artworks_fts.rank as relevance
          FROM artworks_fts
          JOIN artworks a ON a.id = artworks_fts.rowid
@@ -158,7 +158,7 @@ export async function fetchFeed(options: {
       const rows = db.prepare(
         `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
                 a.focal_x, a.focal_y,
-                m.name as museum_name
+                COALESCE(a.sub_museum, m.name) as museum_name
          FROM artworks a
          LEFT JOIN museums m ON m.id = a.source
          WHERE a.source = ?
@@ -242,7 +242,7 @@ export async function fetchFeed(options: {
     .prepare(
       `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
               a.focal_x, a.focal_y,
-              m.name as museum_name
+              COALESCE(a.sub_museum, m.name) as museum_name
        FROM ${fromClause}
        LEFT JOIN museums m ON m.id = a.source
        WHERE ${baseWhere}${cursorWhere}

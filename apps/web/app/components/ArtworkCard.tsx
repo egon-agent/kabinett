@@ -86,7 +86,7 @@ const FeedArtworkCard = React.memo(function FeedArtworkCard({
         <p className="text-[0.85rem] lg:text-[0.9rem] text-[rgba(255,255,255,0.75)]">
           {artworkArtist(item)}
         </p>
-        {showMuseumBadge && item.museum_name && item.museum_name !== "Statens historiska museer" && (
+        {showMuseumBadge && item.museum_name && (
           <p className="text-[0.75rem] text-[rgba(255,255,255,0.45)] mt-[0.2rem]">
             {item.museum_name}
           </p>

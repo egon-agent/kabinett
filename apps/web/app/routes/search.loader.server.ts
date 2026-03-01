@@ -78,7 +78,7 @@ export async function searchLoader(request: Request): Promise<SearchLoaderData> 
     const results = db.prepare(
       `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
               a.focal_x, a.focal_y,
-              m.name as museum_name
+              COALESCE(a.sub_museum, m.name) as museum_name
        FROM artworks a
        LEFT JOIN museums m ON m.id = a.source
        WHERE a.iiif_url IS NOT NULL AND LENGTH(a.iiif_url) > 40
@@ -113,7 +113,7 @@ export async function searchLoader(request: Request): Promise<SearchLoaderData> 
       ftsResults = db.prepare(
         `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
                 a.focal_x, a.focal_y,
-                m.name as museum_name
+                COALESCE(a.sub_museum, m.name) as museum_name
          FROM artworks_fts
          JOIN artworks a ON a.id = artworks_fts.rowid
          LEFT JOIN museums m ON m.id = a.source

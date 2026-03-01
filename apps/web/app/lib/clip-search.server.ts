@@ -115,7 +115,7 @@ function runKnnQuery(
       a.dating_text,
       a.source,
       a.sub_museum,
-      m.name as museum_name,
+      COALESCE(a.sub_museum, m.name) as museum_name,
       a.focal_x,
       a.focal_y
     FROM vec_artworks v
