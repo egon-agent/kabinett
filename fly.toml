@@ -25,7 +25,7 @@ primary_region = "arn"
     grace_period = "600s"
 
 [[vm]]
-  memory = "2gb"
+  memory = "4gb"
   cpu_kind = "shared"
   cpus = 1
 
