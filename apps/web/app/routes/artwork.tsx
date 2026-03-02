@@ -154,10 +154,12 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 
   const collectionName = row.sub_museum || row.museum_name || null;
   const museumName = row.museum_name || "Museum";
-  const museumSiteUrl = row.source === "nationalmuseum"
-    ? "https://www.nationalmuseum.se"
-    : row.source === "shm"
-      ? "https://samlingar.shm.se"
+  // Build deep link to the specific artwork on the museum's website
+  const inventoryClean = (row.inventory_number || "").replace(/^(nordiska:|shm:)/, "");
+  const museumSiteUrl = row.source === "nationalmuseum" && inventoryClean
+    ? `https://collection.nationalmuseum.se/eMP/eMuseumPlus?service=ExternalInterface&module=collection&viewType=detailView&objectId=${encodeURIComponent(inventoryClean)}`
+    : row.source === "shm" && inventoryClean
+      ? `https://samlingar.shm.se/object/${encodeURIComponent(inventoryClean)}`
       : row.source === "nordiska"
         ? "https://www.nordiskamuseet.se"
         : row.museum_url || null;
@@ -376,16 +378,18 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
         )}
 
         {/* Details grid */}
-        <div className="grid grid-cols-2 gap-4 mt-5 pt-5 border-t border-linen">
-          {artwork.datingText && <Detail label={artwork.datingType || "Datering"} value={artwork.datingText} />}
-          {artwork.category && <Detail label="Kategori" value={artwork.category} />}
-          {artwork.techniqueMaterial && <Detail label="Teknik" value={artwork.techniqueMaterial} />}
-          {artwork.dimensions && <Detail label="Mått" value={artwork.dimensions} />}
-          {artwork.acquisitionYear && <Detail label="Förvärvad" value={String(artwork.acquisitionYear)} />}
-          {artwork.objectType && <Detail label="Objekttyp" value={artwork.objectType} />}
-          {artwork.style && <Detail label="Stil" value={artwork.style} />}
-          {artwork.motiveCategory && <Detail label="Motiv" value={artwork.motiveCategory} />}
-        </div>
+        {(artwork.datingText || artwork.category || artwork.techniqueMaterial || artwork.dimensions || artwork.acquisitionYear || artwork.objectType || artwork.style || artwork.motiveCategory) && (
+          <div className="grid grid-cols-2 gap-4 mt-5 pt-5 border-t border-linen">
+            {artwork.datingText && <Detail label={artwork.datingType || "Datering"} value={artwork.datingText} />}
+            {artwork.category && <Detail label="Kategori" value={artwork.category} />}
+            {artwork.techniqueMaterial && <Detail label="Teknik" value={artwork.techniqueMaterial} />}
+            {artwork.dimensions && <Detail label="Mått" value={artwork.dimensions} />}
+            {artwork.acquisitionYear && <Detail label="Förvärvad" value={String(artwork.acquisitionYear)} />}
+            {artwork.objectType && <Detail label="Objekttyp" value={artwork.objectType} />}
+            {artwork.style && <Detail label="Stil" value={artwork.style} />}
+            {artwork.motiveCategory && <Detail label="Motiv" value={artwork.motiveCategory} />}
+          </div>
+        )}
 
         {/* Description */}
         {descriptionSections.length > 0 && (
@@ -476,9 +480,6 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
             <button
               onClick={() => {
                 const artist = artwork.artists?.[0]?.name || "Okänd konstnär";
-  const { isFavorite, toggle } = useFavorites();
-  const saved = isFavorite(artwork.id);
-  const [pulsing, setPulsing] = useState(false);
                 const text = `${artwork.title} av ${artist}`;
                 const url = window.location.href;
                 if (navigator.share) {

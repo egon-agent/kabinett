@@ -53,4 +53,5 @@ export interface ArtworkRow {
   exhibitions_json: string | null;
   material_tags: string | null;
   technique_tags: string | null;
+  inventory_number: string | null;
 }
