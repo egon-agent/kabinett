@@ -6,7 +6,7 @@ import { parseArtist } from "../lib/parsing";
 import { getSiteStats } from "../lib/stats.server";
 
 export function headers() {
-  return { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" };
+  return { "Cache-Control": "public, max-age=300, stale-while-revalidate=600" };
 }
 
 export function meta() {
@@ -66,7 +66,7 @@ const COLLECTIONS: Collection[] = [
 ];
 
 let discoverCache: { expiresAt: number; data: any } | null = null;
-const DISCOVER_CACHE_TTL_MS = 60 * 1000;
+const DISCOVER_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 export async function loader() {
   const now = Date.now();
