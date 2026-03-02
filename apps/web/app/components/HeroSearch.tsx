@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import Autocomplete from "./Autocomplete";
 
@@ -12,6 +12,17 @@ export default function HeroSearch({
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Keep cursor at end on iOS when focusing an empty-looking input
+  const handleFocus = useCallback(() => {
+    const el = inputRef.current;
+    if (el && typeof el.setSelectionRange === "function") {
+      requestAnimationFrame(() => {
+        const len = el.value.length;
+        el.setSelectionRange(len, len);
+      });
+    }
+  }, []);
 
   const goToSearch = useCallback(
     (q: string) => {
@@ -69,6 +80,7 @@ export default function HeroSearch({
               <input
                 {...inputProps}
                 ref={inputRef}
+                onFocus={(e) => { inputProps.onFocus(); handleFocus(); }}
                 id="hero-search"
                 name="q"
                 type="search"
