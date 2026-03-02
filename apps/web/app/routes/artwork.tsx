@@ -161,7 +161,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     : row.source === "shm" && inventoryClean
       ? `https://samlingar.shm.se/object/${encodeURIComponent(inventoryClean)}`
       : row.source === "nordiska"
-        ? "https://www.nordiskamuseet.se"
+        ? null
         : row.museum_url || null;
   const ogImageUrl = row.iiif_url
     ? (row.source === "nationalmuseum" ? buildDirectImageUrl(row.iiif_url, 800) : row.iiif_url)
