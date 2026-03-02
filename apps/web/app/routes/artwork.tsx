@@ -1,5 +1,6 @@
 import type { Route } from "./+types/artwork";
 import { useMemo, useState } from "react";
+import { useFavorites } from "../lib/favorites";
 import { getDb, type ArtworkRow } from "../lib/db.server";
 import { buildImageUrl, buildDirectImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
@@ -13,6 +14,9 @@ export function meta({ data }: Route.MetaArgs) {
   if (!data?.artwork) return [{ title: "Konstverk — Kabinett" }];
   const { artwork } = data;
   const artist = artwork.artists?.[0]?.name || "Okänd konstnär";
+  const { isFavorite, toggle } = useFavorites();
+  const saved = isFavorite(artwork.id);
+  const [pulsing, setPulsing] = useState(false);
   const genitive = artwork.museumName ? `${artwork.museumName}${artwork.museumName.endsWith("s") ? "" : "s"}` : "Kabinett";
   const desc = `${artwork.title} av ${artist}${artwork.datingText ? `, ${artwork.datingText}` : ""}. Ur ${genitive} samling.`;
   return [
@@ -257,6 +261,9 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 export default function Artwork({ loaderData }: Route.ComponentProps) {
   const { artwork, similar, sameArtist, artistName } = loaderData;
   const artist = artwork.artists?.[0]?.name || "Okänd konstnär";
+  const { isFavorite, toggle } = useFavorites();
+  const saved = isFavorite(artwork.id);
+  const [pulsing, setPulsing] = useState(false);
   const descriptionSections = useMemo(() => parseDescriptionSections(artwork.description), [artwork.description]);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const canExpandDescription =
@@ -305,9 +312,34 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 
       {/* Info card — overlapping the image slightly */}
       <div className="-mt-8 mx-4 mb-0 p-6 bg-white rounded-2xl relative z-10 shadow-[0_2px_20px_rgba(0,0,0,0.06)] max-w-3xl mx-auto lg:mx-auto lg:px-8">
-        <h1 className="font-serif text-[1.5rem] lg:text-[2rem] font-bold text-charcoal leading-[1.3]">
-          {artwork.title}
-        </h1>
+        <div className="flex items-start gap-3">
+          <h1 className="font-serif text-[1.5rem] lg:text-[2rem] font-bold text-charcoal leading-[1.3] flex-1">
+            {artwork.title}
+          </h1>
+          <button
+            type="button"
+            aria-label={saved ? "Ta bort favorit" : "Spara som favorit"}
+            onClick={() => {
+              if (!saved) {
+                setPulsing(true);
+                window.setTimeout(() => setPulsing(false), 350);
+              }
+              toggle(artwork.id);
+            }}
+            className={[
+              "shrink-0 mt-1 w-10 h-10 rounded-full border inline-flex items-center justify-center cursor-pointer transition-[transform,background] ease-[ease] duration-[200ms]",
+              "focus-ring",
+              saved
+                ? "bg-[rgba(196,85,58,0.12)] border-[rgba(196,85,58,0.3)] text-[#C4553A]"
+                : "bg-[rgba(0,0,0,0.03)] border-[rgba(0,0,0,0.1)] text-stone hover:bg-[rgba(0,0,0,0.06)]",
+              pulsing ? "heart-pulse" : "",
+            ].join(" ")}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill={saved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+              <path d="M20.8 5.6c-1.4-1.6-3.9-1.6-5.3 0L12 9.1 8.5 5.6c-1.4-1.6-3.9-1.6-5.3 0-1.6 1.8-1.4 4.6.2 6.2L12 21l8.6-9.2c1.6-1.6 1.8-4.4.2-6.2z" />
+            </svg>
+          </button>
+        </div>
 
         {artwork.artists.length > 0 && (
           <p className="mt-2 text-base lg:text-[1.05rem]">
@@ -444,6 +476,9 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
             <button
               onClick={() => {
                 const artist = artwork.artists?.[0]?.name || "Okänd konstnär";
+  const { isFavorite, toggle } = useFavorites();
+  const saved = isFavorite(artwork.id);
+  const [pulsing, setPulsing] = useState(false);
                 const text = `${artwork.title} av ${artist}`;
                 const url = window.location.href;
                 if (navigator.share) {
