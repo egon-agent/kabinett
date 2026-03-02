@@ -156,9 +156,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   const museumName = row.museum_name || "Museum";
   // Build deep link to the specific artwork on the museum's website
   const inventoryClean = (row.inventory_number || "").replace(/^(nordiska:|shm:)/, "");
-  const museumSiteUrl = row.source === "nationalmuseum" && inventoryClean
-    ? `https://collection.nationalmuseum.se/eMP/eMuseumPlus?service=ExternalInterface&module=collection&viewType=detailView&objectId=${encodeURIComponent(inventoryClean)}`
-    : row.source === "shm" && inventoryClean
+  const museumSiteUrl = row.source === "shm" && inventoryClean
       ? `https://samlingar.shm.se/object/${encodeURIComponent(inventoryClean)}`
       : row.source === "nordiska"
         ? null
