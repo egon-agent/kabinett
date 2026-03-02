@@ -186,3 +186,13 @@ export async function clipSearch(q: string, limit = 60, offset = 0, source?: str
     focal_y: row.focal_y ?? null,
   }));
 }
+
+/** Pre-load the CLIP text model so the first search is instant */
+export function warmupClip(): void {
+  getTextExtractor()
+    .then(() => console.log("[CLIP] Model loaded and ready"))
+    .catch((err) => console.error("[CLIP] Warmup failed:", err));
+}
+
+// Auto-warmup on module import
+warmupClip();

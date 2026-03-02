@@ -1,3 +1,5 @@
+// Eagerly load CLIP model
+import "../lib/clip-search.server";
 import { THEMES } from "../lib/themes";
 import type { SpotlightCardData } from "../components/SpotlightCard";
 import type { StatsCardData } from "../components/StatsSection";
