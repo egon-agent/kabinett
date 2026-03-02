@@ -76,7 +76,7 @@ function getWikidataId(url: string) {
   return match ? match[0].toUpperCase() : "";
 }
 
-const EXTERNAL_FETCH_TIMEOUT_MS = 5_000;
+const EXTERNAL_FETCH_TIMEOUT_MS = 3_000;
 
 function isTimeoutError(err: unknown): boolean {
   return err instanceof DOMException && err.name === "AbortError";
@@ -94,7 +94,17 @@ async function fetchJsonWithTimeout(url: string) {
   }
 }
 
+// Simple in-memory wiki cache (survives across requests, cleared on redeploy)
+const wikiCache = new Map<string, { data: any; ts: number }>();
+const WIKI_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
+
 async function fetchWikiSummary(wikidataUrl: string, wikipediaUrl: string) {
+  const cacheKey = `${wikidataUrl}|${wikipediaUrl}`;
+  const cached = wikiCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < WIKI_CACHE_TTL_MS) {
+    return cached.data;
+  }
+
   const data: {
     description?: string;
     extract?: string;
@@ -146,6 +156,7 @@ async function fetchWikiSummary(wikidataUrl: string, wikipediaUrl: string) {
     }
   }
 
+  wikiCache.set(cacheKey, { data, ts: Date.now() });
   return data;
 }
 

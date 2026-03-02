@@ -63,8 +63,19 @@ body {
   100% { transform: scale(1); }
 }
 
+@keyframes searchSkeletonShimmer {
+  0% { background-position: -220% 0; }
+  100% { background-position: 220% 0; }
+}
+
 .heart-pulse {
   animation: heartPulse 0.35s ease-out;
+}
+
+.search-skeleton-shimmer {
+  background-image: linear-gradient(110deg, #252019 25%, #332b21 45%, #252019 65%);
+  background-size: 220% 100%;
+  animation: searchSkeletonShimmer 1.8s ease-in-out infinite;
 }
 
 .app-toast {

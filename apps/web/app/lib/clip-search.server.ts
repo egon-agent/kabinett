@@ -51,7 +51,70 @@ type VectorRow = {
   focal_y: number | null;
 };
 
+type QueryEmbeddingRow = {
+  embedding: Buffer;
+};
+
 let textExtractorPromise: Promise<any> | null = null;
+let queryCacheInitAttempted = false;
+let queryCacheWritable = false;
+let queryCacheWarningShown = false;
+
+function logQueryCacheWarning(error: unknown): void {
+  if (queryCacheWarningShown) return;
+  queryCacheWarningShown = true;
+  console.warn("[CLIP] Query embedding cache unavailable:", error);
+}
+
+function initQueryEmbeddingCache(): void {
+  if (queryCacheInitAttempted) return;
+  queryCacheInitAttempted = true;
+  const db = getDb();
+
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS query_embeddings (
+        query TEXT PRIMARY KEY,
+        embedding BLOB NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    queryCacheWritable = true;
+  } catch (error) {
+    queryCacheWritable = false;
+    logQueryCacheWarning(error);
+  }
+}
+
+function getCachedQueryEmbedding(query: string): Buffer | null {
+  const db = getDb();
+
+  try {
+    const row = db
+      .prepare("SELECT embedding FROM query_embeddings WHERE query = ?")
+      .get(query) as QueryEmbeddingRow | undefined;
+
+    return row?.embedding ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function storeQueryEmbedding(query: string, embedding: Buffer): void {
+  initQueryEmbeddingCache();
+  if (!queryCacheWritable) return;
+
+  const db = getDb();
+
+  try {
+    db
+      .prepare("INSERT OR REPLACE INTO query_embeddings (query, embedding) VALUES (?, ?)")
+      .run(query, embedding);
+  } catch (error) {
+    queryCacheWritable = false;
+    logQueryCacheWarning(error);
+  }
+}
 
 function normalize(vec: Float32Array): Float32Array {
   let sum = 0;
@@ -134,16 +197,23 @@ function runKnnQuery(
 }
 
 export async function clipSearch(q: string, limit = 60, offset = 0, source?: string): Promise<ClipResult[]> {
-  const textExtractor = await getTextExtractor();
-  const extracted = await textExtractor(q, { pooling: "mean", normalize: false });
-  const vec768 = new Float32Array(extracted.data);
-  const projected = projectTo512(vec768);
-  const queryEmbedding = normalize(projected);
-  const queryBuffer = Buffer.from(
-    queryEmbedding.buffer,
-    queryEmbedding.byteOffset,
-    queryEmbedding.byteLength
-  );
+  initQueryEmbeddingCache();
+  const queryKey = q.trim().toLowerCase();
+  let queryBuffer = getCachedQueryEmbedding(queryKey);
+
+  if (!queryBuffer) {
+    const textExtractor = await getTextExtractor();
+    const extracted = await textExtractor(q, { pooling: "mean", normalize: false });
+    const vec768 = new Float32Array(extracted.data);
+    const projected = projectTo512(vec768);
+    const queryEmbedding = normalize(projected);
+    queryBuffer = Buffer.from(
+      queryEmbedding.buffer,
+      queryEmbedding.byteOffset,
+      queryEmbedding.byteLength
+    );
+    storeQueryEmbedding(queryKey, queryBuffer);
+  }
 
   const effectiveFilter = source?.trim() || null;
   const isSubMuseum = effectiveFilter?.startsWith("shm:");

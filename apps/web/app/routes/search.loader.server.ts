@@ -81,37 +81,32 @@ function buildSnippet(result: SearchResult, query: string): string | null {
   return null;
 }
 
+export type SearchResultsPayload = {
+  results: SearchResult[];
+  total: number;
+  cursor: number | null;
+};
+
 export type SearchLoaderData = {
   query: string;
   museum: string;
-  results: SearchResult[];
-  total: number;
+  results: Promise<SearchResultsPayload>;
   museumOptions: MuseumOption[];
   showMuseumBadge: boolean;
   searchMode: SearchMode;
-  cursor: number | null;
   shouldAutoFocus: boolean;
 };
 
-export async function searchLoader(request: Request): Promise<SearchLoaderData> {
-  const url = new URL(request.url);
-  const shouldAutoFocus = url.searchParams.get("focus") === "1";
-  const query = (url.searchParams.get("q") || "")
-    .replace(/[\u0000-\u001F\u007F]/g, "")
-    .trim()
-    .slice(0, 140);
-  const museumParam = url.searchParams.get("museum")?.trim() || "";
+async function loadSearchResults(args: {
+  query: string;
+  museum: string;
+}): Promise<SearchResultsPayload> {
+  const { query, museum } = args;
   const db = getDb();
   const sourceA = sourceFilter("a");
-  const enabledMuseums = getEnabledMuseums();
-
-  const museumOptions: MuseumOption[] = getCollectionOptions();
-
-  const showMuseumBadge = enabledMuseums.length > 1;
-  const museum = museumParam && isValidMuseumFilter(museumParam) ? museumParam : "";
 
   if (!query && !museum) {
-    return { query, museum, results: [], total: 0, museumOptions, showMuseumBadge, searchMode: "clip", cursor: null, shouldAutoFocus };
+    return { results: [], total: 0, cursor: null };
   }
 
   const mf = museumFilterSql(museum, 'a');
@@ -131,7 +126,7 @@ export async function searchLoader(request: Request): Promise<SearchLoaderData> 
        ORDER BY ((a.rowid * 1103515245 + ?) & 2147483647)
        LIMIT 60`
     ).all(...sourceA.params, ...mf!.params, randomSeed) as SearchResult[];
-    return { query, museum, results, total: results.length, museumOptions, showMuseumBadge, searchMode: "clip", cursor: null, shouldAutoFocus };
+    return { results, total: results.length, cursor: null };
   }
 
   // CLIP semantic search first, then merge FTS results
@@ -232,5 +227,33 @@ export async function searchLoader(request: Request): Promise<SearchLoaderData> 
   const results = merged.slice(0, PAGE_SIZE);
   const total = results.length;
 
-  return { query, museum, results, total, museumOptions, showMuseumBadge, searchMode: "clip", cursor: nextCursor(results.length), shouldAutoFocus };
+  return {
+    results,
+    total,
+    cursor: nextCursor(results.length),
+  };
+}
+
+export function searchLoader(request: Request): SearchLoaderData {
+  const url = new URL(request.url);
+  const shouldAutoFocus = url.searchParams.get("focus") === "1";
+  const query = (url.searchParams.get("q") || "")
+    .replace(/[\u0000-\u001F\u007F]/g, "")
+    .trim()
+    .slice(0, 140);
+  const museumParam = url.searchParams.get("museum")?.trim() || "";
+  const enabledMuseums = getEnabledMuseums();
+  const museumOptions: MuseumOption[] = getCollectionOptions();
+  const showMuseumBadge = enabledMuseums.length > 1;
+  const museum = museumParam && isValidMuseumFilter(museumParam) ? museumParam : "";
+
+  return {
+    query,
+    museum,
+    results: loadSearchResults({ query, museum }),
+    museumOptions,
+    showMuseumBadge,
+    searchMode: "clip",
+    shouldAutoFocus,
+  };
 }

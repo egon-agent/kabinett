@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { Suspense, useState, useEffect, useRef, useCallback } from "react";
+import { Await, data, useNavigate } from "react-router";
 import type { Route } from "./+types/search";
 import Autocomplete from "../components/Autocomplete";
 import ArtworkCard from "../components/ArtworkCard";
 import type { ArtworkDisplayItem } from "../components/artwork-meta";
 import { buildImageUrl } from "../lib/images";
 import type { MatchType } from "../lib/search-types";
-import { searchLoader, type SearchResult, type SearchMode, type MuseumOption } from "./search.loader.server";
+import { searchLoader, type SearchLoaderData, type SearchResult, type SearchMode, type MuseumOption, type SearchResultsPayload } from "./search.loader.server";
 import { PAGE_SIZE } from "../lib/search-constants";
 
 export function headers() {
@@ -21,8 +21,22 @@ export function meta({ data }: Route.MetaArgs) {
   ];
 }
 
-export async function loader({ request }: Route.LoaderArgs) {
-  return searchLoader(request);
+export function loader({ request }: Route.LoaderArgs) {
+  return data(searchLoader(request));
+}
+
+function SearchResultsSkeleton() {
+  return (
+    <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-3 space-y-3">
+      {Array.from({ length: 10 }).map((_, index) => (
+        <div key={`search-skeleton-${index}`} className="break-inside-avoid">
+          <div className="relative overflow-hidden rounded-xl bg-[#252019] aspect-[3/4] animate-pulse">
+            <div className="absolute inset-0 search-skeleton-shimmer" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function toArtworkItem(result: SearchResult): ArtworkDisplayItem {
@@ -123,24 +137,26 @@ function SearchAutocompleteForm({
   );
 }
 
-export default function Search({ loaderData }: Route.ComponentProps) {
-  const {
-    query,
-    museum,
-    results: initialResults,
-    museumOptions,
-    showMuseumBadge,
-    searchMode,
-    cursor: initialCursor,
-    shouldAutoFocus,
-  } = loaderData;
+function SearchResultsPanel({
+  initialPayload,
+  query,
+  museum,
+  searchMode,
+  showMuseumBadge,
+}: {
+  initialPayload: SearchResultsPayload;
+  query: string;
+  museum: string;
+  searchMode: SearchMode;
+  showMuseumBadge: boolean;
+}) {
+  const { results: initialResults, cursor: initialCursor } = initialPayload;
   const displayQuery = query;
-  const [results, setResults] = useState<SearchResult[]>(initialResults as SearchResult[]);
+  const [results, setResults] = useState<SearchResult[]>(initialResults);
   const [loading, setLoading] = useState(false);
   const [cursor, setCursor] = useState<number | null>(initialCursor);
   const [hasMore, setHasMore] = useState(initialCursor !== null);
 
-  // Reset when query changes (SSR navigation)
   useEffect(() => {
     setResults(initialResults);
     setCursor(initialCursor);
@@ -194,14 +210,51 @@ export default function Search({ loaderData }: Route.ComponentProps) {
     return () => observer.disconnect();
   }, [loadMore]);
 
+  return (
+    <>
+      <p aria-live="polite" className="text-sm text-[rgba(245,240,232,0.55)] mb-6">
+        {results.length > 0
+          ? `${results.length}${hasMore ? "+" : ""} träffar${displayQuery ? ` för "${displayQuery}"` : ""}`
+          : `Inga träffar${displayQuery ? ` för "${displayQuery}"` : ""}`}
+      </p>
+      {results.length > 0 && (
+        <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-3 space-y-3">
+          {results.map((r) => (
+            <ArtworkCard
+              key={r.id}
+              item={toArtworkItem(r)}
+              showMuseumBadge={showMuseumBadge}
+              layout="search"
+              yearLabel={r.year || r.dating_text || null}
+              snippet={r.snippet || null}
+              matchType={r.matchType}
+            />
+          ))}
+        </div>
+      )}
+      {hasMore && (
+        <div ref={sentinelRef} className="text-center mt-8 py-4">
+          {loading && <p aria-live="polite" className="text-sm text-[rgba(245,240,232,0.55)]">Laddar fler…</p>}
+        </div>
+      )}
+    </>
+  );
+}
+
+export default function Search({ loaderData }: Route.ComponentProps) {
+  const typedLoaderData = loaderData as SearchLoaderData;
+  const {
+    query,
+    museum,
+    results: initialResultsPromise,
+    museumOptions,
+    showMuseumBadge,
+    searchMode,
+    shouldAutoFocus,
+  } = typedLoaderData;
+
   const showResults = Boolean(query) || Boolean(museum);
   const showMuseumFilters = museumOptions.length > 1;
-
-  // Hide museum filters that have zero results for the current query
-  const resultMuseumNames = new Set(results.map((r) => r.museum_name).filter(Boolean));
-  const filteredMuseumOptions = query
-    ? museumOptions.filter((opt) => resultMuseumNames.has(opt.name))
-    : museumOptions;
 
   const buildSearchUrl = (museumId?: string) => {
     const params = new URLSearchParams();
@@ -233,7 +286,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
               >
                 Alla
               </a>
-              {filteredMuseumOptions.map((option: MuseumOption) => (
+              {museumOptions.map((option: MuseumOption) => (
                 <a
                   key={option.id}
                   href={buildSearchUrl(option.id)}
@@ -268,31 +321,19 @@ export default function Search({ loaderData }: Route.ComponentProps) {
 
       {showResults && (
         <div className="px-(--spacing-page) pb-24 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-          <p aria-live="polite" className="text-sm text-[rgba(245,240,232,0.55)] mb-6">
-            {results.length > 0
-              ? `${results.length}${hasMore ? "+" : ""} träffar${displayQuery ? ` för "${displayQuery}"` : ""}`
-              : `Inga träffar${displayQuery ? ` för "${displayQuery}"` : ""}`}
-          </p>
-          {results.length > 0 && (
-            <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-3 space-y-3">
-              {results.map((r) => (
-                <ArtworkCard
-                  key={r.id}
-                  item={toArtworkItem(r)}
+          <Suspense fallback={<SearchResultsSkeleton />}>
+            <Await resolve={initialResultsPromise}>
+              {(initialPayload: SearchResultsPayload) => (
+                <SearchResultsPanel
+                  initialPayload={initialPayload}
+                  query={query}
+                  museum={museum}
+                  searchMode={searchMode}
                   showMuseumBadge={showMuseumBadge}
-                  layout="search"
-                  yearLabel={r.year || r.dating_text || null}
-                  snippet={r.snippet || null}
-                  matchType={r.matchType}
                 />
-              ))}
-            </div>
-          )}
-          {hasMore && (
-            <div ref={sentinelRef} className="text-center mt-8 py-4">
-              {loading && <p aria-live="polite" className="text-sm text-[rgba(245,240,232,0.55)]">Laddar fler…</p>}
-            </div>
-          )}
+              )}
+            </Await>
+          </Suspense>
         </div>
       )}
     </div>
