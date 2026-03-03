@@ -31,7 +31,8 @@ COPY --from=base /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml 
 COPY --from=base /app/apps/web/package.json apps/web/
 COPY --from=base /app/packages/data/package.json packages/data/
 
-RUN pnpm install --frozen-lockfile --prod && pnpm add -w tsx
+RUN pnpm install --frozen-lockfile --prod
+RUN npm install -g tsx
 
 COPY --from=base /app/packages/data/scripts/ packages/data/scripts/
 COPY --from=base /app/apps/web/build apps/web/build
