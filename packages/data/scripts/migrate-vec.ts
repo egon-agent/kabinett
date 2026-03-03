@@ -46,14 +46,14 @@ function main() {
     ).count;
     console.log(`   Embeddings att migrera: ${total}`);
 
-    const insertVec = db.prepare("INSERT INTO vec_artworks (rowid, embedding) VALUES (?, ?)");
+    const insertVec = db.prepare("INSERT INTO vec_artworks (embedding) VALUES (?)");
     const insertMap = db.prepare("INSERT INTO vec_artwork_map (vec_rowid, artwork_id) VALUES (?, ?)");
     let nextRowid = 1;
     const insertBatch = db.transaction((rows: EmbeddingRow[]) => {
       for (const row of rows) {
-        const rid = nextRowid++;
-        insertVec.run(rid, row.embedding);
-        insertMap.run(rid, row.artwork_id);
+        insertVec.run(row.embedding);
+        insertMap.run(nextRowid, row.artwork_id);
+        nextRowid++;
       }
     });
 
@@ -88,10 +88,10 @@ function main() {
         // Insert one by one on batch failure
         for (const row of rows) {
           try {
-            const rid = nextRowid++;
-            insertVec.run(rid, row.embedding);
-            insertMap.run(rid, row.artwork_id);
-          } catch { skipped++; nextRowid--; }
+            insertVec.run(row.embedding);
+            insertMap.run(nextRowid, row.artwork_id);
+            nextRowid++;
+          } catch { skipped++; }
         }
       }
       processed += rows.length;
