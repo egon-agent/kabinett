@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import {
   isRouteErrorResponse,
   Links,
@@ -13,6 +14,7 @@ import type { Route } from "./+types/root";
 import "./fonts.css";
 import "./app.css";
 import { useFavorites } from "./lib/favorites";
+import { initClientPerfLogging, logClientPerf } from "./lib/perf.client";
 
 export function headers() {
   return {
@@ -320,8 +322,52 @@ function BottomNav() {
 }
 
 export default function App() {
+  const location = useLocation();
   const navigation = useNavigation();
   const isNavigating = navigation.state === "loading";
+  const transitionStartRef = useRef<number | null>(null);
+  const transitionFromRef = useRef("");
+  const transitionToRef = useRef("");
+
+  useEffect(() => {
+    initClientPerfLogging();
+  }, []);
+
+  useEffect(() => {
+    const currentPath = `${location.pathname}${location.search}`;
+
+    if (navigation.state !== "idle") {
+      if (transitionStartRef.current === null) {
+        transitionStartRef.current = performance.now();
+        transitionFromRef.current = currentPath;
+        transitionToRef.current = navigation.location
+          ? `${navigation.location.pathname}${navigation.location.search}`
+          : currentPath;
+        logClientPerf("route.transition.start", {
+          from: transitionFromRef.current,
+          to: transitionToRef.current,
+        });
+      }
+      return;
+    }
+
+    if (transitionStartRef.current !== null) {
+      logClientPerf("route.transition.complete", {
+        from: transitionFromRef.current,
+        to: currentPath,
+        plannedTo: transitionToRef.current,
+        durationMs: Math.round((performance.now() - transitionStartRef.current) * 100) / 100,
+      });
+      transitionStartRef.current = null;
+      transitionFromRef.current = "";
+      transitionToRef.current = "";
+    }
+  }, [
+    location.pathname,
+    location.search,
+    navigation.location,
+    navigation.state,
+  ]);
 
   return (
     <>

@@ -32,6 +32,14 @@ let enabledMuseumsCacheTime = 0;
 const ENABLED_MUSEUMS_TTL_MS = 60 * 1000;
 let sourceFilterCacheKey = "";
 const sourceFilterCache = new Map<string, { sql: string; params: string[] }>();
+const COLLECTION_OPTIONS_TTL_MS = 60 * 1000;
+let collectionOptionsCache:
+  | {
+      key: string;
+      ts: number;
+      data: Array<{ id: string; name: string; count: number }>;
+    }
+  | null = null;
 
 export function getEnabledMuseums(): string[] {
   const now = Date.now();
@@ -110,8 +118,19 @@ export function sourceFilter(prefix?: string): { sql: string; params: string[] }
  * SHM is expanded into its sub-museums; others are single entries.
  */
 export function getCollectionOptions(): Array<{ id: string; name: string; count: number }> {
-  const db = getDb();
   const enabled = getEnabledMuseums();
+  const cacheKey = enabled.join(",");
+  const now = Date.now();
+
+  if (
+    collectionOptionsCache
+    && collectionOptionsCache.key === cacheKey
+    && now - collectionOptionsCache.ts < COLLECTION_OPTIONS_TTL_MS
+  ) {
+    return collectionOptionsCache.data;
+  }
+
+  const db = getDb();
   const options: Array<{ id: string; name: string; count: number }> = [];
 
   for (const museumId of enabled) {
@@ -136,6 +155,8 @@ export function getCollectionOptions(): Array<{ id: string; name: string; count:
       options.push({ id: museumId, name: info?.name || museumId, count: countRow.count });
     }
   }
+
+  collectionOptionsCache = { key: cacheKey, ts: now, data: options };
   return options;
 }
 

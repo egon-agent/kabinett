@@ -13,8 +13,9 @@ export type SiteStats = {
 let cachedStats: SiteStats | null = null;
 let cachedStatsTs = 0;
 const STATS_CACHE_TTL_MS = 300_000;
+let hasMaterializedStatsTables: boolean | null = null;
 
-function querySiteStats(db: Database.Database): SiteStats {
+function querySiteStatsLive(db: Database.Database): SiteStats {
   const source = sourceFilter();
   const sourceA = sourceFilter("a");
   const minYear = (db.prepare(`SELECT MIN(year_start) as c FROM artworks WHERE year_start > 0 AND ${source.sql}`).get(...source.params) as any).c as number | null;
@@ -36,6 +37,90 @@ function querySiteStats(db: Database.Database): SiteStats {
     maxYear,
     yearsSpan: minYear ? Math.max(0, currentYear - minYear) : 0,
   };
+}
+
+function materializedStatsTablesExist(db: Database.Database): boolean {
+  if (hasMaterializedStatsTables !== null) return hasMaterializedStatsTables;
+
+  const rows = db
+    .prepare(
+      `SELECT name
+       FROM sqlite_master
+       WHERE type = 'table'
+         AND name IN ('source_stats_materialized', 'source_collections_materialized', 'site_stats_materialized_meta')`
+    )
+    .all() as Array<{ name: string }>;
+
+  if (rows.length !== 3) {
+    hasMaterializedStatsTables = false;
+    return hasMaterializedStatsTables;
+  }
+
+  const meta = db
+    .prepare("SELECT refreshed_at FROM site_stats_materialized_meta WHERE id = 1")
+    .get() as { refreshed_at?: string } | undefined;
+
+  hasMaterializedStatsTables = Boolean(meta?.refreshed_at);
+  return hasMaterializedStatsTables;
+}
+
+function querySiteStatsMaterialized(db: Database.Database): SiteStats {
+  const source = sourceFilter();
+  const currentYear = new Date().getFullYear();
+
+  if (source.params.length === 0) {
+    return {
+      totalWorks: 0,
+      museums: 0,
+      paintings: 0,
+      minYear: null,
+      maxYear: null,
+      yearsSpan: 0,
+    };
+  }
+
+  const placeholders = source.params.map(() => "?").join(",");
+  const summary = db.prepare(
+    `SELECT
+       COALESCE(SUM(total_works), 0) as total_works,
+       COALESCE(SUM(paintings), 0) as paintings,
+       MIN(min_year) as min_year,
+       MAX(max_year) as max_year
+     FROM source_stats_materialized
+     WHERE source IN (${placeholders})`
+  ).get(...source.params) as {
+    total_works: number;
+    paintings: number;
+    min_year: number | null;
+    max_year: number | null;
+  };
+
+  const museumsRow = db.prepare(
+    `SELECT COUNT(DISTINCT collection_name) as c
+     FROM source_collections_materialized
+     WHERE source IN (${placeholders})`
+  ).get(...source.params) as { c: number };
+
+  return {
+    totalWorks: summary.total_works,
+    museums: museumsRow.c,
+    paintings: summary.paintings,
+    minYear: summary.min_year,
+    maxYear: summary.max_year,
+    yearsSpan: summary.min_year ? Math.max(0, currentYear - summary.min_year) : 0,
+  };
+}
+
+function querySiteStats(db: Database.Database): SiteStats {
+  if (!materializedStatsTablesExist(db)) {
+    return querySiteStatsLive(db);
+  }
+
+  try {
+    return querySiteStatsMaterialized(db);
+  } catch {
+    return querySiteStatsLive(db);
+  }
 }
 
 export function getSiteStats(db: Database.Database): SiteStats {

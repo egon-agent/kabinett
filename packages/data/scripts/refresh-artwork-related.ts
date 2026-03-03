@@ -1,0 +1,345 @@
+import Database from "better-sqlite3";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
+import * as sqliteVec from "sqlite-vec";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const DB_PATH = process.env.DATABASE_PATH || resolve(__dirname, "../kabinett.db");
+
+const DEFAULT_RECENT = 5000;
+const DEFAULT_NEIGHBOR_LIMIT = 12;
+const DEFAULT_K = 48;
+
+type ArtworkArtist = {
+  id: number;
+  artists: string | null;
+};
+
+type NeighborRow = {
+  neighbor_id: number;
+  distance: number | null;
+};
+
+type CliOptions = {
+  artistsOnly: boolean;
+  neighborsOnly: boolean;
+  allArtists: boolean;
+  allNeighbors: boolean;
+  recent: number;
+  neighborLimit: number;
+  k: number;
+  ids: number[];
+};
+
+function normalizeArtistName(name: string): string {
+  return name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function parseIds(raw: string): number[] {
+  return raw
+    .split(",")
+    .map((part) => Number.parseInt(part.trim(), 10))
+    .filter((id) => Number.isFinite(id) && id > 0);
+}
+
+function parsePositiveInt(raw: string | undefined, fallback: number): number {
+  if (!raw) return fallback;
+  const value = Number.parseInt(raw, 10);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function parseArgs(): CliOptions {
+  const args = process.argv.slice(2);
+  const artistsOnly = args.includes("--artists-only");
+  const neighborsOnly = args.includes("--neighbors-only");
+  const allArtists = args.includes("--all-artists");
+  const allNeighbors = args.includes("--all-neighbors");
+  const recentArg = args.find((arg) => arg.startsWith("--recent="));
+  const neighborLimitArg = args.find((arg) => arg.startsWith("--neighbor-limit="));
+  const kArg = args.find((arg) => arg.startsWith("--k="));
+  const idsArg = args.find((arg) => arg.startsWith("--ids="));
+
+  return {
+    artistsOnly,
+    neighborsOnly,
+    allArtists,
+    allNeighbors,
+    recent: parsePositiveInt(recentArg?.split("=")[1], DEFAULT_RECENT),
+    neighborLimit: parsePositiveInt(neighborLimitArg?.split("=")[1], DEFAULT_NEIGHBOR_LIMIT),
+    k: parsePositiveInt(kArg?.split("=")[1], DEFAULT_K),
+    ids: idsArg ? parseIds(idsArg.split("=")[1] || "") : [],
+  };
+}
+
+function ensureRelatedTables(db: Database.Database) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS artwork_artists (
+      artwork_id INTEGER NOT NULL REFERENCES artworks(id) ON DELETE CASCADE,
+      artist_name TEXT NOT NULL,
+      artist_name_norm TEXT NOT NULL,
+      position INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (artwork_id, artist_name_norm)
+    );
+
+    CREATE TABLE IF NOT EXISTS artwork_neighbors (
+      artwork_id INTEGER NOT NULL REFERENCES artworks(id) ON DELETE CASCADE,
+      neighbor_artwork_id INTEGER NOT NULL REFERENCES artworks(id) ON DELETE CASCADE,
+      rank INTEGER NOT NULL,
+      distance REAL,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (artwork_id, rank),
+      UNIQUE (artwork_id, neighbor_artwork_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_artwork_artists_norm ON artwork_artists(artist_name_norm);
+    CREATE INDEX IF NOT EXISTS idx_artwork_artists_artwork ON artwork_artists(artwork_id);
+    CREATE INDEX IF NOT EXISTS idx_artwork_neighbors_artwork ON artwork_neighbors(artwork_id, rank);
+    CREATE INDEX IF NOT EXISTS idx_artwork_neighbors_neighbor ON artwork_neighbors(neighbor_artwork_id);
+  `);
+}
+
+function rebuildArtworkArtists(db: Database.Database) {
+  const rows = db.prepare(
+    `SELECT id, artists FROM artworks
+     WHERE artists IS NOT NULL AND artists != ''`
+  ).all() as ArtworkArtist[];
+
+  const clear = db.prepare("DELETE FROM artwork_artists");
+  const insert = db.prepare(
+    `INSERT OR REPLACE INTO artwork_artists (artwork_id, artist_name, artist_name_norm, position)
+     VALUES (?, ?, ?, ?)`
+  );
+
+  let inserted = 0;
+  const write = db.transaction(() => {
+    clear.run();
+    for (const row of rows) {
+      let parsed: Array<{ name?: string | null }> = [];
+      try {
+        parsed = JSON.parse(row.artists || "[]");
+      } catch {
+        parsed = [];
+      }
+      if (!Array.isArray(parsed) || parsed.length === 0) continue;
+
+      const seen = new Set<string>();
+      for (let index = 0; index < parsed.length; index += 1) {
+        const candidate = parsed[index]?.name?.trim();
+        if (!candidate) continue;
+        const normalized = normalizeArtistName(candidate);
+        if (!normalized || seen.has(normalized)) continue;
+        insert.run(row.id, candidate, normalized, index);
+        seen.add(normalized);
+        inserted += 1;
+      }
+    }
+  });
+  write();
+  console.log(`✅ Rebuilt artwork_artists (${inserted} rows)`);
+}
+
+function selectRecentIds(db: Database.Database, recent: number): number[] {
+  const rows = db.prepare(
+    `SELECT id
+     FROM artworks
+     WHERE artists IS NOT NULL AND artists != ''
+     ORDER BY COALESCE(last_updated, 0) DESC, id DESC
+     LIMIT ?`
+  ).all(recent) as Array<{ id: number }>;
+  return rows.map((row) => row.id);
+}
+
+function upsertArtistsForIds(db: Database.Database, ids: number[]) {
+  if (ids.length === 0) {
+    console.log("ℹ️ No artwork ids to refresh in artwork_artists");
+    return;
+  }
+
+  const deleteByArtwork = db.prepare("DELETE FROM artwork_artists WHERE artwork_id = ?");
+  const selectById = db.prepare(
+    `SELECT id, artists
+     FROM artworks
+     WHERE id = ?
+       AND artists IS NOT NULL
+       AND artists != ''`
+  );
+  const insert = db.prepare(
+    `INSERT OR REPLACE INTO artwork_artists (artwork_id, artist_name, artist_name_norm, position)
+     VALUES (?, ?, ?, ?)`
+  );
+
+  let inserted = 0;
+  const write = db.transaction(() => {
+    for (const id of ids) {
+      deleteByArtwork.run(id);
+      const row = selectById.get(id) as ArtworkArtist | undefined;
+      if (!row) continue;
+
+      let parsed: Array<{ name?: string | null }> = [];
+      try {
+        parsed = JSON.parse(row.artists || "[]");
+      } catch {
+        parsed = [];
+      }
+      if (!Array.isArray(parsed) || parsed.length === 0) continue;
+
+      const seen = new Set<string>();
+      for (let index = 0; index < parsed.length; index += 1) {
+        const candidate = parsed[index]?.name?.trim();
+        if (!candidate) continue;
+        const normalized = normalizeArtistName(candidate);
+        if (!normalized || seen.has(normalized)) continue;
+        insert.run(row.id, candidate, normalized, index);
+        seen.add(normalized);
+        inserted += 1;
+      }
+    }
+  });
+
+  write();
+  console.log(`✅ Refreshed artwork_artists for ${ids.length} artworks (${inserted} rows)`);
+}
+
+function refreshArtworkArtists(db: Database.Database, options: CliOptions) {
+  if (options.allArtists) {
+    rebuildArtworkArtists(db);
+    return;
+  }
+
+  const existingCount = (db.prepare("SELECT COUNT(*) as c FROM artwork_artists").get() as { c: number }).c;
+  if (existingCount === 0) {
+    // First run bootstrap: build full index once.
+    rebuildArtworkArtists(db);
+    return;
+  }
+
+  const targetIds = options.ids.length > 0 ? options.ids : selectRecentIds(db, options.recent);
+  upsertArtistsForIds(db, targetIds);
+}
+
+function collectNeighborArtworkIds(db: Database.Database, options: CliOptions): number[] {
+  if (options.ids.length > 0) return options.ids;
+
+  if (options.allNeighbors) {
+    const all = db.prepare(
+      `SELECT a.id
+       FROM artworks a
+       JOIN clip_embeddings c ON c.artwork_id = a.id
+       WHERE a.iiif_url IS NOT NULL
+         AND LENGTH(a.iiif_url) > 40
+         AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+       ORDER BY a.id`
+    ).all() as Array<{ id: number }>;
+    return all.map((row) => row.id);
+  }
+
+  const recent = db.prepare(
+    `SELECT a.id
+     FROM artworks a
+     JOIN clip_embeddings c ON c.artwork_id = a.id
+     WHERE a.iiif_url IS NOT NULL
+       AND LENGTH(a.iiif_url) > 40
+       AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+     ORDER BY COALESCE(a.last_updated, 0) DESC, a.id DESC
+     LIMIT ?`
+  ).all(options.recent) as Array<{ id: number }>;
+
+  return recent.map((row) => row.id);
+}
+
+function rebuildArtworkNeighbors(db: Database.Database, options: CliOptions) {
+  const targetIds = collectNeighborArtworkIds(db, options);
+  if (targetIds.length === 0) {
+    console.log("ℹ️ No artwork ids to refresh in artwork_neighbors");
+    return;
+  }
+
+  const neighborLimit = Math.max(options.neighborLimit, 1);
+  const k = Math.max(options.k, neighborLimit * 2);
+  const candidateLimit = Math.max(neighborLimit * 3, neighborLimit);
+
+  const getNeighbors = db.prepare(
+    `SELECT
+       map.artwork_id AS neighbor_id,
+       v.distance AS distance
+     FROM vec_artworks v
+     JOIN vec_artwork_map map ON map.vec_rowid = v.rowid
+     JOIN artworks a ON a.id = map.artwork_id
+     WHERE v.embedding MATCH (
+         SELECT embedding FROM clip_embeddings WHERE artwork_id = ?
+       )
+       AND k = ?
+       AND map.artwork_id != ?
+       AND a.iiif_url IS NOT NULL
+       AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+     ORDER BY v.distance
+     LIMIT ?`
+  );
+
+  const clearNeighbors = db.prepare("DELETE FROM artwork_neighbors WHERE artwork_id = ?");
+  const insertNeighbor = db.prepare(
+    `INSERT OR REPLACE INTO artwork_neighbors
+      (artwork_id, neighbor_artwork_id, rank, distance, updated_at)
+     VALUES (?, ?, ?, ?, datetime('now'))`
+  );
+
+  const replaceNeighborsForArtwork = db.transaction((artworkId: number, neighbors: NeighborRow[]) => {
+    clearNeighbors.run(artworkId);
+    for (let index = 0; index < neighbors.length; index += 1) {
+      const neighbor = neighbors[index];
+      if (!neighbor) continue;
+      insertNeighbor.run(artworkId, neighbor.neighbor_id, index + 1, neighbor.distance);
+    }
+  });
+
+  let refreshed = 0;
+  let skipped = 0;
+  for (const artworkId of targetIds) {
+    try {
+      const neighbors = getNeighbors.all(artworkId, k, artworkId, candidateLimit) as NeighborRow[];
+      const top = neighbors.slice(0, neighborLimit);
+      if (top.length === 0) {
+        skipped += 1;
+        continue;
+      }
+      replaceNeighborsForArtwork(artworkId, top);
+      refreshed += 1;
+      if (refreshed % 250 === 0) {
+        console.log(`   Refreshed ${refreshed}/${targetIds.length} artworks...`);
+      }
+    } catch {
+      skipped += 1;
+    }
+  }
+
+  console.log(`✅ Rebuilt artwork_neighbors for ${refreshed} artworks (${skipped} skipped)`);
+}
+
+function main() {
+  const options = parseArgs();
+  const db = new Database(DB_PATH);
+  db.pragma("journal_mode = WAL");
+  db.pragma("synchronous = NORMAL");
+  db.pragma("foreign_keys = ON");
+  sqliteVec.load(db);
+
+  try {
+    ensureRelatedTables(db);
+    if (!options.neighborsOnly) {
+      refreshArtworkArtists(db, options);
+    }
+    if (!options.artistsOnly) {
+      rebuildArtworkNeighbors(db, options);
+    }
+  } finally {
+    db.close();
+  }
+}
+
+main();

@@ -10,6 +10,18 @@ const CLIP_SUGGESTIONS = [
   "skulpturer", "hattar", "skepp", "telefoner", "trädgård", "kyrka",
 ];
 
+let hasArtistsTable: boolean | null = null;
+
+function artistsTableExists(): boolean {
+  if (hasArtistsTable !== null) return hasArtistsTable;
+  const db = getDb();
+  const row = db
+    .prepare("SELECT 1 as ok FROM sqlite_master WHERE type = 'table' AND name = 'artists' LIMIT 1")
+    .get() as { ok?: number } | undefined;
+  hasArtistsTable = row?.ok === 1;
+  return hasArtistsTable;
+}
+
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const q = (url.searchParams.get("q") || "")
@@ -23,7 +35,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const results: Array<{ value: string; type: string; count?: number }> = [];
 
   // 1. Artist matches from pre-computed artists table
-  if (q.length >= 2) {
+  if (q.length >= 2 && artistsTableExists()) {
     try {
       const artists = db.prepare(
         `SELECT name, artwork_count as count
@@ -41,7 +53,9 @@ export async function loader({ request }: Route.LoaderArgs) {
           count: artist.count,
         });
       }
-    } catch (_) {}
+    } catch (_) {
+      hasArtistsTable = false;
+    }
   }
 
   // 2. CLIP suggestions that match what the user is typing

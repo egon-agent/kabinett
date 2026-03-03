@@ -1,5 +1,5 @@
 import type { Route } from "./+types/artwork";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useFavorites } from "../lib/favorites";
 import { getDb, type ArtworkRow } from "../lib/db.server";
 import { buildImageUrl, buildDirectImageUrl } from "../lib/images";
@@ -14,9 +14,6 @@ export function meta({ data }: Route.MetaArgs) {
   if (!data?.artwork) return [{ title: "Konstverk — Kabinett" }];
   const { artwork } = data;
   const artist = artwork.artists?.[0]?.name || "Okänd konstnär";
-  const { isFavorite, toggle } = useFavorites();
-  const saved = isFavorite(artwork.id);
-  const [pulsing, setPulsing] = useState(false);
   const genitive = artwork.museumName ? `${artwork.museumName}${artwork.museumName.endsWith("s") ? "" : "s"}` : "Kabinett";
   const desc = `${artwork.title} av ${artist}${artwork.datingText ? `, ${artwork.datingText}` : ""}. Ur ${genitive} samling.`;
   return [
@@ -69,6 +66,17 @@ function parseExhibitions(json: string | null): Array<{ title: string; venue: st
 type DescriptionSection = {
   heading: "Beskrivning" | "Proveniens" | "Utställningar" | "Litteratur";
   content: string;
+};
+
+type RelatedArtwork = {
+  id: number;
+  title_sv: string | null;
+  iiif_url: string;
+  dominant_color: string | null;
+  artists?: string | null;
+  dating_text?: string | null;
+  focal_x: number | null;
+  focal_y: number | null;
 };
 
 const DESCRIPTION_PREFIX = /^Beskrivning i inventariet:\s*/i;
@@ -132,7 +140,6 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   }
 
   const db = getDb();
-  const source = sourceFilter();
   const sourceA = sourceFilter("a");
   const row = db
     .prepare(
@@ -207,63 +214,21 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     techniqueTags: row.technique_tags || null,
   };
 
-  // Similar by CLIP embedding (semantic/visual similarity)
-  let similar: Array<{ id: number; title_sv: string | null; iiif_url: string; dominant_color: string | null; artists: string | null; dating_text: string | null; focal_x: number | null; focal_y: number | null }> = [];
-  try {
-    similar = db
-      .prepare(
-        `SELECT
-           map.artwork_id AS id,
-           a.title_sv,
-           a.iiif_url,
-           a.dominant_color,
-           a.artists,
-           a.dating_text,
-           a.focal_x,
-           a.focal_y
-         FROM vec_artworks v
-         JOIN vec_artwork_map map ON map.vec_rowid = v.rowid
-         JOIN artworks a ON a.id = map.artwork_id
-         WHERE v.embedding MATCH (
-             SELECT embedding FROM clip_embeddings WHERE artwork_id = ?
-           )
-           AND k = ?
-           AND map.artwork_id != ?
-           AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-           AND ${source.sql}
-         ORDER BY v.distance
-         LIMIT ?`
-      )
-      .all(row.id, 48, row.id, ...source.params, 8) as Array<{ id: number; title_sv: string | null; iiif_url: string; dominant_color: string | null; artists: string | null; dating_text: string | null; focal_x: number | null; focal_y: number | null }>;
-  } catch {
-    // Fall back to no similar
-  }
-
-  // Same artist
   const artistName = artists[0]?.name;
-  const knownArtist = artistName && !artistName.match(/^(okänd|unknown|anonym)/i);
-  const randomSeed = Math.floor(Date.now() / 60_000);
-  const sameArtist = knownArtist
-    ? (db.prepare(
-        `SELECT id, title_sv, iiif_url, dominant_color, dating_text, focal_x, focal_y
-         FROM artworks
-         WHERE id != ? AND artists LIKE ? AND iiif_url IS NOT NULL
-           AND id NOT IN (SELECT artwork_id FROM broken_images)
-           AND ${source.sql}
-         ORDER BY ((rowid * 1103515245 + ?) & 2147483647)
-         LIMIT 6`
-      ).all(row.id, `%${artistName}%`, ...source.params, randomSeed) as Array<{ id: number; title_sv: string | null; iiif_url: string; dominant_color: string | null; dating_text: string | null; focal_x: number | null; focal_y: number | null }>)
-    : [];
-
-  return { artwork, similar, sameArtist, artistName, canonicalUrl: `${url.origin}${url.pathname}` };
+  return { artwork, artistName, canonicalUrl: `${url.origin}${url.pathname}` };
 }
 
 export default function Artwork({ loaderData }: Route.ComponentProps) {
-  const { artwork, similar, sameArtist, artistName } = loaderData;
+  const { artwork, artistName } = loaderData;
   const artist = artwork.artists?.[0]?.name || "Okänd konstnär";
   const { isFavorite, toggle } = useFavorites();
   const saved = isFavorite(artwork.id);
   const [pulsing, setPulsing] = useState(false);
+  const [relatedLoading, setRelatedLoading] = useState(true);
+  const [related, setRelated] = useState<{ sameArtist: RelatedArtwork[]; similar: RelatedArtwork[] }>({
+    sameArtist: [],
+    similar: [],
+  });
   const descriptionSections = useMemo(() => parseDescriptionSections(artwork.description), [artwork.description]);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const canExpandDescription =
@@ -283,6 +248,37 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
     description: artwork.description || artwork.ogDescription || undefined,
     url: loaderData.canonicalUrl,
   };
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setRelatedLoading(true);
+    fetch(`/api/artwork-related?id=${artwork.id}`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json() as Promise<{ sameArtist?: RelatedArtwork[]; similar?: RelatedArtwork[] }>;
+      })
+      .then((payload) => {
+        if (controller.signal.aborted) return;
+        setRelated({
+          sameArtist: Array.isArray(payload.sameArtist) ? payload.sameArtist : [],
+          similar: Array.isArray(payload.similar) ? payload.similar : [],
+        });
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setRelated({ sameArtist: [], similar: [] });
+      })
+      .finally(() => {
+        if (controller.signal.aborted) return;
+        setRelatedLoading(false);
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [artwork.id]);
 
   return (
     <div className="min-h-screen pt-[3.5rem] bg-cream">
@@ -415,6 +411,10 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
             </div>
             {canExpandDescription && (
               <button
+                type="button"
+                title={isDescriptionExpanded ? "Visa mindre" : "Visa mer"}
+                aria-label={isDescriptionExpanded ? "Visa mindre" : "Visa mer"}
+                aria-expanded={isDescriptionExpanded}
                 onClick={() => setIsDescriptionExpanded((prev) => !prev)}
                 className="mt-3 text-[0.8rem] text-warm-gray hover:text-charcoal transition-colors focus-ring"
               >
@@ -502,13 +502,13 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
       </div>
 
       {/* Same artist section */}
-      {sameArtist.length > 0 && (
+      {!relatedLoading && related.sameArtist.length > 0 && (
         <section className="pt-10 px-4 md:px-6 lg:px-8 max-w-[50rem] lg:max-w-5xl mx-auto">
           <h2 className="font-serif text-[1.25rem] font-semibold text-charcoal">
             Mer av {artistName}
           </h2>
           <div className="flex gap-3 overflow-x-auto pt-4 pb-2 no-scrollbar lg:grid lg:grid-cols-4 lg:gap-4 lg:overflow-visible lg:pb-0">
-            {sameArtist.map((s: any) => (
+            {related.sameArtist.map((s) => (
               <a key={s.id} href={"/artwork/" + s.id} className="shrink-0 w-32 lg:w-auto rounded-xl overflow-hidden bg-linen no-underline focus-ring">
                 <div
                   className="aspect-[3/4] overflow-hidden"
@@ -536,20 +536,20 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
       )}
 
       {/* Similar colors */}
-      {similar.length > 0 && (
+      {!relatedLoading && related.similar.length > 0 && (
         <section className="pt-10 px-4 md:px-6 lg:px-8 max-w-[50rem] lg:max-w-5xl mx-auto">
           <h2 className="font-serif text-[1.25rem] font-semibold text-charcoal">
             Liknande verk
           </h2>
           <div className="flex gap-3 overflow-x-auto pt-4 pb-2 no-scrollbar lg:grid lg:grid-cols-4 lg:gap-4 lg:overflow-visible lg:pb-0">
-            {similar.map((s: any) => (
+            {related.similar.map((s) => (
               <a key={s.id} href={"/artwork/" + s.id} className="shrink-0 w-32 lg:w-auto rounded-xl overflow-hidden bg-linen no-underline focus-ring">
                 <div
                   className="aspect-[3/4] overflow-hidden"
                   style={{ backgroundColor: s.dominant_color || "#D4CDC3" }}
                 >
                   <img src={buildImageUrl(s.iiif_url, 400)}
-                    alt={`${s.title_sv || "Utan titel"} — ${parseArtist(s.artists)}`} width={400} height={534}
+                    alt={`${s.title_sv || "Utan titel"} — ${parseArtist(s.artists || null)}`} width={400} height={534}
                     loading="lazy"
                     decoding="async"
                     onError={(event) => {
@@ -562,7 +562,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                   <p className="text-[0.75rem] text-charcoal leading-[1.3] overflow-hidden line-clamp-2">
                     {s.title_sv || "Utan titel"}
                   </p>
-                  <p className="text-[0.65rem] text-warm-gray mt-[0.125rem]">{parseArtist(s.artists)}</p>
+                  <p className="text-[0.65rem] text-warm-gray mt-[0.125rem]">{parseArtist(s.artists || null)}</p>
                 </div>
               </a>
             ))}

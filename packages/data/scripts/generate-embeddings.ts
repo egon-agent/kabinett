@@ -16,6 +16,7 @@ import {
 } from "@xenova/transformers";
 import sharp from "sharp";
 import { externalImageUrl } from "../../../apps/web/app/lib/images";
+import * as sqliteVec from "sqlite-vec";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = resolve(__dirname, "../kabinett.db");
@@ -24,6 +25,8 @@ const CONCURRENCY = 32;
 const FETCH_RETRIES = 1;
 const FETCH_BACKOFF_MS = 500;
 const IMAGE_WIDTH = 400;
+const NEIGHBOR_LIMIT = 12;
+const NEIGHBOR_K = 48;
 
 type ArtworkRow = {
   id: number;
@@ -56,6 +59,7 @@ function initDb(): Database.Database {
   const db = new Database(DB_PATH);
   db.pragma("journal_mode = WAL");
   db.pragma("synchronous = NORMAL");
+  sqliteVec.load(db);
 
   ensureArtworkColumn(db, "focal_x", "REAL DEFAULT 0.5");
   ensureArtworkColumn(db, "focal_y", "REAL DEFAULT 0.5");
@@ -66,6 +70,16 @@ function initDb(): Database.Database {
       embedding BLOB
     );
     CREATE INDEX IF NOT EXISTS idx_clip_embeddings_artwork ON clip_embeddings(artwork_id);
+    CREATE TABLE IF NOT EXISTS artwork_neighbors (
+      artwork_id INTEGER NOT NULL REFERENCES artworks(id) ON DELETE CASCADE,
+      neighbor_artwork_id INTEGER NOT NULL REFERENCES artworks(id) ON DELETE CASCADE,
+      rank INTEGER NOT NULL,
+      distance REAL,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (artwork_id, rank),
+      UNIQUE (artwork_id, neighbor_artwork_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_artwork_neighbors_artwork ON artwork_neighbors(artwork_id, rank);
   `);
 
   return db;
@@ -171,8 +185,63 @@ function parseCleanFlag(): boolean {
   return process.argv.includes("--clean");
 }
 
+function shouldSkipNeighborRefresh(): boolean {
+  return process.argv.includes("--skip-neighbors-refresh");
+}
+
+function refreshNeighborsForIds(db: Database.Database, artworkIds: number[]) {
+  if (artworkIds.length === 0) return;
+
+  const uniqueIds = [...new Set(artworkIds)];
+  const getNeighbors = db.prepare(
+    `SELECT
+       map.artwork_id AS neighbor_id,
+       v.distance AS distance
+     FROM vec_artworks v
+     JOIN vec_artwork_map map ON map.vec_rowid = v.rowid
+     JOIN artworks a ON a.id = map.artwork_id
+     WHERE v.embedding MATCH (
+         SELECT embedding FROM clip_embeddings WHERE artwork_id = ?
+       )
+       AND k = ?
+       AND map.artwork_id != ?
+       AND a.iiif_url IS NOT NULL
+       AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+     ORDER BY v.distance
+     LIMIT ?`
+  );
+  const clearNeighbors = db.prepare("DELETE FROM artwork_neighbors WHERE artwork_id = ?");
+  const upsertNeighbor = db.prepare(
+    `INSERT OR REPLACE INTO artwork_neighbors
+      (artwork_id, neighbor_artwork_id, rank, distance, updated_at)
+     VALUES (?, ?, ?, ?, datetime('now'))`
+  );
+  const replaceForOne = db.transaction((artworkId: number, rows: Array<{ neighbor_id: number; distance: number | null }>) => {
+    clearNeighbors.run(artworkId);
+    for (let i = 0; i < rows.length; i += 1) {
+      const row = rows[i];
+      if (!row) continue;
+      upsertNeighbor.run(artworkId, row.neighbor_id, i + 1, row.distance);
+    }
+  });
+
+  let refreshed = 0;
+  for (const artworkId of uniqueIds) {
+    try {
+      const rows = getNeighbors.all(artworkId, NEIGHBOR_K, artworkId, NEIGHBOR_LIMIT * 3) as Array<{ neighbor_id: number; distance: number | null }>;
+      if (rows.length === 0) continue;
+      replaceForOne(artworkId, rows.slice(0, NEIGHBOR_LIMIT));
+      refreshed += 1;
+    } catch {
+      // Skip rows that cannot be vector-matched yet
+    }
+  }
+  console.log(`   Refreshed neighbors for ${refreshed}/${uniqueIds.length} artworks`);
+}
+
 async function main() {
   const cleanStart = parseCleanFlag();
+  const skipNeighborRefresh = shouldSkipNeighborRefresh();
 
   console.log("\n🎨 Kabinett CLIP + Focal Point Generation");
   console.log(`   Database: ${DB_PATH}`);
@@ -267,6 +336,7 @@ async function main() {
 
     let processed = 0;
     let failed = 0;
+    const processedIdsForNeighborRefresh: number[] = [];
     let idOffset = 0;
     let lastPctLogged = -1;
     const startTime = Date.now();
@@ -321,6 +391,7 @@ async function main() {
           if (result.ok) {
             pendingWrites.push(result.write);
             processed += 1;
+            processedIdsForNeighborRefresh.push(result.write.id);
           } else {
             failed += 1;
             insertBroken.run(result.id);
@@ -355,6 +426,11 @@ async function main() {
       if (pendingWrites.length > 0) {
         writeBatch(pendingWrites);
       }
+    }
+
+    if (!cleanStart && !skipNeighborRefresh) {
+      console.log("\n   Refreshing related neighbors for newly embedded artworks...");
+      refreshNeighborsForIds(db, processedIdsForNeighborRefresh);
     }
 
     console.log(`\n✅ Done. Embedded ${processed} artworks. (${failed} failed)`);

@@ -129,27 +129,29 @@ async function loadSearchResults(args: {
     return { results, total: results.length, cursor: null };
   }
 
-  // CLIP semantic search first, then merge FTS results
-  let clipResults: SearchResult[] = [];
-  try {
-    clipResults = await clipSearch(query, PAGE_SIZE, 0, museum || undefined) as unknown as SearchResult[];
-    clipResults.forEach((r) => { r.matchType = "clip"; });
-  } catch (err) {
-    console.error("[CLIP search error]", err);
-  }
+  const ftsQuery = query
+    .split(/\s+/)
+    .map((word) => word.replace(/"/g, "").trim())
+    .filter(Boolean)
+    .map((word) => `"${word}"*`)
+    .join(" ");
 
-  // FTS to find text matches CLIP might miss
-  let ftsResults: SearchResult[] = [];
-  try {
-    const ftsQuery = query
-      .split(/\s+/)
-      .map((word) => word.replace(/"/g, "").trim())
-      .filter(Boolean)
-      .map((word) => `"${word}"*`)
-      .join(" ");
+  const clipPromise = clipSearch(query, PAGE_SIZE, 0, museum || undefined)
+    .then((results) => {
+      const cast = results as unknown as SearchResult[];
+      cast.forEach((r) => { r.matchType = "clip"; });
+      return cast;
+    })
+    .catch((err) => {
+      console.error("[CLIP search error]", err);
+      return [] as SearchResult[];
+    });
 
-    if (ftsQuery) {
-      ftsResults = db.prepare(
+  const ftsPromise = (async () => {
+    if (!ftsQuery) return [] as SearchResult[];
+
+    try {
+      const rows = db.prepare(
         `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
                 a.technique_material, a.descriptions_sv,
                 a.focal_x, a.focal_y,
@@ -165,11 +167,15 @@ async function loadSearchResults(args: {
            ${mf ? "AND " + mf.sql : ""}
          ORDER BY rank LIMIT ?`
       ).all(ftsQuery, ...sourceA.params, ...(mf ? mf.params : []), PAGE_SIZE) as SearchResult[];
-      ftsResults.forEach((r) => { r.matchType = "fts"; });
+      rows.forEach((r) => { r.matchType = "fts"; });
+      return rows;
+    } catch {
+      // FTS failed, that's fine — we still have CLIP
+      return [] as SearchResult[];
     }
-  } catch {
-    // FTS failed, that's fine — we have CLIP
-  }
+  })();
+
+  const [clipResults, ftsResults] = await Promise.all([clipPromise, ftsPromise]);
 
   // Build a lookup for FTS results to detect "both" matches
   const ftsIds = new Set(ftsResults.map((r) => r.id));

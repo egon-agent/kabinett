@@ -9,7 +9,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const ids = raw
     .split(",")
     .map((id) => Number.parseInt(id, 10))
-    .filter((id) => Number.isFinite(id) && id > 0)
+    .filter((id) => Number.isFinite(id) && id !== 0)
     .slice(0, 60);
 
   if (ids.length === 0) return Response.json([]);

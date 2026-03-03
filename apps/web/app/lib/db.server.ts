@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { resolve } from "path";
 import { fileURLToPath } from "url";
 import * as sqliteVec from "sqlite-vec";
+import { instrumentDb } from "./perf.server";
 
 const __dirname = import.meta.dirname ?? resolve(fileURLToPath(import.meta.url), "..");
 const DB_PATH = process.env.DATABASE_PATH || resolve(
@@ -19,6 +20,7 @@ export function getDb(): Database.Database {
     db.pragma("cache_size = -64000"); // 64MB cache
     db.pragma("mmap_size = 268435456"); // 256MB mmap
     db.pragma("temp_store = memory");
+    instrumentDb(db);
   }
   return db;
 }

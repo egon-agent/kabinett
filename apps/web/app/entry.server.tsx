@@ -6,9 +6,18 @@ import { ServerRouter } from "react-router";
 import { isbot } from "isbot";
 import type { RenderToPipeableStreamOptions } from "react-dom/server";
 import { renderToPipeableStream } from "react-dom/server";
+import {
+  installServerFetchInstrumentation,
+  logRequestComplete,
+  logRequestError,
+  logRequestShell,
+  logRequestStart,
+  nowMs,
+} from "./lib/perf.server";
 
 // Warm up CLIP model at server start
 import "./lib/clip-search.server";
+installServerFetchInstrumentation();
 
 // Pre-warm the discover page cache after server starts
 setTimeout(() => {
@@ -22,6 +31,7 @@ setTimeout(() => {
 }, 5000);
 
 export const streamTimeout = 5_000;
+let requestSequence = 0;
 
 export default function handleRequest(
   request: Request,
@@ -32,8 +42,29 @@ export default function handleRequest(
   // If you have middleware enabled:
   // loadContext: RouterContextProvider
 ) {
+  const requestId = ++requestSequence;
+  const startMs = nowMs();
+  const url = new URL(request.url);
+  logRequestStart({
+    requestId,
+    method: request.method.toUpperCase(),
+    path: url.pathname,
+    search: url.search || "",
+    userAgent: request.headers.get("user-agent") || "",
+  });
+
   // https://httpwg.org/specs/rfc9110.html#HEAD
   if (request.method.toUpperCase() === "HEAD") {
+    const durationMs = nowMs() - startMs;
+    logRequestComplete({
+      requestId,
+      method: "HEAD",
+      path: url.pathname,
+      status: responseStatusCode,
+      durationMs: Math.round(durationMs * 100) / 100,
+      shellMs: 0,
+      head: true,
+    });
     return new Response(null, {
       status: responseStatusCode,
       headers: responseHeaders,
@@ -63,8 +94,35 @@ export default function handleRequest(
       {
         [readyOption]() {
           shellRendered = true;
+          const shellMs = nowMs() - startMs;
+          const serverTimingValue = responseHeaders.get("Server-Timing");
+          const timingPart = `ssr_shell;dur=${(Math.round(shellMs * 100) / 100).toFixed(2)}`;
+          responseHeaders.set(
+            "Server-Timing",
+            serverTimingValue ? `${serverTimingValue}, ${timingPart}` : timingPart,
+          );
+
+          logRequestShell({
+            requestId,
+            method: request.method.toUpperCase(),
+            path: url.pathname,
+            status: responseStatusCode,
+            shellMs: Math.round(shellMs * 100) / 100,
+            ready: readyOption,
+          });
+
           const body = new PassThrough({
             final(callback) {
+              const durationMs = nowMs() - startMs;
+              logRequestComplete({
+                requestId,
+                method: request.method.toUpperCase(),
+                path: url.pathname,
+                status: responseStatusCode,
+                durationMs: Math.round(durationMs * 100) / 100,
+                shellMs: Math.round(shellMs * 100) / 100,
+              });
+
               // Clear the timeout to prevent retaining the closure and memory leak
               clearTimeout(timeoutId);
               timeoutId = undefined;
@@ -85,10 +143,24 @@ export default function handleRequest(
           );
         },
         onShellError(error: unknown) {
+          logRequestError({
+            requestId,
+            method: request.method.toUpperCase(),
+            path: url.pathname,
+            stage: "onShellError",
+            error: error instanceof Error ? error.message : String(error),
+          });
           reject(error);
         },
         onError(error: unknown) {
           responseStatusCode = 500;
+          logRequestError({
+            requestId,
+            method: request.method.toUpperCase(),
+            path: url.pathname,
+            stage: "onError",
+            error: error instanceof Error ? error.message : String(error),
+          });
           // Log streaming rendering errors from inside the shell.  Don't log
           // errors encountered during initial shell rendering since they'll
           // reject and get logged in handleDocumentRequest.

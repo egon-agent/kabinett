@@ -31,6 +31,13 @@ export type HomeLoaderData = {
 
 let homeCache: { data: HomeLoaderData; ts: number } | null = null;
 const HOME_CACHE_TTL_MS = 300_000;
+const HOME_VISUAL_ALLOWLIST = ["Måleri", "Teckningar", "Skulptur", "Fotografi", "Grafik"];
+
+function isCuratedVisual(item: { category: string | null }): boolean {
+  const category = item.category;
+  if (!category) return false;
+  return HOME_VISUAL_ALLOWLIST.some((term) => category.includes(term));
+}
 
 export async function homeLoader(request: Request): Promise<HomeLoaderData> {
   const url = new URL(request.url);
@@ -44,34 +51,31 @@ export async function homeLoader(request: Request): Promise<HomeLoaderData> {
   const sourceA = sourceFilter("a");
   const db = getDb();
 
-  // Pick curated artworks — only IDs that actually exist in DB
-  const curatedRows = db.prepare(
-    `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
-            a.focal_x, a.focal_y,
-            COALESCE(a.sub_museum, m.name) as museum_name
-     FROM artworks a
-     LEFT JOIN museums m ON m.id = a.source
-     WHERE a.iiif_url IS NOT NULL
-       AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-       AND ${sourceA.sql}
-     ORDER BY RANDOM()
-     LIMIT 5`
-  ).all(...sourceA.params) as FeedItemRow[];
-
-  const curated = curatedRows.map((row) => ({
-    ...row,
-    imageUrl: buildImageUrl(row.iiif_url, 400),
-  }));
-
-  const ogImageUrl = curated[0]?.iiif_url ? buildDirectImageUrl(curated[0].iiif_url, 800) : null;
-
   const preloadThemes = THEMES.slice(0, 3);
   const [initial, ...themeResults] = await Promise.all([
     fetchFeed({ cursor: null, limit: 15, filter: "Alla" }),
     ...preloadThemes.map((theme) => fetchFeed({ cursor: null, limit: 8, filter: theme.filter })),
   ]);
 
-  const curatedIds = new Set(curated.map((item) => item.id));
+  // Derive curated items from already-fetched feed to avoid expensive random DB sort.
+  const curated: ArtworkDisplayItem[] = [];
+  const curatedIds = new Set<number>();
+  for (const item of initial.items) {
+    if (!isCuratedVisual(item) || curatedIds.has(item.id)) continue;
+    curated.push(item);
+    curatedIds.add(item.id);
+    if (curated.length >= 5) break;
+  }
+  if (curated.length < 5) {
+    for (const item of initial.items) {
+      if (curatedIds.has(item.id)) continue;
+      curated.push(item);
+      curatedIds.add(item.id);
+      if (curated.length >= 5) break;
+    }
+  }
+
+  const ogImageUrl = curated[0]?.iiif_url ? buildDirectImageUrl(curated[0].iiif_url, 800) : null;
   const restItems = initial.items.filter((item) => !curatedIds.has(item.id));
 
   const siteStats = getCachedSiteStats(db);

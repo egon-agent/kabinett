@@ -68,6 +68,12 @@ const COLLECTIONS: Collection[] = [
 let discoverCache: { expiresAt: number; data: any } | null = null;
 const DISCOVER_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
+function pickSeeded<T>(items: T[], seed: number): T | undefined {
+  if (items.length === 0) return undefined;
+  const idx = Math.abs(seed) % items.length;
+  return items[idx];
+}
+
 export async function loader() {
   const now = Date.now();
   const randomSeed = Math.floor(now / 60_000);
@@ -100,10 +106,10 @@ export async function loader() {
             AND a.id NOT IN (SELECT artwork_id FROM broken_images)
             AND (a.category LIKE '%Måleri%' OR a.category LIKE '%Teckningar%' OR a.category LIKE '%Skulptur%')
             AND ${sourceA.sql}
-          ORDER BY ((a.rowid * 1103515245 + ?) & 2147483647)
-          LIMIT 1
-        `).all(terms, ...sourceA.params, randomSeed + index) as any[];
-        row = rows[0];
+          ORDER BY artworks_fts.rank ASC
+          LIMIT 24
+        `).all(terms, ...sourceA.params) as any[];
+        row = pickSeeded(rows, randomSeed + index);
       }
       return {
         ...c,
@@ -120,15 +126,16 @@ export async function loader() {
   });
 
   // Quiz image
-  const quizImg = db.prepare(`
+  const quizRows = db.prepare(`
     SELECT iiif_url, title_sv, title_en, artists, focal_x, focal_y FROM artworks
     WHERE iiif_url IS NOT NULL AND LENGTH(iiif_url) > 40
       AND category LIKE '%Måleri%'
       AND id NOT IN (SELECT artwork_id FROM broken_images)
       AND ${source.sql}
-    ORDER BY ((rowid * 1103515245 + ?) & 2147483647)
-    LIMIT 1
-  `).get(...source.params, randomSeed + 100) as any;
+    ORDER BY id DESC
+    LIMIT 64
+  `).all(...source.params) as any[];
+  const quizImg = pickSeeded(quizRows, randomSeed + 100);
 
   // Top artists (excluding factories like Gustavsberg)
   const artistsWithImages = db.prepare(`
@@ -151,33 +158,38 @@ export async function loader() {
       HAVING cnt >= 20
       ORDER BY cnt DESC
       LIMIT 12
-    ), ranked AS (
+    ), artist_samples AS (
       SELECT
-        ta.name,
-        ta.cnt,
-        a.iiif_url,
-        a.dominant_color,
-        a.title_sv,
-        a.title_en,
-        a.artists,
-        a.focal_x,
-        a.focal_y,
-        ROW_NUMBER() OVER (
-          PARTITION BY ta.name
-          ORDER BY ((a.rowid * 1103515245 + ?) & 2147483647)
-        ) AS rn
-      FROM top_artists ta
-      JOIN artworks a ON json_extract(a.artists, '$[0].name') = ta.name
-      WHERE a.iiif_url IS NOT NULL
-        AND LENGTH(a.iiif_url) > 40
-        AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-        AND ${sourceA.sql}
+        json_extract(artists, '$[0].name') as name,
+        MAX(id) as sample_id
+      FROM artworks
+      WHERE artists IS NOT NULL
+        AND json_extract(artists, '$[0].name') IN (SELECT name FROM top_artists)
+        AND category NOT LIKE '%Keramik%'
+        AND category NOT LIKE '%Porslin%'
+        AND category NOT LIKE '%Glas%'
+        AND category NOT LIKE '%Formgivning%'
+        AND iiif_url IS NOT NULL
+        AND LENGTH(iiif_url) > 40
+        AND id NOT IN (SELECT artwork_id FROM broken_images)
+        AND ${source.sql}
+      GROUP BY name
     )
-    SELECT name, cnt, iiif_url, dominant_color, title_sv, title_en, artists, focal_x, focal_y
-    FROM ranked
-    WHERE rn = 1
-    ORDER BY cnt DESC
-  `).all(...source.params, randomSeed + 200, ...sourceA.params) as Array<{
+    SELECT
+      ta.name,
+      ta.cnt,
+      a.iiif_url,
+      a.dominant_color,
+      a.title_sv,
+      a.title_en,
+      a.artists,
+      a.focal_x,
+      a.focal_y
+    FROM top_artists ta
+    JOIN artist_samples s ON s.name = ta.name
+    JOIN artworks a ON a.id = s.sample_id
+    ORDER BY ta.cnt DESC
+  `).all(...source.params, ...source.params) as Array<{
     name: string;
     cnt: number;
     iiif_url: string | null;

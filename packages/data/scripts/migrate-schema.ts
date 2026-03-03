@@ -72,12 +72,80 @@ function ensureTables(db: Database.Database) {
       narrative_text TEXT,
       UNIQUE(walk_id, position)
     );
+
+    CREATE TABLE IF NOT EXISTS source_stats_materialized (
+      source TEXT PRIMARY KEY,
+      total_works INTEGER NOT NULL,
+      paintings INTEGER NOT NULL,
+      min_year INTEGER,
+      max_year INTEGER,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS source_collections_materialized (
+      source TEXT NOT NULL,
+      collection_name TEXT NOT NULL,
+      PRIMARY KEY (source, collection_name)
+    );
+
+    CREATE TABLE IF NOT EXISTS site_stats_materialized_meta (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      refreshed_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS artwork_artists (
+      artwork_id INTEGER NOT NULL REFERENCES artworks(id) ON DELETE CASCADE,
+      artist_name TEXT NOT NULL,
+      artist_name_norm TEXT NOT NULL,
+      position INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (artwork_id, artist_name_norm)
+    );
+
+    CREATE TABLE IF NOT EXISTS artwork_neighbors (
+      artwork_id INTEGER NOT NULL REFERENCES artworks(id) ON DELETE CASCADE,
+      neighbor_artwork_id INTEGER NOT NULL REFERENCES artworks(id) ON DELETE CASCADE,
+      rank INTEGER NOT NULL,
+      distance REAL,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (artwork_id, rank),
+      UNIQUE (artwork_id, neighbor_artwork_id)
+    );
   `);
 
   console.log("✅ Ensured required tables");
 }
 
 function ensureFts(db: Database.Database) {
+  let recreatedFts = false;
+  const expectedColumns = [
+    "title_sv",
+    "title_en",
+    "artists",
+    "category",
+    "technique_material",
+    "dating_text",
+  ];
+  const ftsExists = db
+    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'artworks_fts' LIMIT 1")
+    .get() as { 1: number } | undefined;
+
+  if (ftsExists) {
+    const existingColumns = db.prepare("PRAGMA table_info(artworks_fts)").all() as Array<{ name: string }>;
+    const existingSet = new Set(existingColumns.map((col) => col.name));
+    const missingColumns = expectedColumns.filter((column) => !existingSet.has(column));
+
+    if (missingColumns.length > 0) {
+      console.log(`⚠️ Recreating artworks_fts (missing columns: ${missingColumns.join(", ")})`);
+      db.exec(`
+        DROP TRIGGER IF EXISTS artworks_ai;
+        DROP TRIGGER IF EXISTS artworks_ad;
+        DROP TRIGGER IF EXISTS artworks_au;
+        DROP TABLE IF EXISTS artworks_fts;
+      `);
+      recreatedFts = true;
+    }
+  }
+
   db.exec(`
     CREATE VIRTUAL TABLE IF NOT EXISTS artworks_fts USING fts5(
       title_sv,
@@ -87,12 +155,19 @@ function ensureFts(db: Database.Database) {
       technique_material,
       dating_text,
       content='artworks',
-      content_rowid='id'
+      content_rowid='id',
+      tokenize='unicode61 remove_diacritics 2'
     );
   `);
 
   db.exec(`
-    CREATE TRIGGER IF NOT EXISTS artworks_ai AFTER INSERT ON artworks BEGIN
+    DROP TRIGGER IF EXISTS artworks_ai;
+    DROP TRIGGER IF EXISTS artworks_ad;
+    DROP TRIGGER IF EXISTS artworks_au;
+  `);
+
+  db.exec(`
+    CREATE TRIGGER artworks_ai AFTER INSERT ON artworks BEGIN
       INSERT INTO artworks_fts(
         rowid,
         title_sv,
@@ -112,12 +187,12 @@ function ensureFts(db: Database.Database) {
       );
     END;
 
-    CREATE TRIGGER IF NOT EXISTS artworks_ad AFTER DELETE ON artworks BEGIN
+    CREATE TRIGGER artworks_ad AFTER DELETE ON artworks BEGIN
       INSERT INTO artworks_fts(artworks_fts, rowid, title_sv, title_en, artists, category, technique_material, dating_text)
       VALUES ('delete', old.id, old.title_sv, old.title_en, old.artists, old.category, old.technique_material, old.dating_text);
     END;
 
-    CREATE TRIGGER IF NOT EXISTS artworks_au AFTER UPDATE ON artworks BEGIN
+    CREATE TRIGGER artworks_au AFTER UPDATE ON artworks BEGIN
       INSERT INTO artworks_fts(artworks_fts, rowid, title_sv, title_en, artists, category, technique_material, dating_text)
       VALUES ('delete', old.id, old.title_sv, old.title_en, old.artists, old.category, old.technique_material, old.dating_text);
       INSERT INTO artworks_fts(
@@ -139,6 +214,12 @@ function ensureFts(db: Database.Database) {
       );
     END;
   `);
+
+  if (recreatedFts) {
+    db.exec(`INSERT INTO artworks_fts(artworks_fts) VALUES ('rebuild');`);
+    console.log("✅ Rebuilt artworks_fts index");
+    return;
+  }
 
   const missing = (db.prepare(
     `SELECT COUNT(*) as count
@@ -166,7 +247,12 @@ function ensureIndexes(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_artworks_last_updated ON artworks(last_updated);
     CREATE INDEX IF NOT EXISTS idx_artworks_color ON artworks(color_r, color_g, color_b);
     CREATE INDEX IF NOT EXISTS idx_clip_embeddings_artwork ON clip_embeddings(artwork_id);
+    CREATE INDEX IF NOT EXISTS idx_artwork_artists_norm ON artwork_artists(artist_name_norm);
+    CREATE INDEX IF NOT EXISTS idx_artwork_artists_artwork ON artwork_artists(artwork_id);
+    CREATE INDEX IF NOT EXISTS idx_artwork_neighbors_artwork ON artwork_neighbors(artwork_id, rank);
+    CREATE INDEX IF NOT EXISTS idx_artwork_neighbors_neighbor ON artwork_neighbors(neighbor_artwork_id);
     CREATE INDEX IF NOT EXISTS idx_walk_items_walk_position ON walk_items(walk_id, position);
+    CREATE INDEX IF NOT EXISTS idx_source_collections_materialized_source ON source_collections_materialized(source);
   `);
 
   console.log("✅ Ensured schema indexes");
