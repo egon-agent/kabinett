@@ -1,6 +1,8 @@
 import Database from "better-sqlite3";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
+import { cpus } from "os";
+import { Worker, isMainThread, parentPort, workerData } from "worker_threads";
 import * as sqliteVec from "sqlite-vec";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -8,7 +10,11 @@ const DB_PATH = process.env.DATABASE_PATH || resolve(__dirname, "../kabinett.db"
 
 const DEFAULT_RECENT = 5000;
 const DEFAULT_NEIGHBOR_LIMIT = 12;
-const DEFAULT_K = 48;
+const DEFAULT_K = 20;
+const DEFAULT_WORKERS = 4;
+
+const WRITE_BATCH_SIZE = 100;
+const PROGRESS_INTERVAL = 250;
 
 type ArtworkArtist = {
   id: number;
@@ -28,8 +34,43 @@ type CliOptions = {
   recent: number;
   neighborLimit: number;
   k: number;
+  workers: number;
   ids: number[];
 };
+
+type NeighborResult = {
+  artworkId: number;
+  neighbors: NeighborRow[];
+  skipped: boolean;
+};
+
+type WorkerConfig = {
+  dbPath: string;
+  k: number;
+  neighborLimit: number;
+};
+
+type TaskMessage = {
+  type: "task";
+  artworkId: number;
+};
+
+type StopMessage = {
+  type: "stop";
+};
+
+type ReadyMessage = {
+  type: "ready";
+};
+
+type ResultMessage = {
+  type: "result";
+  payload: NeighborResult;
+};
+
+type WorkerToMainMessage = ReadyMessage | ResultMessage;
+
+type MainToWorkerMessage = TaskMessage | StopMessage;
 
 function normalizeArtistName(name: string): string {
   return name
@@ -56,6 +97,7 @@ function parsePositiveInt(raw: string | undefined, fallback: number): number {
 
 function parseArgs(): CliOptions {
   const args = process.argv.slice(2);
+  const detectedCpuCount = cpus()?.length ?? 0;
   const artistsOnly = args.includes("--artists-only");
   const neighborsOnly = args.includes("--neighbors-only");
   const allArtists = args.includes("--all-artists");
@@ -63,6 +105,7 @@ function parseArgs(): CliOptions {
   const recentArg = args.find((arg) => arg.startsWith("--recent="));
   const neighborLimitArg = args.find((arg) => arg.startsWith("--neighbor-limit="));
   const kArg = args.find((arg) => arg.startsWith("--k="));
+  const workersArg = args.find((arg) => arg.startsWith("--workers="));
   const idsArg = args.find((arg) => arg.startsWith("--ids="));
 
   return {
@@ -73,6 +116,10 @@ function parseArgs(): CliOptions {
     recent: parsePositiveInt(recentArg?.split("=")[1], DEFAULT_RECENT),
     neighborLimit: parsePositiveInt(neighborLimitArg?.split("=")[1], DEFAULT_NEIGHBOR_LIMIT),
     k: parsePositiveInt(kArg?.split("=")[1], DEFAULT_K),
+    workers: parsePositiveInt(
+      workersArg?.split("=")[1],
+      detectedCpuCount > 0 ? detectedCpuCount : DEFAULT_WORKERS
+    ),
     ids: idsArg ? parseIds(idsArg.split("=")[1] || "") : [],
   };
 }
@@ -214,7 +261,6 @@ function refreshArtworkArtists(db: Database.Database, options: CliOptions) {
 
   const existingCount = (db.prepare("SELECT COUNT(*) as c FROM artwork_artists").get() as { c: number }).c;
   if (existingCount === 0) {
-    // First run bootstrap: build full index once.
     rebuildArtworkArtists(db);
     return;
   }
@@ -234,6 +280,11 @@ function collectNeighborArtworkIds(db: Database.Database, options: CliOptions): 
        WHERE a.iiif_url IS NOT NULL
          AND LENGTH(a.iiif_url) > 40
          AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+         AND NOT EXISTS (
+           SELECT 1
+           FROM artwork_neighbors n
+           WHERE n.artwork_id = a.id
+         )
        ORDER BY a.id`
     ).all() as Array<{ id: number }>;
     return all.map((row) => row.id);
@@ -253,7 +304,19 @@ function collectNeighborArtworkIds(db: Database.Database, options: CliOptions): 
   return recent.map((row) => row.id);
 }
 
-function rebuildArtworkNeighbors(db: Database.Database, options: CliOptions) {
+function createWorkers(count: number, config: WorkerConfig): Worker[] {
+  const workers: Worker[] = [];
+  for (let index = 0; index < count; index += 1) {
+    workers.push(
+      new Worker(new URL(import.meta.url), {
+        workerData: config,
+      })
+    );
+  }
+  return workers;
+}
+
+async function rebuildArtworkNeighbors(db: Database.Database, options: CliOptions) {
   const targetIds = collectNeighborArtworkIds(db, options);
   if (targetIds.length === 0) {
     console.log("ℹ️ No artwork ids to refresh in artwork_neighbors");
@@ -261,8 +324,148 @@ function rebuildArtworkNeighbors(db: Database.Database, options: CliOptions) {
   }
 
   const neighborLimit = Math.max(options.neighborLimit, 1);
-  const k = Math.max(options.k, neighborLimit * 2);
-  const candidateLimit = Math.max(neighborLimit * 3, neighborLimit);
+  const k = Math.max(options.k, neighborLimit);
+  const workerCount = Math.max(1, Math.min(options.workers, targetIds.length));
+
+  const clearNeighbors = db.prepare("DELETE FROM artwork_neighbors WHERE artwork_id = ?");
+  const insertNeighbor = db.prepare(
+    `INSERT OR REPLACE INTO artwork_neighbors
+      (artwork_id, neighbor_artwork_id, rank, distance, updated_at)
+     VALUES (?, ?, ?, ?, datetime('now'))`
+  );
+
+  const writeBatch = db.transaction((batch: NeighborResult[]) => {
+    for (const result of batch) {
+      if (result.skipped || result.neighbors.length === 0) continue;
+      clearNeighbors.run(result.artworkId);
+      for (let index = 0; index < result.neighbors.length; index += 1) {
+        const neighbor = result.neighbors[index];
+        if (!neighbor) continue;
+        insertNeighbor.run(result.artworkId, neighbor.neighbor_id, index + 1, neighbor.distance);
+      }
+    }
+  });
+
+  console.log(`ℹ️ Refreshing neighbors with ${workerCount} workers (k=${k}, limit=${neighborLimit})`);
+
+  const workers = createWorkers(workerCount, {
+    dbPath: DB_PATH,
+    k,
+    neighborLimit,
+  });
+
+  let completed = 0;
+  let refreshed = 0;
+  let skipped = 0;
+  let queueIndex = 0;
+  let activeWorkers = workers.length;
+  let settled = false;
+
+  const stoppedWorkers = new Set<Worker>();
+  const pendingWrites: NeighborResult[] = [];
+
+  const flushWrites = () => {
+    if (pendingWrites.length === 0) return;
+    writeBatch(pendingWrites.splice(0, pendingWrites.length));
+  };
+
+  const maybeStopWorker = (worker: Worker) => {
+    if (stoppedWorkers.has(worker)) return;
+    stoppedWorkers.add(worker);
+    const message: StopMessage = { type: "stop" };
+    worker.postMessage(message);
+  };
+
+  const sendNextTask = (worker: Worker) => {
+    if (queueIndex >= targetIds.length) {
+      maybeStopWorker(worker);
+      return;
+    }
+
+    const message: TaskMessage = {
+      type: "task",
+      artworkId: targetIds[queueIndex],
+    };
+    queueIndex += 1;
+    worker.postMessage(message);
+  };
+
+  await new Promise<void>((resolve, reject) => {
+    const fail = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      for (const worker of workers) {
+        void worker.terminate();
+      }
+      flushWrites();
+      reject(error instanceof Error ? error : new Error(String(error)));
+    };
+
+    const complete = () => {
+      if (settled) return;
+      settled = true;
+      flushWrites();
+      resolve();
+    };
+
+    for (const worker of workers) {
+      worker.on("message", (message: WorkerToMainMessage) => {
+        if (message.type === "ready") {
+          sendNextTask(worker);
+          return;
+        }
+
+        const result = message.payload;
+        pendingWrites.push(result);
+
+        completed += 1;
+        if (result.skipped || result.neighbors.length === 0) {
+          skipped += 1;
+        } else {
+          refreshed += 1;
+        }
+
+        if (pendingWrites.length >= WRITE_BATCH_SIZE) {
+          flushWrites();
+        }
+
+        if (completed % PROGRESS_INTERVAL === 0) {
+          console.log(`   Processed ${completed}/${targetIds.length} artworks...`);
+        }
+
+        sendNextTask(worker);
+      });
+
+      worker.on("error", (error) => {
+        fail(error);
+      });
+
+      worker.on("exit", (code) => {
+        activeWorkers -= 1;
+        if (!settled && code !== 0) {
+          fail(new Error(`Worker exited with code ${code}`));
+          return;
+        }
+        if (!settled && activeWorkers === 0) {
+          complete();
+        }
+      });
+    }
+  });
+
+  console.log(`✅ Rebuilt artwork_neighbors for ${refreshed} artworks (${skipped} skipped)`);
+}
+
+function runWorker() {
+  const config = workerData as WorkerConfig;
+  const db = new Database(config.dbPath, {
+    readonly: true,
+    fileMustExist: true,
+  });
+
+  db.pragma("query_only = ON");
+  db.pragma("foreign_keys = OFF");
+  sqliteVec.load(db);
 
   const getNeighbors = db.prepare(
     `SELECT
@@ -282,46 +485,38 @@ function rebuildArtworkNeighbors(db: Database.Database, options: CliOptions) {
      LIMIT ?`
   );
 
-  const clearNeighbors = db.prepare("DELETE FROM artwork_neighbors WHERE artwork_id = ?");
-  const insertNeighbor = db.prepare(
-    `INSERT OR REPLACE INTO artwork_neighbors
-      (artwork_id, neighbor_artwork_id, rank, distance, updated_at)
-     VALUES (?, ?, ?, ?, datetime('now'))`
-  );
+  parentPort?.on("message", (message: MainToWorkerMessage) => {
+    if (message.type === "stop") {
+      db.close();
+      process.exit(0);
+    }
 
-  const replaceNeighborsForArtwork = db.transaction((artworkId: number, neighbors: NeighborRow[]) => {
-    clearNeighbors.run(artworkId);
-    for (let index = 0; index < neighbors.length; index += 1) {
-      const neighbor = neighbors[index];
-      if (!neighbor) continue;
-      insertNeighbor.run(artworkId, neighbor.neighbor_id, index + 1, neighbor.distance);
+    const artworkId = message.artworkId;
+    try {
+      const neighbors = getNeighbors.all(artworkId, config.k, artworkId, config.k) as NeighborRow[];
+      const payload: NeighborResult = {
+        artworkId,
+        neighbors: neighbors.slice(0, config.neighborLimit),
+        skipped: neighbors.length === 0,
+      };
+      const response: ResultMessage = { type: "result", payload };
+      parentPort?.postMessage(response);
+    } catch {
+      const payload: NeighborResult = {
+        artworkId,
+        neighbors: [],
+        skipped: true,
+      };
+      const response: ResultMessage = { type: "result", payload };
+      parentPort?.postMessage(response);
     }
   });
 
-  let refreshed = 0;
-  let skipped = 0;
-  for (const artworkId of targetIds) {
-    try {
-      const neighbors = getNeighbors.all(artworkId, k, artworkId, candidateLimit) as NeighborRow[];
-      const top = neighbors.slice(0, neighborLimit);
-      if (top.length === 0) {
-        skipped += 1;
-        continue;
-      }
-      replaceNeighborsForArtwork(artworkId, top);
-      refreshed += 1;
-      if (refreshed % 250 === 0) {
-        console.log(`   Refreshed ${refreshed}/${targetIds.length} artworks...`);
-      }
-    } catch {
-      skipped += 1;
-    }
-  }
-
-  console.log(`✅ Rebuilt artwork_neighbors for ${refreshed} artworks (${skipped} skipped)`);
+  const ready: ReadyMessage = { type: "ready" };
+  parentPort?.postMessage(ready);
 }
 
-function main() {
+async function runMain() {
   const options = parseArgs();
   const db = new Database(DB_PATH);
   db.pragma("journal_mode = WAL");
@@ -335,11 +530,23 @@ function main() {
       refreshArtworkArtists(db, options);
     }
     if (!options.artistsOnly) {
-      rebuildArtworkNeighbors(db, options);
+      await rebuildArtworkNeighbors(db, options);
     }
   } finally {
     db.close();
   }
 }
 
-main();
+async function main() {
+  if (isMainThread) {
+    await runMain();
+    return;
+  }
+
+  runWorker();
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
