@@ -86,7 +86,7 @@ export default function HeroSearch({
                 onFocus={(e) => { inputProps.onFocus(); handleFocus(); }}
                 id="hero-search"
                 name="q"
-                type="search"
+                type="text" enterKeyHint="search" autoCorrect="off"
                 placeholder="porträtt, blå himmel, stilleben…"
                 className="flex-1 bg-transparent text-[#F5F0E8] placeholder:text-[rgba(245,240,232,0.35)] text-[1rem] md:text-[1.05rem] px-0 py-0 border-none outline-none [&::-webkit-search-cancel-button]:hidden"
               />
