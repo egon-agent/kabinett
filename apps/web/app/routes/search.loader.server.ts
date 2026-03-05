@@ -192,8 +192,8 @@ async function loadSearchResults(args: {
       ).all(ftsQuery, ...sourceA.params, ...(mf ? mf.params : []), PAGE_SIZE) as SearchResult[];
       rows.forEach((r) => { r.matchType = "fts"; });
       return rows;
-    } catch {
-      // FTS failed, that's fine — we still have CLIP
+    } catch (ftsErr) {
+      console.error("[FTS error]", ftsErr);
       return [] as SearchResult[];
     }
   })();
@@ -249,7 +249,7 @@ async function loadSearchResults(args: {
           r.descriptions_sv = r.descriptions_sv || sd.descriptions_sv;
         }
       }
-    } catch { /* ok */ }
+    } catch (ftsErr) { /* ok */ }
   }
 
   // Generate snippets
