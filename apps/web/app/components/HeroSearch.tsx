@@ -66,7 +66,7 @@ export default function HeroSearch({
             <label htmlFor="hero-search" className="sr-only">
               Sök bland konstverk
             </label>
-            <div className="flex items-center gap-3 rounded-2xl bg-[rgba(245,240,232,0.1)] backdrop-blur-[12px] border border-[rgba(245,240,232,0.18)] px-5 py-3.5 transition-all duration-200 focus-within:border-[rgba(201,176,142,0.45)] focus-within:bg-[rgba(245,240,232,0.14)] focus-within:shadow-[0_0_30px_rgba(201,176,142,0.08)]">
+            <div className="flex items-center gap-3 rounded-2xl bg-[rgba(245,240,232,0.12)] border border-[rgba(245,240,232,0.18)] px-5 py-3.5 transition-all duration-200 focus-within:border-[rgba(201,176,142,0.45)] focus-within:bg-[rgba(245,240,232,0.14)] focus-within:shadow-[0_0_30px_rgba(201,176,142,0.08)]">
               <svg
                 aria-hidden="true"
                 width="20"
