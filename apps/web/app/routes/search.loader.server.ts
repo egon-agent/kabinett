@@ -136,8 +136,12 @@ async function loadSearchResults(args: {
     .map((word) => `"${word}"*`)
     .join(" ");
 
-  const clipPromise = import("../lib/clip-search.server")
-    .then(m => m.clipSearch(query, PAGE_SIZE, 0, museum || undefined))
+  const clipPromise = import("../lib/translate.server")
+    .then(t => t.translateToEnglish(query))
+    .then(enQuery => {
+      console.log("[CLIP translate]", JSON.stringify({ original: query, translated: enQuery }));
+      return import("../lib/clip-search.server").then(m => m.clipSearch(enQuery, PAGE_SIZE, 0, museum || undefined));
+    })
     .then((results) => {
       const cast = results as unknown as SearchResult[];
       cast.forEach((r) => { r.matchType = "clip"; });
