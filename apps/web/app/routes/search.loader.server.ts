@@ -183,7 +183,9 @@ async function loadSearchResults(args: {
   const ftsLookup = new Map(ftsResults.map((r) => [r.id, r]));
 
   // Merge: CLIP first (filtered by similarity), then unique FTS results
-  const MIN_CLIP_SIMILARITY = 0.18;
+  const MIN_CLIP_SIMILARITY = 0.25;
+  const rawSims = clipResults.slice(0, 5).map((r) => ({ title: (r as any).title?.slice(0, 30), sim: (r as any).similarity }));
+  console.log("[CLIP sims]", JSON.stringify(rawSims));
   const filteredClip = clipResults.filter((r) => (r as any).similarity >= MIN_CLIP_SIMILARITY);
   const seenIds = new Set(filteredClip.map((r) => r.id));
   const merged = [...filteredClip];
