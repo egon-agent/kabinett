@@ -21,6 +21,4 @@ export default [
   route("favorites", "routes/favorites.tsx"),
   route("color-match", "routes/color-match.tsx"),
   route("api/artworks", "routes/api.artworks.tsx"),
-  route("quiz", "routes/quiz.tsx"),
-  route("api/quiz-match", "routes/api.quiz-match.tsx"),
 ] satisfies RouteConfig;

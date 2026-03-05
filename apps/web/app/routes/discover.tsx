@@ -125,18 +125,6 @@ export async function loader() {
     }
   });
 
-  // Quiz image
-  const quizRows = db.prepare(`
-    SELECT iiif_url, title_sv, title_en, artists, focal_x, focal_y FROM artworks
-    WHERE iiif_url IS NOT NULL AND LENGTH(iiif_url) > 40
-      AND category LIKE '%Måleri%'
-      AND id NOT IN (SELECT artwork_id FROM broken_images)
-      AND ${source.sql}
-    ORDER BY id DESC
-    LIMIT 64
-  `).all(...source.params) as any[];
-  const quizImg = pickSeeded(quizRows, randomSeed + 100);
-
   // Top artists (excluding factories like Gustavsberg)
   const artistsWithImages = db.prepare(`
     WITH top_artists AS (
@@ -239,15 +227,6 @@ export async function loader() {
 
   const payload = {
     collections,
-    quizImage: quizImg?.iiif_url
-      ? {
-          url: buildImageUrl(quizImg.iiif_url, 600),
-          title: quizImg?.title_sv || quizImg?.title_en || "Utan titel",
-          artist: parseArtist(quizImg?.artists || null),
-          focalX: quizImg?.focal_x ?? null,
-          focalY: quizImg?.focal_y ?? null,
-        }
-      : undefined,
     topArtists: mappedArtists,
     stats,
     museums: museumList,
@@ -262,29 +241,12 @@ export async function loader() {
 }
 
 export default function Discover({ loaderData }: Route.ComponentProps) {
-  const { collections, quizImage, topArtists, stats, museums } = loaderData;
+  const { collections, topArtists, stats, museums } = loaderData;
 
   return (
     <div className="min-h-screen pt-16 bg-[#1C1916] text-[#F5F0E8]">
       <div className="md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-4 lg:px-6">
         <h1 className="font-serif text-[2rem] text-[#F5F0E8] px-3 pt-4 pb-2">Upptäck</h1>
-        {/* Hero — Quiz CTA */}
-        <a href="/quiz" className="block relative m-3 rounded-[18px] overflow-hidden h-48 lg:h-[22rem] no-underline focus-ring">
-          {quizImage && (
-            <img src={quizImage.url} alt={`${quizImage.title} — ${quizImage.artist}`} className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: `${(quizImage.focalX ?? 0.5) * 100}% ${(quizImage.focalY ?? 0.5) * 100}%` }} />
-          )}
-          <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(10,9,8,0.9)_0%,rgba(10,9,8,0.35)_55%,rgba(10,9,8,0.1)_100%)]" />
-          <div className="absolute bottom-0 left-0 right-0 py-[1.2rem] px-[1.3rem]">
-            <p className="text-[0.6rem] font-semibold tracking-[0.15em] uppercase text-[rgba(255,255,255,0.45)] mb-[0.35rem]">
-              Personligt
-            </p>
-            <h2 className="font-serif text-[1.5rem] text-white m-0 leading-[1.15]">Hitta ditt verk</h2>
-            <p className="text-[0.78rem] text-[rgba(255,255,255,0.55)] mt-1">
-              Fem frågor — ett konstverk som matchar dig
-            </p>
-          </div>
-        </a>
-
         {/* Samlingar — 2-column grid */}
         <section className="pt-6 px-3">
           <h2 className="font-serif text-[1.3rem] text-[#F5F0E8] mx-1 mb-3">Samlingar</h2>
