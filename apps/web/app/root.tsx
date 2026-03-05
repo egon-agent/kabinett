@@ -72,7 +72,7 @@ window.addEventListener('error',function(event){
           Hoppa till innehåll
         </a>
         <Header />
-        <main id="main-content" className="app-main pb-[4.5rem] lg:pb-8">{children}</main>
+        <main id="main-content" className="app-main pb-[5.5rem] lg:pb-8">{children}</main>
         <BottomNav />
         <ScrollRestoration />
         <Scripts />
