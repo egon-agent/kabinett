@@ -171,11 +171,25 @@ export type SearchLoaderData = {
   shouldAutoFocus: boolean;
 };
 
+function parseMode(rawMode: string | null): SearchMode | null {
+  if (rawMode === "fts" || rawMode === "clip" || rawMode === "color") return rawMode;
+  return null;
+}
+
+function resolveSearchMode(rawMode: string | null, query: string): SearchMode {
+  const parsed = parseMode(rawMode);
+  if (parsed) return parsed;
+  const normalized = query.trim().toLowerCase();
+  if (normalized && COLOR_TERMS[normalized]) return "color";
+  return "clip";
+}
+
 async function loadSearchResults(args: {
   query: string;
   museum: string;
+  mode: SearchMode;
 }): Promise<SearchResultsPayload> {
-  const { query, museum } = args;
+  const { query, museum, mode } = args;
   const visualIntent = isVisualObjectQuery(query);
   const db = getDb();
   const sourceA = sourceFilter("a");
@@ -202,6 +216,45 @@ async function loadSearchResults(args: {
        LIMIT 60`
     ).all(...sourceA.params, ...mf!.params, randomSeed) as SearchResult[];
     return { results, total: results.length, cursor: null };
+  }
+
+  if (query && mode === "color") {
+    const colorTarget = COLOR_TERMS[query.toLowerCase()];
+    if (!colorTarget) return { results: [], total: 0, cursor: null };
+
+    const rows = db.prepare(
+      `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
+              a.focal_x, a.focal_y,
+              COALESCE(a.sub_museum, m.name) as museum_name
+       FROM artworks a
+       LEFT JOIN museums m ON m.id = a.source
+       WHERE a.color_r IS NOT NULL
+         AND a.iiif_url IS NOT NULL
+         AND LENGTH(a.iiif_url) > 40
+         AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+         AND ${sourceA.sql}
+         ${mf ? `AND ${mf.sql}` : ""}
+       ORDER BY ABS(a.color_r - ?) + ABS(a.color_g - ?) + ABS(a.color_b - ?)
+       LIMIT ?`
+    ).all(
+      ...sourceA.params,
+      ...(mf ? mf.params : []),
+      colorTarget.r,
+      colorTarget.g,
+      colorTarget.b,
+      PAGE_SIZE
+    ) as SearchResult[];
+
+    rows.forEach((row) => {
+      row.matchType = "color";
+      row.snippet = null;
+    });
+
+    return {
+      results: rows,
+      total: rows.length,
+      cursor: nextCursor(rows.length),
+    };
   }
 
   const ftsQuery = query
@@ -439,14 +492,15 @@ export function searchLoader(request: Request): SearchLoaderData {
   const museumOptions: MuseumOption[] = getCollectionOptions();
   const showMuseumBadge = enabledMuseums.length > 1;
   const museum = museumParam && isValidMuseumFilter(museumParam) ? museumParam : "";
+  const searchMode = resolveSearchMode(url.searchParams.get("mode"), query);
 
   return {
     query,
     museum,
-    results: loadSearchResults({ query, museum }),
+    results: loadSearchResults({ query, museum, mode: searchMode }),
     museumOptions,
     showMuseumBadge,
-    searchMode: "clip",
+    searchMode,
     shouldAutoFocus,
   };
 }

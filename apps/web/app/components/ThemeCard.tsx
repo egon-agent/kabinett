@@ -14,7 +14,14 @@ export type ThemeCardSection = {
   items: ArtworkDisplayItem[];
 };
 
+const COLOR_THEME_FILTERS = new Set(["Rött", "Blått"]);
+
 export default function ThemeCard({ section, showMuseumBadge }: { section: ThemeCardSection; showMuseumBadge: boolean }) {
+  const query = section.filter || section.title;
+  const searchHref = COLOR_THEME_FILTERS.has(section.filter)
+    ? `/search?q=${encodeURIComponent(query)}&mode=color`
+    : `/search?q=${encodeURIComponent(query)}`;
+
   return (
     <div
       className="pt-12 px-4 md:px-6 lg:px-8 pb-8 snap-start lg:rounded-[1.5rem] lg:overflow-hidden"
@@ -77,10 +84,9 @@ export default function ThemeCard({ section, showMuseumBadge }: { section: Theme
         ))}
       </div>
 
-      <a href={`/search?q=${encodeURIComponent(section.filter || section.title)}`} className="inline-block mt-4 text-[0.8rem] text-[rgba(255,255,255,0.5)] no-underline focus-ring">
+      <a href={searchHref} className="inline-block mt-4 text-[0.8rem] text-[rgba(255,255,255,0.5)] no-underline focus-ring">
         Visa fler →
       </a>
     </div>
   );
 }
-
