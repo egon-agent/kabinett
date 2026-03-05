@@ -16,14 +16,20 @@ export default function HeroSearch({
   // Keep cursor at end on iOS when focusing an empty-looking input
   const handleFocus = useCallback(() => {
     const el = inputRef.current;
-    if (el && typeof el.setSelectionRange === "function") {
-      requestAnimationFrame(() => {
+    if (!el) return;
+    requestAnimationFrame(() => {
+      if (typeof el.setSelectionRange === "function") {
         const len = el.value.length;
         el.setSelectionRange(len, len);
-        // Scroll input into view when iOS keyboard opens
-        setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "center" }), 300);
-      });
-    }
+      }
+      // iOS doesn't scroll fixed/sticky content well with keyboard.
+      // Use explicit scrollTo targeting the input position.
+      setTimeout(() => {
+        const rect = el.getBoundingClientRect();
+        const scrollY = window.scrollY + rect.top - 120;
+        window.scrollTo({ top: Math.max(0, scrollY), behavior: "smooth" });
+      }, 350);
+    });
   }, []);
 
   const goToSearch = useCallback(
