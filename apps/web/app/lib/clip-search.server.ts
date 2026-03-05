@@ -1,23 +1,15 @@
-import { readFileSync } from "fs";
-import { resolve, dirname } from "path";
-import { fileURLToPath } from "url";
-
 import { getDb } from "./db.server";
 import { buildImageUrl } from "./images";
 import { sourceFilter } from "./museums.server";
 import { parseArtist } from "./parsing";
-import { pipeline, env } from "@xenova/transformers";
+import { AutoTokenizer, CLIPTextModelWithProjection, env } from "@xenova/transformers";
 
 env.allowLocalModels = false;
 
-export const MULTILINGUAL_CLIP_TEXT_MODEL = "sentence-transformers/clip-ViT-B-32-multilingual-v1";
-
-// Pre-bundled Dense projection matrix (512 x 768, float32)
-// Converts 768-dim multilingual text embeddings to 512-dim CLIP space
-const __dirname_local = dirname(fileURLToPath(import.meta.url));
-const PROJECTION_MATRIX = new Float32Array(
-  readFileSync(resolve(__dirname_local, "clip-projection.bin")).buffer
-);
+export const CLIP_TEXT_MODEL = "Xenova/clip-vit-base-patch32";
+const QUERY_EMBEDDING_VERSION = "clip-b32-v2";
+const QUERY_PROMPT_VERSION = "prompt-ensemble-v1";
+const ENABLE_DB_QUERY_CACHE = process.env.KABINETT_CLIP_QUERY_CACHE === "1";
 
 export type ClipResult = {
   id: number;
@@ -55,7 +47,23 @@ type QueryEmbeddingRow = {
   embedding: Buffer;
 };
 
-let textExtractorPromise: Promise<any> | null = null;
+type ClipEmbeddingSeedRow = {
+  artwork_id: number;
+  embedding: Buffer;
+};
+
+type AggregatedCandidate = {
+  row: VectorRow;
+  rrfScore: number;
+  maxDistance: number;
+};
+
+type TextEncoder = {
+  tokenizer: any;
+  model: any;
+};
+
+let textEncoderPromise: Promise<TextEncoder> | null = null;
 let queryCacheInitAttempted = false;
 let queryCacheWritable = false;
 let queryCacheWarningShown = false;
@@ -67,6 +75,7 @@ function logQueryCacheWarning(error: unknown): void {
 }
 
 function initQueryEmbeddingCache(): void {
+  if (!ENABLE_DB_QUERY_CACHE) return;
   if (queryCacheInitAttempted) return;
   queryCacheInitAttempted = true;
   const db = getDb();
@@ -87,6 +96,7 @@ function initQueryEmbeddingCache(): void {
 }
 
 function getCachedQueryEmbedding(query: string): Buffer | null {
+  if (!ENABLE_DB_QUERY_CACHE) return null;
   const db = getDb();
 
   try {
@@ -101,6 +111,7 @@ function getCachedQueryEmbedding(query: string): Buffer | null {
 }
 
 function storeQueryEmbedding(query: string, embedding: Buffer): void {
+  if (!ENABLE_DB_QUERY_CACHE) return;
   initQueryEmbeddingCache();
   if (!queryCacheWritable) return;
 
@@ -125,32 +136,31 @@ function normalize(vec: Float32Array): Float32Array {
   return out;
 }
 
-/** Project 768-dim vector to 512-dim using pre-loaded weight matrix */
-function projectTo512(vec768: Float32Array): Float32Array {
-  const out = new Float32Array(512);
-  for (let i = 0; i < 512; i++) {
-    let sum = 0;
-    const base = i * 768;
-    for (let j = 0; j < 768; j++) {
-      sum += PROJECTION_MATRIX[base + j] * vec768[j];
-    }
-    out[i] = sum;
+async function getTextEncoder(): Promise<TextEncoder> {
+  if (!textEncoderPromise) {
+    textEncoderPromise = Promise.all([
+      AutoTokenizer.from_pretrained(CLIP_TEXT_MODEL),
+      CLIPTextModelWithProjection.from_pretrained(CLIP_TEXT_MODEL, { quantized: false }),
+    ])
+      .then(([tokenizer, model]) => ({ tokenizer, model }))
+      .catch((error) => {
+        textEncoderPromise = null;
+        throw error;
+      });
   }
-  return out;
+  return textEncoderPromise;
 }
 
-async function getTextExtractor() {
-  if (!textExtractorPromise) {
-    textExtractorPromise = pipeline(
-      "feature-extraction",
-      MULTILINGUAL_CLIP_TEXT_MODEL,
-      { quantized: false }
-    ).catch((error) => {
-      textExtractorPromise = null;
-      throw error;
-    });
-  }
-  return textExtractorPromise;
+async function embedQuery(query: string): Promise<Buffer> {
+  const { tokenizer, model } = await getTextEncoder();
+  const inputs = tokenizer(query, { padding: true, truncation: true });
+  const { text_embeds } = await model(inputs);
+  const queryEmbedding = normalize(new Float32Array(text_embeds.data));
+  return Buffer.from(
+    queryEmbedding.buffer,
+    queryEmbedding.byteOffset,
+    queryEmbedding.byteLength
+  );
 }
 
 const FAISS_URL = process.env.FAISS_URL || "http://127.0.0.1:5555";
@@ -159,6 +169,79 @@ function clampSimilarity(distance: number): number {
   if (distance > 1) return 1;
   if (distance < -1) return -1;
   return distance;
+}
+
+function buildQueryVariants(query: string): string[] {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+  const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
+  const base = [trimmed];
+
+  if (wordCount <= 4) {
+    base.push(`a photo of ${trimmed}`);
+    base.push(`a close-up photo of ${trimmed}`);
+    base.push(`an object: ${trimmed}`);
+    base.push(`a painting of ${trimmed}`);
+    base.push(`a still life with ${trimmed}`);
+    base.push(`an artwork depicting ${trimmed}`);
+  }
+
+  return [...new Set(base.map((row) => row.trim()).filter(Boolean))];
+}
+
+function vectorFromBuffer(buffer: Buffer): Float32Array {
+  return new Float32Array(
+    buffer.buffer,
+    buffer.byteOffset,
+    buffer.byteLength / Float32Array.BYTES_PER_ELEMENT
+  );
+}
+
+function buildCentroidEmbedding(rows: ClipEmbeddingSeedRow[]): Buffer | null {
+  if (rows.length === 0) return null;
+  const dim = 512;
+  const acc = new Float32Array(dim);
+  let count = 0;
+
+  for (const row of rows) {
+    if (!row.embedding || row.embedding.byteLength !== dim * Float32Array.BYTES_PER_ELEMENT) {
+      continue;
+    }
+    const vec = vectorFromBuffer(row.embedding);
+    for (let i = 0; i < dim; i += 1) {
+      acc[i] += vec[i] ?? 0;
+    }
+    count += 1;
+  }
+
+  if (count === 0) return null;
+  for (let i = 0; i < dim; i += 1) {
+    acc[i] /= count;
+  }
+  const centroid = normalize(acc);
+  return Buffer.from(
+    centroid.buffer,
+    centroid.byteOffset,
+    centroid.byteLength
+  );
+}
+
+function toClipResult(row: VectorRow, similarity: number): ClipResult {
+  return {
+    id: row.id,
+    title: row.title_sv || row.title_en || "Utan titel",
+    artist: parseArtist(row.artists),
+    imageUrl: buildImageUrl(row.iiif_url, 400),
+    heroUrl: buildImageUrl(row.iiif_url, 800),
+    year: row.dating_text || "",
+    color: row.dominant_color || "#D4CDC3",
+    similarity: clampSimilarity(similarity),
+    museum_name: row.museum_name ?? null,
+    source: row.source ?? null,
+    sub_museum: row.sub_museum ?? null,
+    focal_x: row.focal_x ?? null,
+    focal_y: row.focal_y ?? null,
+  };
 }
 
 async function runKnnQuery(
@@ -225,22 +308,8 @@ async function runKnnQuery(
 
 export async function clipSearch(q: string, limit = 60, offset = 0, source?: string): Promise<ClipResult[]> {
   initQueryEmbeddingCache();
-  const queryKey = q.trim().toLowerCase();
-  let queryBuffer = getCachedQueryEmbedding(queryKey);
-
-  if (!queryBuffer) {
-    const textExtractor = await getTextExtractor();
-    const extracted = await textExtractor(q, { pooling: "mean", normalize: false });
-    const vec768 = new Float32Array(extracted.data);
-    const projected = projectTo512(vec768);
-    const queryEmbedding = normalize(projected);
-    queryBuffer = Buffer.from(
-      queryEmbedding.buffer,
-      queryEmbedding.byteOffset,
-      queryEmbedding.byteLength
-    );
-    storeQueryEmbedding(queryKey, queryBuffer);
-  }
+  const variants = buildQueryVariants(q);
+  if (variants.length === 0) return [];
 
   const effectiveFilter = source?.trim() || null;
   const isSubMuseum = effectiveFilter?.startsWith("shm:");
@@ -249,28 +318,98 @@ export async function clipSearch(q: string, limit = 60, offset = 0, source?: str
   const desiredCount = offset + limit;
   const allowedSource = sourceFilter("a");
   const desiredK = Math.max(120, desiredCount);
-  const filteredRows = await runKnnQuery(queryBuffer, desiredK, allowedSource, effectiveSource, subMuseumName);
+  const perVariantK = Math.max(desiredK, Math.ceil(desiredK * 1.5 / variants.length));
+  const aggregated = new Map<number, AggregatedCandidate>();
+  const RRF_K = 60;
 
-  return filteredRows.slice(offset, offset + limit).map((row) => ({
-    id: row.id,
-    title: row.title_sv || row.title_en || "Utan titel",
-    artist: parseArtist(row.artists),
-    imageUrl: buildImageUrl(row.iiif_url, 400),
-    heroUrl: buildImageUrl(row.iiif_url, 800),
-    year: row.dating_text || "",
-    color: row.dominant_color || "#D4CDC3",
-    similarity: clampSimilarity(row.distance),
-    museum_name: row.museum_name ?? null,
-    source: row.source ?? null,
-    sub_museum: row.sub_museum ?? null,
-    focal_x: row.focal_x ?? null,
-    focal_y: row.focal_y ?? null,
-  }));
+  for (const variant of variants) {
+    const variantKey = `${QUERY_EMBEDDING_VERSION}:${QUERY_PROMPT_VERSION}:${variant.trim().toLowerCase()}`;
+    let queryBuffer = getCachedQueryEmbedding(variantKey);
+    if (!queryBuffer) {
+      queryBuffer = await embedQuery(variant);
+      storeQueryEmbedding(variantKey, queryBuffer);
+    }
+
+    const rows = await runKnnQuery(
+      queryBuffer,
+      perVariantK,
+      allowedSource,
+      effectiveSource,
+      subMuseumName
+    );
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rrf = 1 / (RRF_K + i + 1);
+      const existing = aggregated.get(row.id);
+      if (!existing) {
+        aggregated.set(row.id, { row, rrfScore: rrf, maxDistance: row.distance });
+        continue;
+      }
+      existing.rrfScore += rrf;
+      if (row.distance > existing.maxDistance) {
+        existing.maxDistance = row.distance;
+        existing.row = row;
+      }
+    }
+  }
+
+  const mergedRows = [...aggregated.values()]
+    .sort((a, b) => {
+      if (b.rrfScore !== a.rrfScore) return b.rrfScore - a.rrfScore;
+      return b.maxDistance - a.maxDistance;
+    })
+    .slice(offset, offset + limit);
+
+  return mergedRows.map(({ row, maxDistance }) => toClipResult(row, maxDistance));
+}
+
+export async function clipSearchFromSeedIds(
+  seedArtworkIds: number[],
+  limit = 60,
+  offset = 0,
+  source?: string
+): Promise<ClipResult[]> {
+  const uniqueSeedIds = [...new Set(seedArtworkIds)]
+    .filter((id) => Number.isInteger(id))
+    .slice(0, 24);
+  if (uniqueSeedIds.length === 0) return [];
+
+  const db = getDb();
+  const placeholders = uniqueSeedIds.map(() => "?").join(",");
+  const seedRows = db.prepare(
+    `SELECT artwork_id, embedding
+     FROM clip_embeddings
+     WHERE artwork_id IN (${placeholders})`
+  ).all(...uniqueSeedIds) as ClipEmbeddingSeedRow[];
+  const centroid = buildCentroidEmbedding(seedRows);
+  if (!centroid) return [];
+
+  const effectiveFilter = source?.trim() || null;
+  const isSubMuseum = effectiveFilter?.startsWith("shm:");
+  const subMuseumName = isSubMuseum ? effectiveFilter!.slice(4) : null;
+  const effectiveSource = isSubMuseum ? "shm" : effectiveFilter;
+  const desiredCount = offset + limit + uniqueSeedIds.length;
+  const allowedSource = sourceFilter("a");
+  const desiredK = Math.max(120, desiredCount);
+  const rows = await runKnnQuery(
+    centroid,
+    desiredK,
+    allowedSource,
+    effectiveSource,
+    subMuseumName
+  );
+  const seedSet = new Set(uniqueSeedIds);
+  const filtered = rows.filter((row) => !seedSet.has(row.id));
+
+  return filtered
+    .slice(offset, offset + limit)
+    .map((row) => toClipResult(row, row.distance));
 }
 
 /** Pre-load the CLIP text model so the first search is instant */
 export function warmupClip(): void {
-  getTextExtractor()
+  getTextEncoder()
     .then(() => console.log("[CLIP] Model loaded and ready"))
     .catch((err) => console.error("[CLIP] Warmup failed:", err));
 }

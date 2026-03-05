@@ -39,9 +39,83 @@ const COLOR_TERMS: Record<string, { r: number; g: number; b: number }> = {
   "vitt": { r: 240, g: 240, b: 240 }, "vit": { r: 240, g: 240, b: 240 }, "vita": { r: 240, g: 240, b: 240 },
 };
 
+const CLIP_DEBUG = process.env.KABINETT_CLIP_DEBUG === "1";
+
+function logClipDebug(event: string, payload: Record<string, unknown>): void {
+  if (!CLIP_DEBUG) return;
+  console.log(event, JSON.stringify(payload));
+}
+
 
 function nextCursor(length: number): number | null {
   return length >= PAGE_SIZE ? length : null;
+}
+
+function normalizeQueryToken(input: string): string {
+  return input
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function isVisualObjectQuery(query: string): boolean {
+  const normalized = normalizeQueryToken(query);
+  if (!normalized) return false;
+  const words = normalized.split(" ").filter(Boolean);
+  if (words.length === 0 || words.length > 3) return false;
+  if (words.some((word) => /\d/.test(word))) return false;
+  return true;
+}
+
+function chooseFtsSeedIds(results: SearchResult[], query: string, limit = 12): number[] {
+  const normalizedQuery = normalizeQueryToken(query);
+  const candidates = results.filter((row) => {
+    const title = normalizeQueryToken(row.title || row.title_sv || row.title_en || "");
+    // Avoid exact lexical mirror matches when seeding CLIP; they lock onto metadata buckets.
+    return title !== normalizedQuery;
+  });
+  const pool = candidates.length >= 4 ? candidates : results;
+  const picked: number[] = [];
+  const seenMuseums = new Set<string>();
+
+  for (const row of pool) {
+    const museum = (row.museum_name || "").trim().toLowerCase();
+    if (museum && seenMuseums.has(museum)) continue;
+    picked.push(row.id);
+    if (museum) seenMuseums.add(museum);
+    if (picked.length >= limit) return picked;
+  }
+  for (const row of pool) {
+    if (picked.includes(row.id)) continue;
+    picked.push(row.id);
+    if (picked.length >= limit) break;
+  }
+  return picked;
+}
+
+function filterClipByConfidence(results: SearchResult[]): SearchResult[] {
+  if (results.length === 0) return [];
+  const sorted = [...results].sort(
+    (a, b) => Number((b as any).similarity ?? 0) - Number((a as any).similarity ?? 0)
+  );
+  const topSim = Number((sorted[0] as any).similarity ?? 0);
+  const probeIndex = Math.min(sorted.length - 1, 9);
+  const probeSim = Number((sorted[probeIndex] as any).similarity ?? topSim);
+  const spread = topSim - probeSim;
+
+  // Flat score distributions can be noisy, but avoid zeroing CLIP entirely on borderline cases.
+  if (sorted.length >= 5 && spread < 0.01) {
+    if (topSim < 0.26) return [];
+    return sorted.slice(0, Math.min(12, sorted.length));
+  }
+
+  const minSimilarity = Math.max(0.22, topSim - 0.12);
+  const filtered = sorted.filter((row) => Number((row as any).similarity ?? -1) >= minSimilarity);
+  if (filtered.length > 0) return filtered;
+  return sorted.slice(0, Math.min(8, sorted.length));
 }
 
 /** Build a short snippet showing where the query matched */
@@ -102,6 +176,7 @@ async function loadSearchResults(args: {
   museum: string;
 }): Promise<SearchResultsPayload> {
   const { query, museum } = args;
+  const visualIntent = isVisualObjectQuery(query);
   const db = getDb();
   const sourceA = sourceFilter("a");
 
@@ -141,7 +216,7 @@ async function loadSearchResults(args: {
       const { translateToEnglish } = await import("../lib/translate.server");
       const enQuery = await translateToEnglish(query);
       const isTranslated = enQuery.toLowerCase() !== query.toLowerCase();
-      console.log("[CLIP translate]", JSON.stringify({ original: query, translated: enQuery, isTranslated }));
+      logClipDebug("[CLIP translate]", { original: query, translated: enQuery, isTranslated });
 
       const queries = [clipMod.clipSearch(query, PAGE_SIZE, 0, museum || undefined)];
       if (isTranslated) {
@@ -171,7 +246,8 @@ async function loadSearchResults(args: {
     });
 
   const ftsPromise = (async () => {
-    console.log("[FTS query]", JSON.stringify(ftsQuery)); if (!ftsQuery) return [] as SearchResult[];
+    logClipDebug("[FTS query]", { q: query, ftsQuery });
+    if (!ftsQuery) return [] as SearchResult[];
 
     try {
       const rows = db.prepare(
@@ -198,22 +274,78 @@ async function loadSearchResults(args: {
     }
   })();
 
-  const [clipResults, ftsResults] = await Promise.all([clipPromise, ftsPromise]);
+  let [clipResults, ftsResults] = await Promise.all([clipPromise, ftsPromise]);
+
+  const initialTopSim = Number((clipResults[0] as any)?.similarity ?? 0);
+  const initialProbeIndex = Math.min(Math.max(clipResults.length - 1, 0), 9);
+  const initialProbeSim = Number((clipResults[initialProbeIndex] as any)?.similarity ?? initialTopSim);
+  const initialSpread = initialTopSim - initialProbeSim;
+  const shouldSeedFromFts = ftsResults.length >= 4
+    && (
+      (visualIntent && clipResults.length < 8)
+      || (!visualIntent && (clipResults.length === 0 || initialSpread < 0.02))
+    );
+
+  if (shouldSeedFromFts) {
+    try {
+      const clipMod = await import("../lib/clip-search.server");
+      const seedIds = chooseFtsSeedIds(ftsResults, query, 12);
+      const seeded = await clipMod.clipSearchFromSeedIds(
+        seedIds,
+        PAGE_SIZE,
+        0,
+        museum || undefined
+      );
+      const best = new Map<number, SearchResult>();
+      for (const row of [...clipResults, ...(seeded as unknown as SearchResult[])]) {
+        const existing = best.get(row.id);
+        if (!existing || Number((row as any).similarity ?? 0) > Number((existing as any).similarity ?? 0)) {
+          best.set(row.id, row);
+        }
+      }
+      clipResults = [...best.values()]
+        .sort((a, b) => Number((b as any).similarity ?? 0) - Number((a as any).similarity ?? 0))
+        .slice(0, PAGE_SIZE);
+      clipResults.forEach((r) => { r.matchType = "clip"; });
+      logClipDebug("[CLIP seeded]", {
+        q: query,
+        visualIntent,
+        seedCount: seedIds.length,
+        seededCount: seeded.length,
+        mergedClipCount: clipResults.length,
+      });
+    } catch (seedErr) {
+      console.error("[CLIP seed error]", seedErr);
+    }
+  }
 
   // Build a lookup for FTS results to detect "both" matches
   const ftsIds = new Set(ftsResults.map((r) => r.id));
   const ftsLookup = new Map(ftsResults.map((r) => [r.id, r]));
 
   // Merge: CLIP first (filtered by similarity), then unique FTS results
-  const MIN_CLIP_SIMILARITY = 0.32;
   const rawSims = clipResults.slice(0, 5).map((r) => ({ title: (r as any).title?.slice(0, 30), sim: (r as any).similarity }));
-  console.log("[CLIP sims]", JSON.stringify(rawSims));
-  const filteredClip = clipResults.filter((r) => (r as any).similarity >= MIN_CLIP_SIMILARITY);
-  const seenIds = new Set(filteredClip.map((r) => r.id));
-  const merged = [...filteredClip];
+  logClipDebug("[CLIP sims]", { q: query, top: rawSims });
+  const filteredClip = filterClipByConfidence(clipResults);
+  const topSim = Number((clipResults[0] as any)?.similarity ?? 0);
+  const probeIndex = Math.min(Math.max(clipResults.length - 1, 0), 9);
+  const probeSim = Number((clipResults[probeIndex] as any)?.similarity ?? topSim);
+  const spread = topSim - probeSim;
+  logClipDebug("[CLIP merge]", {
+    q: query,
+    visualIntent,
+    clipRaw: clipResults.length,
+    clipKept: filteredClip.length,
+    ftsCount: ftsResults.length,
+    topSim,
+    spread,
+  });
+  const seenClipIds = new Set(filteredClip.map((r) => r.id));
+  const merged: SearchResult[] = [];
+  const clipOnly: SearchResult[] = [];
 
   // Mark CLIP results that are also in FTS as "both", grab snippet fields
-  for (const r of merged) {
+  for (const r of filteredClip) {
     if (ftsIds.has(r.id)) {
       r.matchType = "both";
       const ftsRow = ftsLookup.get(r.id);
@@ -221,13 +353,41 @@ async function loadSearchResults(args: {
         r.technique_material = ftsRow.technique_material;
         r.descriptions_sv = ftsRow.descriptions_sv;
       }
+      merged.push(r);
+    } else {
+      clipOnly.push(r);
     }
   }
 
-  for (const fts of ftsResults) {
-    if (!seenIds.has(fts.id)) {
-      seenIds.add(fts.id);
-      merged.push(fts);
+  const ftsOnly = ftsResults.filter((fts) => !seenClipIds.has(fts.id));
+  const confidentClip = spread >= 0.03 && topSim >= 0.32;
+  const clipBatch = visualIntent ? (confidentClip ? 3 : 2) : (confidentClip ? 2 : 1);
+  const ftsBatch = visualIntent ? 1 : (confidentClip ? 1 : 2);
+  logClipDebug("[CLIP mix]", {
+    q: query,
+    visualIntent,
+    overlap: merged.length,
+    clipOnly: clipOnly.length,
+    ftsOnly: ftsOnly.length,
+    clipBatch,
+    ftsBatch,
+  });
+  let clipIndex = 0;
+  let ftsIndex = 0;
+
+  while (
+    merged.length < PAGE_SIZE &&
+    (clipIndex < clipOnly.length || ftsIndex < ftsOnly.length)
+  ) {
+    for (let i = 0; i < clipBatch && merged.length < PAGE_SIZE; i += 1) {
+      const row = clipOnly[clipIndex++];
+      if (!row) break;
+      merged.push(row);
+    }
+    for (let i = 0; i < ftsBatch && merged.length < PAGE_SIZE; i += 1) {
+      const row = ftsOnly[ftsIndex++];
+      if (!row) break;
+      merged.push(row);
     }
   }
 
