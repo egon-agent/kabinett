@@ -20,6 +20,8 @@ export default function HeroSearch({
       requestAnimationFrame(() => {
         const len = el.value.length;
         el.setSelectionRange(len, len);
+        // Scroll input into view when iOS keyboard opens
+        setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "center" }), 300);
       });
     }
   }, []);
