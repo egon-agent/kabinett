@@ -131,7 +131,7 @@ async function loadSearchResults(args: {
 
   const ftsQuery = query
     .split(/\s+/)
-    .map((word) => word.replace(/"/g, "").trim())
+    .map((word) => word.replace(/["'()]/g, "").trim())
     .filter(Boolean)
     .map((word) => `"${word}"*`)
     .join(" ");
