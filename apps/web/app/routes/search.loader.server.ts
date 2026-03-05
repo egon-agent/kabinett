@@ -136,7 +136,7 @@ async function loadSearchResults(args: {
     .map((word) => `"${word}"*`)
     .join(" ");
 
-  import("../lib/clip-search.server").then(async (clipMod) => {
+  const clipPromise = import("../lib/clip-search.server").then(async (clipMod) => {
       // Run CLIP on both original and English translation, take best results
       const { translateToEnglish } = await import("../lib/translate.server");
       const enQuery = await translateToEnglish(query);
