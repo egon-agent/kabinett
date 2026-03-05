@@ -171,7 +171,7 @@ async function loadSearchResults(args: {
     });
 
   const ftsPromise = (async () => {
-    if (!ftsQuery) return [] as SearchResult[];
+    console.log("[FTS query]", JSON.stringify(ftsQuery)); if (!ftsQuery) return [] as SearchResult[];
 
     try {
       const rows = db.prepare(
