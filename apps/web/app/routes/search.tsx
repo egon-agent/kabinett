@@ -121,7 +121,7 @@ function SearchAutocompleteForm({
                 name="q"
                 placeholder="Konstnär, titel, teknik…"
                 className="flex-1 px-4 py-3 rounded-xl bg-[#252019] text-[#F5F0E8] placeholder:text-[rgba(245,240,232,0.4)]
-                       text-sm border border-stone/20 focus:border-charcoal/40 focus:outline-none focus-ring [&::-webkit-search-cancel-button]:hidden"
+                       text-base border border-stone/20 focus:border-charcoal/40 focus:outline-none focus-ring [&::-webkit-search-cancel-button]:hidden"
               />
               <button
                 type="submit"
