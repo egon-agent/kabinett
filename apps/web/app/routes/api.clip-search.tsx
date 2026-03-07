@@ -5,6 +5,7 @@ import { isMuseumEnabled, sourceFilter } from "../lib/museums.server";
 import { translateToEnglish } from "../lib/translate.server";
 
 type SearchMode = "clip" | "fts" | "color";
+type SearchType = "all" | "artwork" | "artist" | "visual";
 
 const COLOR_TERMS: Record<string, { r: number; g: number; b: number }> = {
   "rött": { r: 180, g: 50, b: 40 }, "röd": { r: 180, g: 50, b: 40 }, "röda": { r: 180, g: 50, b: 40 },
@@ -25,6 +26,13 @@ function logClipDebug(event: string, payload: Record<string, unknown>): void {
 function parseMode(rawMode: string | null): SearchMode {
   if (rawMode === "fts" || rawMode === "clip" || rawMode === "color") return rawMode;
   return "clip";
+}
+
+function parseType(rawType: string | null): SearchType {
+  if (rawType === "all" || rawType === "artwork" || rawType === "artist" || rawType === "visual") {
+    return rawType;
+  }
+  return "all";
 }
 
 function buildFtsQuery(q: string): string {
@@ -114,6 +122,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const offset = Number.isFinite(rawOffset) ? Math.min(Math.max(rawOffset, 0), 10_000) : 0;
   const museum = url.searchParams.get("museum")?.trim().toLowerCase() || "";
   const mode = parseMode(url.searchParams.get("mode"));
+  const type = parseType(url.searchParams.get("type"));
   const visualIntent = isVisualObjectQuery(q);
 
   if (!q) return Response.json([]);
@@ -205,6 +214,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       }
       logClipDebug("[CLIP api]", {
         q,
+        type,
         visualIntent,
         translated: enQuery.trim().toLowerCase() !== q.toLowerCase(),
         clipRaw: rawClip.length,
@@ -235,6 +245,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       const ftsBatch = visualIntent ? 1 : (confidentClip ? 1 : 2);
       logClipDebug("[CLIP api mix]", {
         q,
+        type,
         visualIntent,
         overlap: overlap.length,
         clipOnly: clipOnly.length,

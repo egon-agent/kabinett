@@ -1,10 +1,36 @@
 import type React from "react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
-type Suggestion = {
-  count?: number;
+export type ArtworkAutocompleteSuggestion = {
+  type: "artwork";
+  id: number;
+  title: string;
+  iiif_url: string | null;
+  dominant_color: string | null;
+  artist_name: string | null;
+  imageUrl: string;
+};
+
+export type ArtistAutocompleteSuggestion = {
+  type: "artist";
   value: string;
-  type: string;
+  count?: number;
+};
+
+export type ClipAutocompleteSuggestion = {
+  type: "clip";
+  value: string;
+};
+
+export type AutocompleteSuggestion =
+  | ArtworkAutocompleteSuggestion
+  | ArtistAutocompleteSuggestion
+  | ClipAutocompleteSuggestion;
+
+type SuggestionGroups = {
+  artworks: ArtworkAutocompleteSuggestion[];
+  artists: ArtistAutocompleteSuggestion[];
+  clips: ClipAutocompleteSuggestion[];
 };
 
 type AutocompleteInputProps = {
@@ -23,16 +49,79 @@ type AutocompleteInputProps = {
 type AutocompleteProps = {
   query: string;
   onQueryChange: (value: string) => void;
-  onSelect: (value: string) => void;
+  onSelect: (suggestion: AutocompleteSuggestion) => void;
   children: (props: { inputProps: AutocompleteInputProps }) => React.ReactNode;
   dropdownClassName?: string;
   minLength?: number;
 };
 
-const TYPE_LABELS: Record<string, string> = {
-  artist: "Konstnär",
-  clip: "Prova",
+const EMPTY_SUGGESTIONS: SuggestionGroups = {
+  artworks: [],
+  artists: [],
+  clips: [],
 };
+
+function suggestionValue(suggestion: AutocompleteSuggestion): string {
+  if (suggestion.type === "artwork") return suggestion.title;
+  return suggestion.value;
+}
+
+function normalizeSuggestions(raw: unknown): SuggestionGroups {
+  if (!raw || typeof raw !== "object") return EMPTY_SUGGESTIONS;
+
+  const payload = raw as {
+    artworks?: Array<{
+      id?: number;
+      title?: string;
+      iiif_url?: string | null;
+      dominant_color?: string | null;
+      artist_name?: string | null;
+      imageUrl?: string;
+    }>;
+    artists?: Array<{ value?: string; count?: number }>;
+    clips?: Array<{ value?: string }>;
+  };
+
+  const artworks = Array.isArray(payload.artworks)
+    ? payload.artworks
+        .filter((item) => typeof item?.id === "number" && typeof item?.title === "string")
+        .slice(0, 3)
+        .map((item) => ({
+          type: "artwork" as const,
+          id: item.id as number,
+          title: (item.title as string).trim() || "Utan titel",
+          iiif_url: item.iiif_url ?? null,
+          dominant_color: item.dominant_color ?? null,
+          artist_name: item.artist_name?.trim() || null,
+          imageUrl: item.imageUrl?.trim() || "",
+        }))
+    : [];
+
+  const artists = Array.isArray(payload.artists)
+    ? payload.artists
+        .filter((item) => typeof item?.value === "string")
+        .slice(0, 3)
+        .map((item) => ({
+          type: "artist" as const,
+          value: (item.value as string).trim(),
+          count: typeof item.count === "number" ? item.count : undefined,
+        }))
+        .filter((item) => item.value.length > 0)
+    : [];
+
+  const clips = Array.isArray(payload.clips)
+    ? payload.clips
+        .filter((item) => typeof item?.value === "string")
+        .slice(0, 3)
+        .map((item) => ({
+          type: "clip" as const,
+          value: (item.value as string).trim(),
+        }))
+        .filter((item) => item.value.length > 0)
+    : [];
+
+  return { artworks, artists, clips };
+}
 
 export default function Autocomplete({
   query,
@@ -42,19 +131,30 @@ export default function Autocomplete({
   dropdownClassName,
   minLength = 2,
 }: AutocompleteProps) {
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [suggestions, setSuggestions] = useState<SuggestionGroups>(EMPTY_SUGGESTIONS);
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  // Track whether the user is actively typing (vs programmatic query changes)
   const userTypingRef = useRef(false);
   const listboxId = useId();
 
+  const flatSuggestions = useMemo(
+    () => [...suggestions.artworks, ...suggestions.artists, ...suggestions.clips],
+    [suggestions]
+  );
+  const totalSuggestions = flatSuggestions.length;
+
   const killPending = useCallback(() => {
-    if (fetchTimer.current) { clearTimeout(fetchTimer.current); fetchTimer.current = null; }
-    if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
+    if (fetchTimer.current) {
+      clearTimeout(fetchTimer.current);
+      fetchTimer.current = null;
+    }
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
   }, []);
 
   const closeDropdown = useCallback(() => {
@@ -64,25 +164,27 @@ export default function Autocomplete({
 
   const dismiss = useCallback(() => {
     killPending();
-    setSuggestions([]);
+    setSuggestions(EMPTY_SUGGESTIONS);
     closeDropdown();
   }, [killPending, closeDropdown]);
 
-  const selectSuggestion = useCallback((value: string) => {
-    userTypingRef.current = false;
-    dismiss();
-    onQueryChange(value);
-    onSelect(value);
-  }, [dismiss, onQueryChange, onSelect]);
+  const selectSuggestion = useCallback(
+    (suggestion: AutocompleteSuggestion) => {
+      userTypingRef.current = false;
+      dismiss();
+      onQueryChange(suggestionValue(suggestion));
+      onSelect(suggestion);
+    },
+    [dismiss, onQueryChange, onSelect]
+  );
 
-  // Fetch suggestions only when user is typing
   useEffect(() => {
     killPending();
 
     const trimmed = query.trim();
     if (!userTypingRef.current || trimmed.length < minLength) {
       if (trimmed.length < minLength) {
-        setSuggestions([]);
+        setSuggestions(EMPTY_SUGGESTIONS);
         closeDropdown();
       }
       return;
@@ -90,16 +192,23 @@ export default function Autocomplete({
 
     const controller = new AbortController();
     abortRef.current = controller;
+
     fetchTimer.current = setTimeout(async () => {
       try {
         const response = await fetch(`/api/autocomplete?q=${encodeURIComponent(trimmed)}`, {
           signal: controller.signal,
         });
         if (!response.ok) throw new Error("Autocomplete request failed");
-        const data = await response.json() as Suggestion[];
+
+        const raw = await response.json();
         if (controller.signal.aborted || !userTypingRef.current) return;
-        setSuggestions(data);
-        if (data.length > 0) {
+
+        const nextSuggestions = normalizeSuggestions(raw);
+        const nextCount =
+          nextSuggestions.artworks.length + nextSuggestions.artists.length + nextSuggestions.clips.length;
+
+        setSuggestions(nextSuggestions);
+        if (nextCount > 0) {
           setIsOpen(true);
           setActiveIndex(-1);
         } else {
@@ -107,14 +216,17 @@ export default function Autocomplete({
         }
       } catch (error: unknown) {
         if ((error as { name?: string }).name === "AbortError") return;
-        setSuggestions([]);
+        setSuggestions(EMPTY_SUGGESTIONS);
         closeDropdown();
       }
     }, 200);
 
     return () => {
       controller.abort();
-      if (fetchTimer.current) { clearTimeout(fetchTimer.current); fetchTimer.current = null; }
+      if (fetchTimer.current) {
+        clearTimeout(fetchTimer.current);
+        fetchTimer.current = null;
+      }
     };
   }, [closeDropdown, killPending, minLength, query]);
 
@@ -132,22 +244,25 @@ export default function Autocomplete({
       onQueryChange(event.target.value);
     },
     onKeyDown: (event) => {
-      if (event.key === "ArrowDown" && suggestions.length > 0) {
+      if (event.key === "ArrowDown" && totalSuggestions > 0) {
         event.preventDefault();
         setIsOpen(true);
-        setActiveIndex((prev) => prev < 0 ? 0 : (prev + 1) % suggestions.length);
+        setActiveIndex((prev) => (prev < 0 ? 0 : (prev + 1) % totalSuggestions));
         return;
       }
-      if (event.key === "ArrowUp" && suggestions.length > 0) {
+      if (event.key === "ArrowUp" && totalSuggestions > 0) {
         event.preventDefault();
         setIsOpen(true);
-        setActiveIndex((prev) => prev < 0 ? suggestions.length - 1 : (prev - 1 + suggestions.length) % suggestions.length);
+        setActiveIndex((prev) => (prev < 0 ? totalSuggestions - 1 : (prev - 1 + totalSuggestions) % totalSuggestions));
         return;
       }
       if (event.key === "Enter") {
         if (isOpen && activeIndex >= 0) {
-          event.preventDefault();
-          selectSuggestion(suggestions[activeIndex].value);
+          const suggestion = flatSuggestions[activeIndex];
+          if (suggestion) {
+            event.preventDefault();
+            selectSuggestion(suggestion);
+          }
         } else {
           userTypingRef.current = false;
           dismiss();
@@ -159,7 +274,7 @@ export default function Autocomplete({
       }
     },
     onFocus: () => {
-      if (suggestions.length > 0 && userTypingRef.current) {
+      if (totalSuggestions > 0 && userTypingRef.current) {
         setIsOpen(true);
       }
     },
@@ -172,61 +287,124 @@ export default function Autocomplete({
     autoComplete: "off",
     role: "combobox",
     "aria-autocomplete": "list",
-    "aria-expanded": isOpen && suggestions.length > 0,
-    "aria-controls": isOpen && suggestions.length > 0 ? listboxId : undefined,
+    "aria-expanded": isOpen && totalSuggestions > 0,
+    "aria-controls": isOpen && totalSuggestions > 0 ? listboxId : undefined,
   };
 
   return (
     <div className="relative">
       {children({ inputProps })}
-      {isOpen && suggestions.length > 0 ? (
+      {isOpen && totalSuggestions > 0 ? (
         <div
           id={listboxId}
           role="listbox"
           className={dropdownClassName || "absolute left-0 right-0 top-full mt-1 z-50 bg-[#1C1916] rounded-xl shadow-lg border border-[rgba(245,240,232,0.1)] overflow-hidden"}
         >
           {(() => {
-            const artists = suggestions.filter(s => s.type === "artist");
-            const clips = suggestions.filter(s => s.type === "clip");
+            const { artworks, artists, clips } = suggestions;
             let globalIndex = 0;
+            const hasArtworkSection = artworks.length > 0;
+            const hasArtistSection = artists.length > 0;
+
             return (
               <>
-                {artists.map((suggestion) => {
-                  const idx = globalIndex++;
-                  const isActive = idx === activeIndex;
-                  return (
-                    <button
-                      key={`${suggestion.type}-${suggestion.value}`}
-                      type="button"
-                      role="option"
-                      aria-selected={isActive}
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        selectSuggestion(suggestion.value);
-                      }}
-                      onMouseEnter={() => setActiveIndex(idx)}
-                      className={[
-                        "w-full text-left px-4 py-3 text-sm flex justify-between items-center cursor-pointer",
-                        "hover:bg-[#2E2820] focus-ring",
-                        isActive ? "bg-[#2E2820]" : "",
-                        idx > 0 ? "border-t border-[rgba(245,240,232,0.05)]" : "",
-                      ].join(" ")}
-                    >
-                      <span className="text-[#F5F0E8] truncate">{suggestion.value}</span>
-                      <span className="text-xs text-[rgba(245,240,232,0.35)] ml-2 shrink-0">
-                        {suggestion.count ? `${suggestion.count} verk` : "Konstnär"}
-                      </span>
-                    </button>
-                  );
-                })}
+                {hasArtworkSection && (
+                  <>
+                    <div className="px-4 pt-2.5 pb-1">
+                      <span className="text-[0.65rem] uppercase tracking-[0.15em] text-[rgba(245,240,232,0.3)]">Verk</span>
+                    </div>
+                    <div className="pb-2">
+                      {artworks.map((suggestion, index) => {
+                        const idx = globalIndex++;
+                        const isActive = idx === activeIndex;
+                        return (
+                          <button
+                            key={`artwork-${suggestion.id}`}
+                            type="button"
+                            role="option"
+                            aria-selected={isActive}
+                            onMouseDown={(event) => {
+                              event.preventDefault();
+                              selectSuggestion(suggestion);
+                            }}
+                            onMouseEnter={() => setActiveIndex(idx)}
+                            className={[
+                              "w-full text-left px-4 py-2.5 flex items-center gap-3 cursor-pointer transition-colors",
+                              "hover:bg-[#2E2820] focus-ring",
+                              isActive ? "bg-[#2E2820]" : "",
+                              index > 0 ? "border-t border-[rgba(245,240,232,0.05)]" : "",
+                            ].join(" ")}
+                          >
+                            {suggestion.imageUrl ? (
+                              <img
+                                src={suggestion.imageUrl}
+                                alt=""
+                                className="h-8 w-8 rounded-md object-cover shrink-0 bg-[#252019]"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div
+                                className="h-8 w-8 rounded-md shrink-0 bg-[#252019]"
+                                style={suggestion.dominant_color ? { backgroundColor: suggestion.dominant_color } : undefined}
+                              />
+                            )}
+                            <span className="min-w-0">
+                              <span className="block text-sm text-[#F5F0E8] truncate">{suggestion.title}</span>
+                              <span className="block text-xs text-[rgba(245,240,232,0.45)] truncate">
+                                {suggestion.artist_name || "Okänd konstnär"}
+                              </span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+
+                {hasArtistSection && (
+                  <>
+                    <div className={`px-4 pt-2.5 pb-1 ${hasArtworkSection ? "border-t border-[rgba(245,240,232,0.08)]" : ""}`}>
+                      <span className="text-[0.65rem] uppercase tracking-[0.15em] text-[rgba(245,240,232,0.3)]">Konstnärer</span>
+                    </div>
+                    <div className="pb-2">
+                      {artists.map((suggestion, index) => {
+                        const idx = globalIndex++;
+                        const isActive = idx === activeIndex;
+                        return (
+                          <button
+                            key={`artist-${suggestion.value}`}
+                            type="button"
+                            role="option"
+                            aria-selected={isActive}
+                            onMouseDown={(event) => {
+                              event.preventDefault();
+                              selectSuggestion(suggestion);
+                            }}
+                            onMouseEnter={() => setActiveIndex(idx)}
+                            className={[
+                              "w-full text-left px-4 py-2.5 text-sm flex justify-between items-center cursor-pointer transition-colors",
+                              "hover:bg-[#2E2820] focus-ring",
+                              isActive ? "bg-[#2E2820]" : "",
+                              index > 0 ? "border-t border-[rgba(245,240,232,0.05)]" : "",
+                            ].join(" ")}
+                          >
+                            <span className="text-[#F5F0E8] truncate">{suggestion.value}</span>
+                            <span className="text-xs text-[rgba(245,240,232,0.35)] ml-2 shrink-0">
+                              {suggestion.count ? `${suggestion.count} verk` : "Konstnär"}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+
                 {clips.length > 0 && (
                   <>
-                    {artists.length > 0 && (
-                      <div className="border-t border-[rgba(245,240,232,0.08)] px-4 pt-2.5 pb-1">
-                        <span className="text-[0.65rem] uppercase tracking-[0.15em] text-[rgba(245,240,232,0.3)]">Prova att söka på</span>
-                      </div>
-                    )}
-                    <div className={`flex flex-wrap gap-1.5 px-4 ${artists.length > 0 ? "pb-3 pt-1" : "py-3"}`}>
+                    <div className={`px-4 pt-2.5 pb-1 ${(hasArtworkSection || hasArtistSection) ? "border-t border-[rgba(245,240,232,0.08)]" : ""}`}>
+                      <span className="text-[0.65rem] uppercase tracking-[0.15em] text-[rgba(245,240,232,0.3)]">Sök visuellt</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 px-4 pb-3 pt-1">
                       {clips.map((suggestion) => {
                         const idx = globalIndex++;
                         const isActive = idx === activeIndex;
@@ -238,7 +416,7 @@ export default function Autocomplete({
                             aria-selected={isActive}
                             onMouseDown={(event) => {
                               event.preventDefault();
-                              selectSuggestion(suggestion.value);
+                              selectSuggestion(suggestion);
                             }}
                             onMouseEnter={() => setActiveIndex(idx)}
                             className={[

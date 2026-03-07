@@ -1,12 +1,22 @@
 import { Suspense, useState, useEffect, useRef, useCallback } from "react";
 import { Await, data, useNavigate } from "react-router";
 import type { Route } from "./+types/search";
-import Autocomplete from "../components/Autocomplete";
+import Autocomplete, { type AutocompleteSuggestion } from "../components/Autocomplete";
 import ArtworkCard from "../components/ArtworkCard";
 import type { ArtworkDisplayItem } from "../components/artwork-meta";
 import { buildImageUrl } from "../lib/images";
-import type { MatchType } from "../lib/search-types";
-import { searchLoader, type SearchLoaderData, type SearchResult, type SearchMode, type MuseumOption, type SearchResultsPayload } from "./search.loader.server";
+import {
+  searchLoader,
+  type SearchLoaderData,
+  type SearchResult,
+  type SearchMode,
+  type SearchType,
+  type MuseumOption,
+  type SearchResultsPayload,
+  type ArtworkSearchResult,
+  type ArtistSearchResult,
+  type SearchResultItem,
+} from "./search.loader.server";
 import { PAGE_SIZE } from "../lib/search-constants";
 
 const THEME_FILTERS: Record<string, string> = {
@@ -56,7 +66,7 @@ function SearchResultsSkeleton() {
   );
 }
 
-function toArtworkItem(result: SearchResult): ArtworkDisplayItem {
+function toArtworkItem(result: ArtworkSearchResult): ArtworkDisplayItem {
   const title = result.title || result.title_sv || result.title_en || "Utan titel";
   const imageUrl = result.imageUrl || (result.iiif_url ? buildImageUrl(result.iiif_url, 400) : "");
   return {
@@ -90,8 +100,9 @@ type ThemeFeedItem = {
   imageUrl?: string;
 };
 
-function mapThemeFeedItemToSearchResult(item: ThemeFeedItem): SearchResult {
+function mapThemeFeedItemToSearchResult(item: ThemeFeedItem): ArtworkSearchResult {
   return {
+    resultType: "artwork",
     id: item.id,
     title_sv: item.title_sv || "Utan titel",
     title_en: null,
@@ -111,17 +122,18 @@ function mapThemeFeedItemToSearchResult(item: ThemeFeedItem): SearchResult {
 function SearchAutocompleteForm({
   defaultValue,
   museum,
+  searchType = "all",
   autoFocus = false,
 }: {
   defaultValue: string;
   museum?: string;
+  searchType?: SearchType;
   autoFocus?: boolean;
 }) {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState(defaultValue);
 
-  const isInitialMount = useRef(true);
   useEffect(() => {
     setQuery(defaultValue);
   }, [defaultValue]);
@@ -141,16 +153,22 @@ function SearchAutocompleteForm({
     const params = new URLSearchParams();
     if (trimmed) params.set("q", trimmed);
     if (museum) params.set("museum", museum);
+    if (searchType !== "all") params.set("type", searchType);
     const qs = params.toString();
     navigate(qs ? `/search?${qs}` : "/search");
-  }, [museum, navigate]);
+  }, [museum, navigate, searchType]);
+
+  const handleSelect = useCallback((suggestion: AutocompleteSuggestion) => {
+    const value = suggestion.type === "artwork" ? suggestion.title : suggestion.value;
+    submitSearch(value);
+  }, [submitSearch]);
 
   return (
     <div className="relative mt-4">
       <Autocomplete
         query={query}
         onQueryChange={setQuery}
-        onSelect={submitSearch}
+        onSelect={handleSelect}
       >
         {({ inputProps }) => (
           <form
@@ -191,17 +209,19 @@ function SearchResultsPanel({
   query,
   museum,
   searchMode,
+  searchType,
   showMuseumBadge,
 }: {
   initialPayload: SearchResultsPayload;
   query: string;
   museum: string;
   searchMode: SearchMode;
+  searchType: SearchType;
   showMuseumBadge: boolean;
 }) {
   const { results: initialResults, cursor: initialCursor } = initialPayload;
   const displayQuery = query;
-  const [results, setResults] = useState<SearchResult[]>(initialResults);
+  const [results, setResults] = useState<SearchResultItem[]>(initialResults);
   const [loading, setLoading] = useState(false);
   const [cursor, setCursor] = useState<number | null>(initialCursor);
   const [hasMore, setHasMore] = useState(initialCursor !== null);
@@ -252,16 +272,21 @@ function SearchResultsPanel({
         limit: String(PAGE_SIZE),
         offset: String(cursor),
         mode: searchMode,
+        type: searchType,
       });
       if (museum) params.set("museum", museum);
 
       const res = await fetch(`/api/clip-search?${params.toString()}`);
       const data = await res.json() as SearchResult[];
+      const mapped: ArtworkSearchResult[] = data.map((item) => ({
+        ...item,
+        resultType: "artwork",
+      }));
       if (data.length === 0) {
         setHasMore(false);
         setCursor(null);
       } else {
-        setResults((prev) => [...prev, ...data]);
+        setResults((prev) => [...prev, ...mapped]);
         const next = cursor + data.length;
         if (data.length < PAGE_SIZE) {
           setHasMore(false);
@@ -276,7 +301,10 @@ function SearchResultsPanel({
     } finally {
       setLoading(false);
     }
-  }, [cursor, hasMore, loading, museum, query, searchMode]);
+  }, [cursor, hasMore, loading, museum, query, searchMode, searchType]);
+
+  const artistResults = results.filter((result): result is ArtistSearchResult => result.resultType === "artist");
+  const artworkResults = results.filter((result): result is ArtworkSearchResult => result.resultType === "artwork");
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -296,9 +324,23 @@ function SearchResultsPanel({
           ? `${results.length}${hasMore ? "+" : ""} träffar${displayQuery ? ` för "${displayQuery}"` : ""}`
           : `Inga träffar${displayQuery ? ` för "${displayQuery}"` : ""}`}
       </p>
-      {results.length > 0 && (
+      {searchType === "artist" && artistResults.length > 0 && (
+        <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+          {artistResults.map((artist) => (
+            <a
+              key={artist.name}
+              href={`/artist/${encodeURIComponent(artist.name)}`}
+              className="rounded-xl border border-stone/20 bg-[#252019] px-4 py-4 hover:bg-[#2E2820] transition-colors focus-ring"
+            >
+              <p className="text-base text-[#F5F0E8] font-medium">{artist.name}</p>
+              <p className="text-sm text-[rgba(245,240,232,0.55)] mt-1">{artist.artwork_count} verk</p>
+            </a>
+          ))}
+        </div>
+      )}
+      {searchType !== "artist" && artworkResults.length > 0 && (
         <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-3 space-y-3">
-          {results.map((r) => (
+          {artworkResults.map((r) => (
             <ArtworkCard
               key={r.id}
               item={toArtworkItem(r)}
@@ -329,17 +371,27 @@ export default function Search({ loaderData }: Route.ComponentProps) {
     museumOptions,
     showMuseumBadge,
     searchMode,
+    searchType,
     shouldAutoFocus,
   } = typedLoaderData;
 
   const showResults = Boolean(query) || Boolean(museum);
   const showMuseumFilters = museumOptions.length > 1 && searchMode !== "theme";
 
-  const buildSearchUrl = (museumId?: string) => {
+  const buildSearchUrl = ({
+    queryValue = query,
+    museumId,
+    type = searchType,
+  }: {
+    queryValue?: string;
+    museumId?: string;
+    type?: SearchType;
+  } = {}) => {
     const params = new URLSearchParams();
-    if (query) params.set("q", query);
+    if (queryValue) params.set("q", queryValue);
     if (museumId) params.set("museum", museumId);
-    if (searchMode !== "clip") params.set("mode", searchMode);
+    if (type !== "all") params.set("type", type);
+    if (type === "all" && searchMode !== "clip") params.set("mode", searchMode);
     const qs = params.toString();
     return qs ? `/search?${qs}` : "/search";
   };
@@ -348,14 +400,45 @@ export default function Search({ loaderData }: Route.ComponentProps) {
     <div className="min-h-screen pt-14 bg-[#1C1916] text-[#F5F0E8]">
       <div className="px-(--spacing-page) pt-8 pb-4 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
         <h1 className="font-serif text-[2rem] text-[#F5F0E8] mb-4">Sök</h1>
-        <SearchAutocompleteForm defaultValue={query} museum={museum || undefined} autoFocus={shouldAutoFocus} />
+        <SearchAutocompleteForm
+          defaultValue={query}
+          museum={museum || undefined}
+          searchType={searchType}
+          autoFocus={shouldAutoFocus}
+        />
+
+        <div className="mt-4">
+          <p className="text-xs text-[rgba(245,240,232,0.55)] mb-2">Typ</p>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { id: "all" as SearchType, label: "Alla" },
+              { id: "artwork" as SearchType, label: "Verk" },
+              { id: "artist" as SearchType, label: "Konstnärer" },
+              { id: "visual" as SearchType, label: "Visuellt" },
+            ].map((option) => (
+              <a
+                key={option.id}
+                href={buildSearchUrl({ type: option.id, museumId: museum })}
+                className={[
+                  "px-3 py-1.5 min-h-11 rounded-full text-sm font-medium transition-colors inline-flex items-center",
+                  "focus-ring",
+                  searchType === option.id
+                    ? "bg-charcoal text-cream"
+                    : "bg-[#252019] text-[rgba(245,240,232,0.55)] hover:bg-[#2E2820] hover:text-[#F5F0E8]",
+                ].join(" ")}
+              >
+                {option.label}
+              </a>
+            ))}
+          </div>
+        </div>
 
         {showMuseumFilters && (
           <div className="mt-4">
             <p className="text-xs text-[rgba(245,240,232,0.55)] mb-2">Samlingar</p>
             <div className="flex flex-wrap gap-2">
               <a
-                href={buildSearchUrl()}
+                href={buildSearchUrl({ type: searchType })}
                 className={[
                   "px-3 py-1.5 min-h-11 rounded-full text-sm font-medium transition-colors inline-flex items-center",
                   "focus-ring",
@@ -369,7 +452,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
               {museumOptions.map((option: MuseumOption) => (
                 <a
                   key={option.id}
-                  href={buildSearchUrl(option.id)}
+                  href={buildSearchUrl({ museumId: option.id })}
                   className={[
                     "px-3 py-1.5 min-h-11 rounded-full text-sm font-medium transition-colors inline-flex items-center",
                     "focus-ring",
@@ -390,7 +473,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
             <p className="text-xs text-[rgba(245,240,232,0.55)] mb-3">Prova:</p>
             <div className="flex flex-wrap gap-2">
               {["Carl Larsson","Rembrandt","Olja på duk","Akvarell","Porträtt","Landskap","Skulptur","1700-tal","Guld","Vinter"].map(s => (
-                <a key={s} href={`/search?q=${encodeURIComponent(s)}`}
+                <a key={s} href={buildSearchUrl({ queryValue: s, museumId: museum, type: searchType })}
                   className="px-3 py-1.5 min-h-11 inline-flex items-center rounded-full bg-[#252019] text-[rgba(245,240,232,0.55)] text-sm font-medium
                              hover:bg-[#2E2820] hover:text-[#F5F0E8] transition-colors focus-ring">{s}</a>
               ))}
@@ -409,6 +492,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
                   query={query}
                   museum={museum}
                   searchMode={searchMode}
+                  searchType={searchType}
                   showMuseumBadge={showMuseumBadge}
                 />
               )}
