@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import Autocomplete from "./Autocomplete";
+import type { AutocompleteSuggestion } from "./Autocomplete";
 
 export default function HeroSearch({
   totalWorks,
@@ -28,14 +29,35 @@ export default function HeroSearch({
   }, []);
 
   const goToSearch = useCallback(
-    (q: string) => {
+    (q: string, type: "all" | "visual" = "all") => {
       const trimmed = q.trim();
       if (!trimmed) return;
       // Blur input to close autocomplete dropdown before navigating
       inputRef.current?.blur();
-      navigate(`/search?q=${encodeURIComponent(trimmed)}`);
+      const params = new URLSearchParams({ q: trimmed });
+      if (type !== "all") params.set("type", type);
+      navigate(`/search?${params.toString()}`);
     },
     [navigate]
+  );
+
+  const handleSelectSuggestion = useCallback(
+    (suggestion: AutocompleteSuggestion) => {
+      if (suggestion.type === "artwork") {
+        inputRef.current?.blur();
+        navigate(`/artwork/${suggestion.id}`);
+        return;
+      }
+
+      if (suggestion.type === "artist") {
+        inputRef.current?.blur();
+        navigate(`/artist/${encodeURIComponent(suggestion.value)}`);
+        return;
+      }
+
+      goToSearch(suggestion.value, "visual");
+    },
+    [goToSearch, navigate]
   );
 
   const handleSubmit = useCallback(
@@ -58,7 +80,7 @@ export default function HeroSearch({
       <Autocomplete
         query={query}
         onQueryChange={setQuery}
-        onSelect={(value) => goToSearch(value)}
+        onSelect={handleSelectSuggestion}
         dropdownClassName="absolute left-0 right-0 top-full mt-1 z-50 max-w-lg mx-auto bg-[#1C1916] rounded-xl shadow-lg border border-[rgba(245,240,232,0.1)] overflow-hidden"
       >
         {({ inputProps }) => (

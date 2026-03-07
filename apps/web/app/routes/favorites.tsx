@@ -117,7 +117,7 @@ function FavoriteCard({ item, onRemove }: { item: FavoriteItem; onRemove: (id: n
           removedRef.current = false;
         }
       }}
-      className="no-underline text-inherit bg-white rounded-[0.85rem] overflow-hidden shadow-[0_10px_24px_rgba(0,0,0,0.06)] border border-[rgba(212,205,195,0.3)] focus-ring"
+      className="no-underline text-inherit bg-[#252019] rounded-[0.85rem] overflow-hidden shadow-[0_10px_24px_rgba(0,0,0,0.06)] border border-[rgba(212,205,195,0.3)] focus-ring"
     >
       <div
         className="aspect-[3/4]"
