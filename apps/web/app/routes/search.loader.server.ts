@@ -272,8 +272,11 @@ async function loadSearchResults(args: {
       const isTranslated = enQuery.toLowerCase() !== query.toLowerCase();
       logClipDebug("[CLIP translate]", { original: query, translated: enQuery, isTranslated });
 
-      const queries = [clipMod.clipSearch(query, PAGE_SIZE, 0, museum || undefined)];
-      if (isTranslated) {
+      const preferTranslated = visualIntent && isTranslated;
+      const queries = preferTranslated
+        ? [clipMod.clipSearch(enQuery, PAGE_SIZE, 0, museum || undefined)]
+        : [clipMod.clipSearch(query, PAGE_SIZE, 0, museum || undefined)];
+      if (!preferTranslated && isTranslated) {
         queries.push(clipMod.clipSearch(enQuery, PAGE_SIZE, 0, museum || undefined));
       }
       const results = await Promise.all(queries);

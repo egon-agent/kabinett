@@ -137,8 +137,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
     try {
       // Hybrid: CLIP + FTS in parallel, CLIP results first, FTS fills gaps
       const enQuery = await translateToEnglish(q);
-      const clipPromises: Array<Promise<any[]>> = [clipSearch(q, limit, offset, scoped).catch(() => [] as any[])];
-      if (enQuery.trim().toLowerCase() !== q.toLowerCase()) {
+      const isTranslated = enQuery.trim().toLowerCase() !== q.toLowerCase();
+      const preferTranslated = type === "visual" && visualIntent && isTranslated;
+      const clipPromises: Array<Promise<any[]>> = preferTranslated
+        ? [clipSearch(enQuery, limit, offset, scoped).catch(() => [] as any[])]
+        : [clipSearch(q, limit, offset, scoped).catch(() => [] as any[])];
+      if (!preferTranslated && isTranslated) {
         clipPromises.push(clipSearch(enQuery, limit, offset, scoped).catch(() => [] as any[]));
       }
 
@@ -218,7 +222,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
         q,
         type,
         visualIntent,
-        translated: enQuery.trim().toLowerCase() !== q.toLowerCase(),
+        translated: isTranslated,
+        preferTranslated,
         clipRaw: rawClip.length,
         clipKept: clipResults.length,
         ftsCount: ftsResults.length,

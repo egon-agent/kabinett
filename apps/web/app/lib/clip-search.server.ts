@@ -175,6 +175,12 @@ function buildQueryVariants(query: string): string[] {
   const trimmed = query.trim();
   if (!trimmed) return [];
   const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
+
+  // Keep single-word object queries strict to reduce prompt drift.
+  if (wordCount === 1) {
+    return [trimmed];
+  }
+
   const base = [trimmed];
 
   if (wordCount <= 4) {
