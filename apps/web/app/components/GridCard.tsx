@@ -25,7 +25,7 @@ export default function GridCard({ item, variant = "light" }: GridCardProps) {
   return (
     <a
       href={`/artwork/${item.id}`}
-      className={`break-inside-avoid block rounded-card overflow-hidden ${bgClass} mb-3 no-underline focus-ring`}
+      className={`art-card break-inside-avoid block rounded-card overflow-hidden ${bgClass} mb-3 no-underline group focus-ring`}
     >
       <div
         className="aspect-[3/4] overflow-hidden"
@@ -40,7 +40,7 @@ export default function GridCard({ item, variant = "light" }: GridCardProps) {
           onError={(event) => {
             event.currentTarget.classList.add("is-broken");
           }}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
           style={{ objectPosition: focalPos }}
         />
       </div>

@@ -158,28 +158,28 @@ function Header() {
           <a
             href="/discover"
             aria-current={path === "/discover" ? "page" : undefined}
-            className={`${isHome ? "no-underline hover:text-dark-text" : "no-underline hover:text-ink"} focus-ring`}
+            className={`${isHome ? "no-underline hover:text-dark-text" : "no-underline hover:text-ink"} transition-colors focus-ring`}
           >
             Upptäck
           </a>
           <a
             href="/search"
             aria-current={path === "/search" ? "page" : undefined}
-            className={`${isHome ? "no-underline hover:text-dark-text" : "no-underline hover:text-ink"} focus-ring`}
+            className={`${isHome ? "no-underline hover:text-dark-text" : "no-underline hover:text-ink"} transition-colors focus-ring`}
           >
             Sök
           </a>
           <a
             href="/favorites"
             aria-current={path === "/favorites" ? "page" : undefined}
-            className={`${isHome ? "no-underline hover:text-dark-text" : "no-underline hover:text-ink"} focus-ring`}
+            className={`${isHome ? "no-underline hover:text-dark-text" : "no-underline hover:text-ink"} transition-colors focus-ring`}
           >
             Sparade
           </a>
           <a
             href="/om"
             aria-current={path === "/om" ? "page" : undefined}
-            className={`${isHome ? "no-underline hover:text-dark-text" : "no-underline hover:text-ink"} focus-ring`}
+            className={`${isHome ? "no-underline hover:text-dark-text" : "no-underline hover:text-ink"} transition-colors focus-ring`}
           >
             Om
           </a>
@@ -418,13 +418,13 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="px-5 py-2.5 rounded-full bg-charcoal text-cream text-sm font-medium border-none cursor-pointer focus-ring"
+            className="px-5 py-2.5 rounded-full bg-charcoal text-cream text-sm font-medium border-none cursor-pointer hover:bg-ink active:scale-[0.97] transition-[background-color,transform] focus-ring"
           >
             Försök igen
           </button>
           <a
             href="/"
-            className="px-5 py-2.5 rounded-full border border-[rgba(61,56,49,0.22)] text-charcoal text-sm font-medium no-underline focus-ring"
+            className="px-5 py-2.5 rounded-full border border-[rgba(61,56,49,0.22)] text-charcoal text-sm font-medium no-underline hover:bg-linen active:scale-[0.97] transition-[background-color,transform] focus-ring"
           >
             Till startsidan
           </a>

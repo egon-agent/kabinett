@@ -38,7 +38,7 @@ export default function ThemeCard({ section, showMuseumBadge }: { section: Theme
           <a
             key={item.id}
             href={`/artwork/${item.id}`}
-            className="shrink-0 w-[70vw] max-w-[280px] lg:w-auto lg:max-w-none rounded-card overflow-hidden no-underline text-inherit snap-start lg:snap-none focus-ring"
+            className="shrink-0 w-[70vw] max-w-[280px] lg:w-auto lg:max-w-none rounded-card overflow-hidden no-underline text-inherit snap-start lg:snap-none group/theme focus-ring"
             style={{ backgroundColor: item.dominant_color || "#1A1815" }}
           >
             <div
@@ -59,7 +59,7 @@ export default function ThemeCard({ section, showMuseumBadge }: { section: Theme
                 onError={(event) => {
                   event.currentTarget.classList.add("is-broken");
                 }}
-                className="w-full h-full object-cover opacity-0 transition-opacity duration-[400ms] ease-[ease]"
+                className="w-full h-full object-cover opacity-0 transition-[opacity,transform] duration-[400ms] ease-[ease] group-hover/theme:scale-[1.03]"
                 style={{ objectPosition: focalObjectPosition(item.focal_x, item.focal_y) }}
               />
             </div>
@@ -80,7 +80,7 @@ export default function ThemeCard({ section, showMuseumBadge }: { section: Theme
         ))}
       </div>
 
-      <a href={searchHref} className="inline-block mt-4 text-[0.8rem] text-[rgba(255,255,255,0.5)] no-underline focus-ring">
+      <a href={searchHref} className="inline-block mt-4 text-[0.8rem] text-[rgba(255,255,255,0.5)] hover:text-[rgba(255,255,255,0.8)] transition-colors no-underline focus-ring">
         Visa fler →
       </a>
     </div>

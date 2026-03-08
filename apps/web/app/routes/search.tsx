@@ -192,7 +192,7 @@ function SearchAutocompleteForm({
               />
               <button
                 type="submit"
-                className="px-5 py-3 bg-charcoal text-cream rounded-card text-sm font-medium hover:bg-ink shrink-0 focus-ring"
+                className="px-5 py-3 bg-charcoal text-cream rounded-card text-sm font-medium hover:bg-ink active:scale-[0.97] transition-[background-color,transform] shrink-0 focus-ring"
               >
                 Sök
               </button>

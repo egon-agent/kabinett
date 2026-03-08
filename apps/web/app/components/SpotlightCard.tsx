@@ -19,7 +19,7 @@ export default function SpotlightCard({ spotlight }: { spotlight: SpotlightCardD
         </h2>
         <a
           href={`/artist/${encodeURIComponent(spotlight.artistName)}`}
-          className="inline-block mt-4 text-sm tracking-[0.02em] text-dark-text-secondary no-underline focus-ring"
+          className="inline-block mt-4 text-sm tracking-[0.02em] text-dark-text-secondary hover:text-dark-text transition-colors no-underline focus-ring"
         >
           Utforska konstnären →
         </a>
@@ -29,7 +29,7 @@ export default function SpotlightCard({ spotlight }: { spotlight: SpotlightCardD
           <a
             key={item.id}
             href={`/artwork/${item.id}`}
-            className="shrink-0 w-[7.5rem] h-[7.5rem] rounded-lg overflow-hidden block focus-ring"
+            className="shrink-0 w-[7.5rem] h-[7.5rem] rounded-lg overflow-hidden block hover:ring-2 hover:ring-dark-text/20 transition-shadow focus-ring"
             style={{ backgroundColor: item.dominant_color || "#1A1815" }}
           >
             <img

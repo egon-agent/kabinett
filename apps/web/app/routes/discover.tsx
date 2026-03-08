@@ -257,7 +257,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
                 key={c.title}
                 href={`/search?q=${encodeURIComponent(c.query || c.title)}`}
                 className={[
-                  "relative rounded-card overflow-hidden no-underline focus-ring",
+                  "relative rounded-card overflow-hidden no-underline group/coll focus-ring",
                   "aspect-square",
                 ].join(" ")}
                 style={{ backgroundColor: c.color || "#2B2A27" }}
@@ -272,7 +272,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
                     onError={(event) => {
                       event.currentTarget.classList.add("is-broken");
                     }}
-                    className="absolute inset-0 w-full h-full object-cover"
+                    className="absolute inset-0 w-full h-full object-cover group-hover/coll:scale-[1.05] transition-transform duration-500"
                     style={{ objectPosition: `${(c.focalX ?? 0.5) * 100}% ${(c.focalY ?? 0.5) * 100}%` }}
                   />
                 )}

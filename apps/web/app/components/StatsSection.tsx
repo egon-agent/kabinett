@@ -34,7 +34,7 @@ export default function StatsSection({ stats }: { stats: StatsCardData }) {
       </div>
       <a
         href="/discover"
-        className="inline-block mt-6 py-[0.6rem] px-6 rounded-full border border-[rgba(255,255,255,0.15)] text-[rgba(255,255,255,0.7)] text-[0.78rem] font-medium no-underline tracking-[0.02em] focus-ring"
+        className="inline-block mt-6 py-[0.6rem] px-6 rounded-full border border-[rgba(255,255,255,0.15)] text-[rgba(255,255,255,0.7)] text-[0.78rem] font-medium no-underline tracking-[0.02em] hover:border-[rgba(255,255,255,0.35)] hover:text-white transition-colors focus-ring"
       >
         Upptäck samlingen →
       </a>

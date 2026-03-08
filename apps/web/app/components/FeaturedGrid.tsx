@@ -22,7 +22,7 @@ export default function FeaturedGrid({ items }: { items: FeaturedItem[] }) {
         <a
           key={item.id}
           href={`/artwork/${item.id}`}
-          className="block rounded-card overflow-hidden bg-white shadow-card no-underline contain-[layout_paint] focus-ring"
+          className="art-card block rounded-card overflow-hidden bg-white shadow-card no-underline contain-[layout_paint] group focus-ring"
         >
           <div className="relative aspect-[3/4]" style={{ backgroundColor: item.color }}>
             <img
@@ -34,7 +34,7 @@ export default function FeaturedGrid({ items }: { items: FeaturedItem[] }) {
               onError={(event) => {
                 event.currentTarget.classList.add("is-broken");
               }}
-              className="absolute inset-0 w-full h-full object-cover"
+              className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
               style={{ objectPosition: `${(item.focal_x ?? 0.5) * 100}% ${(item.focal_y ?? 0.5) * 100}%` }}
             />
             <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(10,9,8,0.55)_0%,rgba(10,9,8,0.05)_60%,transparent_100%)]" />

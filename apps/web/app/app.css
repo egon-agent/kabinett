@@ -59,6 +59,16 @@ body {
   }
 }
 
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
@@ -464,6 +474,11 @@ img[loading="lazy"] {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.timeline-card:hover img {
+  transform: scale(1.03);
 }
 
 .timeline-card-meta {
@@ -480,6 +495,11 @@ img[loading="lazy"] {
   font-size: 0.75rem;
   color: rgba(245,240,232,0.75);
   text-decoration: none;
+  transition: color 0.2s;
+}
+
+.timeline-expand:hover {
+  color: rgba(245,240,232,1);
 }
 
 .timeline-grid {

@@ -431,7 +431,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
               <span key={i}>
                 {i > 0 && ", "}
                 <a href={"/artist/" + encodeURIComponent(a.name)}
-                  className="text-warm-gray no-underline border-b border-stone focus-ring">
+                  className="text-warm-gray hover:text-charcoal no-underline border-b border-stone hover:border-warm-gray transition-colors focus-ring">
                   {a.name}
                 </a>
               </span>
@@ -504,7 +504,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                 aria-label={isDescriptionExpanded ? "Visa mindre" : "Visa mer"}
                 aria-expanded={isDescriptionExpanded}
                 onClick={() => setIsDescriptionExpanded((prev) => !prev)}
-                className="mt-3 text-[0.8rem] text-warm-gray hover:text-charcoal transition-colors focus-ring"
+                className="mt-3 text-[0.8rem] text-warm-gray hover:text-charcoal transition-colors cursor-pointer bg-transparent border-none focus-ring"
               >
                 {isDescriptionExpanded ? "Visa mindre" : "Visa mer"}
               </button>
@@ -575,13 +575,13 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                   window.__toast?.("Länk kopierad");
                 }
               }}
-              className="py-2 px-4 min-h-11 rounded-full border border-linen bg-white text-[0.8rem] text-charcoal cursor-pointer font-medium focus-ring"
+              className="py-2 px-4 min-h-11 rounded-full border border-linen bg-white text-[0.8rem] text-charcoal cursor-pointer font-medium hover:bg-linen active:scale-[0.97] transition-[background-color,transform] focus-ring"
             >
               Dela
             </button>
             {artwork.museumSiteUrl && (
               <a href={artwork.museumSiteUrl} target="_blank" rel="noopener noreferrer"
-                className="text-[0.8rem] text-warm-gray no-underline focus-ring">
+                className="text-[0.8rem] text-warm-gray hover:text-charcoal transition-colors no-underline focus-ring">
                 {`Visa på ${artwork.museumName}`} →
               </a>
             )}

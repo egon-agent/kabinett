@@ -140,7 +140,7 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
         <div className="px-4 pb-16 flex flex-col gap-3 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8 lg:grid lg:grid-cols-2 lg:gap-4">
           {walkPreviews.map((w) => (
             <a key={w.slug} href={"/walks?walk=" + w.slug}
-              className="block relative overflow-hidden rounded-2xl h-40 no-underline focus-ring"
+              className="block relative overflow-hidden rounded-2xl h-40 no-underline group/walk focus-ring"
               style={{ backgroundColor: w.color }}
             >
               {w.previewUrl && (
@@ -150,7 +150,7 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
                   onError={(event) => {
                     event.currentTarget.classList.add("is-broken");
                   }}
-                  className="absolute inset-0 w-full h-full object-cover opacity-60" />
+                  className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover/walk:scale-[1.04] group-hover/walk:opacity-70 transition-[transform,opacity] duration-500" />
               )}
               <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.7)_0%,rgba(0,0,0,0.1)_60%)]" />
               <div className="absolute bottom-0 left-0 right-0 p-5">
