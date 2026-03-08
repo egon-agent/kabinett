@@ -24,4 +24,5 @@ export default [
   route("api/artworks", "routes/api.artworks.tsx"),
   route("api/artist-works", "routes/api.artist-works.tsx"),
   route("api/collection-works", "routes/api.collection-works.tsx"),
+  route("api/decade-works", "routes/api.decade-works.tsx"),
 ] satisfies RouteConfig;

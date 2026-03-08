@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect, useCallback } from "react";
 import type { Route } from "./+types/timeline";
 import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
@@ -115,6 +116,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   }> = [];
   let selectedLabel = "";
   let selectedTotal = 0;
+  let selectedHasMore = false;
   if (selectedDecade >= rangeFrom && selectedDecade <= rangeTo) {
     selectedTotal = (
       db.prepare(
@@ -128,6 +130,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       ).get(selectedDecade, selectedDecade + 9, ...source.params) as { count: number }
     ).count;
 
+    const PAGE_SIZE = 60;
     const selectedRows = db
       .prepare(
         `SELECT id, title_sv, title_en, iiif_url, dominant_color, artists, dating_text, year_start
@@ -138,7 +141,7 @@ export async function loader({ request }: Route.LoaderArgs) {
            AND id NOT IN (SELECT artwork_id FROM broken_images)
            AND ${source.sql}
          ORDER BY year_start ASC
-         LIMIT 240`
+         LIMIT ${PAGE_SIZE + 1}`
       )
       .all(selectedDecade, selectedDecade + 9, ...source.params) as Array<{
         id: number;
@@ -151,6 +154,9 @@ export async function loader({ request }: Route.LoaderArgs) {
         year_start: number | null;
       }>;
 
+    selectedHasMore = selectedRows.length > PAGE_SIZE;
+    if (selectedHasMore) selectedRows.pop();
+
     selectedLabel = `${selectedDecade}–${selectedDecade + 9}`;
     selectedWorks = selectedRows.map((r) => ({
       id: r.id,
@@ -162,11 +168,61 @@ export async function loader({ request }: Route.LoaderArgs) {
     }));
   }
 
-  return { decades, selectedDecade, selectedLabel, selectedWorks, selectedTotal };
+  return { decades, selectedDecade, selectedLabel, selectedWorks, selectedTotal, selectedHasMore };
 }
 
+type DecadeWork = {
+  id: number;
+  title: string;
+  imageUrl: string;
+  color: string;
+  artist: string;
+  year: string | number;
+};
+
 export default function Timeline({ loaderData }: Route.ComponentProps) {
-  const { decades, selectedDecade, selectedLabel, selectedWorks, selectedTotal } = loaderData;
+  const { decades, selectedDecade, selectedLabel, selectedWorks: initialWorks, selectedTotal, selectedHasMore: initialHasMore } = loaderData;
+
+  const [works, setWorks] = useState<DecadeWork[]>(initialWorks);
+  const [canLoadMore, setCanLoadMore] = useState(initialHasMore);
+  const [loading, setLoading] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setWorks(initialWorks);
+    setCanLoadMore(initialHasMore);
+  }, [initialWorks, initialHasMore]);
+
+  const loadMore = useCallback(async () => {
+    if (loading || !canLoadMore || !selectedDecade) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/decade-works?decade=${selectedDecade}&offset=${works.length}`);
+      if (!res.ok) throw new Error("Kunde inte ladda fler verk");
+      const data = await res.json() as { works: DecadeWork[]; hasMore: boolean };
+      if (data.works.length === 0) {
+        setCanLoadMore(false);
+      } else {
+        setWorks((prev) => [...prev, ...data.works]);
+        setCanLoadMore(data.hasMore);
+      }
+    } catch {
+      setCanLoadMore(false);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedDecade, canLoadMore, loading, works.length]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) loadMore(); },
+      { rootMargin: "600px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMore]);
 
   return (
     <div className="min-h-screen pt-[3.5rem] bg-[#1C1916] text-[#F5F0E8]">
@@ -219,9 +275,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
                 {selectedLabel}
               </h2>
               <p className="text-[0.8rem] text-[rgba(245,240,232,0.6)]">
-                {selectedTotal > selectedWorks.length
-                  ? `${selectedTotal} verk i urvalet · visar första ${selectedWorks.length}`
-                  : `${selectedWorks.length} verk i urvalet`}
+                {selectedTotal.toLocaleString("sv")} verk
               </p>
             </div>
             <a
@@ -232,9 +286,9 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
             </a>
           </div>
 
-          {selectedWorks.length > 0 ? (
+          {works.length > 0 ? (
             <div className="timeline-grid mt-[1.2rem]">
-              {selectedWorks.map((art) => (
+              {works.map((art) => (
                 <a
                   key={art.id}
                   href={`/artwork/${art.id}`}
@@ -267,6 +321,12 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
           ) : (
             <p className="py-8 text-[rgba(245,240,232,0.55)]">
               Inga verk från denna period.
+            </p>
+          )}
+          <div ref={sentinelRef} className="h-4" />
+          {loading && (
+            <p className="text-center text-[0.85rem] text-[rgba(245,240,232,0.55)] py-4">
+              Laddar fler verk…
             </p>
           )}
         </section>
