@@ -187,6 +187,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
   const [works, setWorks] = useState<DecadeWork[]>(initialWorks);
   const [canLoadMore, setCanLoadMore] = useState(initialHasMore);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -197,6 +198,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
   const loadMore = useCallback(async () => {
     if (loading || !canLoadMore || !selectedDecade) return;
     setLoading(true);
+    setLoadError(false);
     try {
       const res = await fetch(`/api/decade-works?decade=${selectedDecade}&offset=${works.length}`);
       if (!res.ok) throw new Error("Kunde inte ladda fler verk");
@@ -208,7 +210,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
         setCanLoadMore(data.hasMore);
       }
     } catch {
-      setCanLoadMore(false);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -302,7 +304,19 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
               Inga verk från denna period.
             </p>
           )}
-          <div ref={sentinelRef} className="h-4" />
+          {loadError && (
+            <div className="text-center py-6" aria-live="polite">
+              <p className="text-sm text-dark-text-secondary mb-3">Kunde inte ladda fler verk.</p>
+              <button
+                type="button"
+                onClick={() => { setLoadError(false); loadMore(); }}
+                className="px-4 py-2 rounded-full bg-dark-raised text-dark-text-secondary text-sm font-medium hover:bg-dark-hover hover:text-dark-text transition-colors focus-ring"
+              >
+                Försök igen
+              </button>
+            </div>
+          )}
+          {canLoadMore && !loadError && <div ref={sentinelRef} className="h-4" />}
           {loading && (
             <p className="text-center text-sm text-dark-text-secondary py-4">
               Laddar fler verk…

@@ -10,12 +10,14 @@ export default function InfiniteArtworkGrid({ fetchUrl, heading = "Alla verk" }:
   const [works, setWorks] = useState<GridCardItem[]>([]);
   const [canLoadMore, setCanLoadMore] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const loadMore = useCallback(async () => {
     if (loading || !canLoadMore) return;
     setLoading(true);
+    setLoadError(false);
     try {
       const separator = fetchUrl.includes("?") ? "&" : "?";
       const res = await fetch(`${fetchUrl}${separator}offset=${works.length}`);
@@ -28,7 +30,7 @@ export default function InfiniteArtworkGrid({ fetchUrl, heading = "Alla verk" }:
         setCanLoadMore(data.hasMore);
       }
     } catch {
-      setCanLoadMore(false);
+      setLoadError(true);
     } finally {
       setLoading(false);
       setInitialLoad(false);
@@ -64,7 +66,19 @@ export default function InfiniteArtworkGrid({ fetchUrl, heading = "Alla verk" }:
           <GridCard key={w.id} item={w} />
         ))}
       </div>
-      <div ref={sentinelRef} className="h-4" />
+      {loadError && (
+        <div className="text-center py-6" aria-live="polite">
+          <p className="text-sm text-warm-gray mb-3">Kunde inte ladda fler verk.</p>
+          <button
+            type="button"
+            onClick={() => { setLoadError(false); loadMore(); }}
+            className="px-4 py-2 rounded-full border border-stone/30 text-sm text-charcoal font-medium hover:bg-linen transition-colors focus-ring"
+          >
+            Försök igen
+          </button>
+        </div>
+      )}
+      {canLoadMore && !loadError && <div ref={sentinelRef} className="h-4" />}
       {loading && (
         <p className="text-center text-sm text-warm-gray py-4">
           Laddar fler verk…

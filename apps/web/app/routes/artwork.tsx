@@ -1,5 +1,5 @@
 import type { Route } from "./+types/artwork";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useFavorites } from "../lib/favorites";
 import { getDb, type ArtworkRow } from "../lib/db.server";
 import { buildImageUrl, buildDirectImageUrl } from "../lib/images";
@@ -346,12 +346,33 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
     };
   }, [artwork.id]);
 
+  const handleBack = useCallback(() => {
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      window.location.href = "/";
+    }
+  }, []);
+
   return (
     <div className="min-h-screen pt-[3.5rem] bg-cream">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(artworkJsonLd) }}
       />
+      {/* Back button */}
+      <div className="max-w-3xl mx-auto px-4 lg:px-8 pt-3">
+        <button
+          type="button"
+          onClick={handleBack}
+          className="inline-flex items-center gap-1.5 text-sm text-warm-gray hover:text-charcoal transition-colors bg-transparent border-none cursor-pointer focus-ring py-1"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+          Tillbaka
+        </button>
+      </div>
       {/* Hero image with color bg */}
       <div
         className="flex justify-center items-center py-6 px-4 md:px-6 lg:px-8 min-h-[50vh] lg:min-h-[55vh] lg:max-h-[70vh] lg:max-w-5xl lg:mx-auto"
@@ -387,6 +408,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                 window.setTimeout(() => setPulsing(false), 350);
               }
               toggle(artwork.id);
+              window.__toast?.(saved ? "Borttagen från sparade" : "Sparad");
             }}
             className={[
               "shrink-0 mt-1 w-10 h-10 rounded-full border inline-flex items-center justify-center cursor-pointer transition-[transform,background] ease-[ease] duration-[200ms]",

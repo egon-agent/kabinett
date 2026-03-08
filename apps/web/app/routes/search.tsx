@@ -223,6 +223,7 @@ function SearchResultsPanel({
   const displayQuery = query;
   const [results, setResults] = useState<SearchResultItem[]>(initialResults);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [cursor, setCursor] = useState<number | null>(initialCursor);
   const [hasMore, setHasMore] = useState(initialCursor !== null);
 
@@ -237,6 +238,7 @@ function SearchResultsPanel({
   const loadMore = useCallback(async () => {
     if (loading || !hasMore || !query || cursor === null) return;
     setLoading(true);
+    setLoadError(false);
     try {
       if (searchMode === "theme") {
         const themeFilter = resolveThemeFilter(query);
@@ -296,8 +298,7 @@ function SearchResultsPanel({
         }
       }
     } catch {
-      setHasMore(false);
-      setCursor(null);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -324,6 +325,24 @@ function SearchResultsPanel({
           ? `${results.length}${hasMore ? "+" : ""} träffar${displayQuery ? ` för "${displayQuery}"` : ""}`
           : `Inga träffar${displayQuery ? ` för "${displayQuery}"` : ""}`}
       </p>
+      {results.length === 0 && displayQuery && (
+        <div className="py-4">
+          <p className="text-sm text-dark-text-secondary mb-3">Förslag:</p>
+          <ul className="list-none p-0 m-0 space-y-1 text-sm text-dark-text-muted">
+            <li>• Kontrollera stavningen</li>
+            <li>• Prova ett bredare sökord</li>
+            <li>• Sök på svenska eller engelska</li>
+          </ul>
+          <p className="text-sm text-dark-text-secondary mt-5 mb-3">Eller prova:</p>
+          <div className="flex flex-wrap gap-2">
+            {["Landskap", "Porträtt", "Stilleben", "Skulptur", "Akvarell"].map((s) => (
+              <a key={s} href={`/search?q=${encodeURIComponent(s)}`}
+                className="px-3 py-1.5 rounded-full bg-dark-raised text-dark-text-secondary text-sm font-medium hover:bg-dark-hover hover:text-dark-text transition-colors focus-ring"
+              >{s}</a>
+            ))}
+          </div>
+        </div>
+      )}
       {searchType === "artist" && artistResults.length > 0 && (
         <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
           {artistResults.map((artist) => (
@@ -353,7 +372,19 @@ function SearchResultsPanel({
           ))}
         </div>
       )}
-      {hasMore && (
+      {loadError && (
+        <div className="text-center mt-8 py-4" aria-live="polite">
+          <p className="text-sm text-dark-text-secondary mb-3">Kunde inte ladda fler resultat.</p>
+          <button
+            type="button"
+            onClick={() => { setLoadError(false); loadMore(); }}
+            className="px-4 py-2 rounded-full bg-dark-raised text-dark-text-secondary text-sm font-medium hover:bg-dark-hover hover:text-dark-text transition-colors focus-ring"
+          >
+            Försök igen
+          </button>
+        </div>
+      )}
+      {hasMore && !loadError && (
         <div ref={sentinelRef} className="text-center mt-8 py-4">
           {loading && <p aria-live="polite" className="text-sm text-dark-text-secondary">Laddar fler…</p>}
         </div>
@@ -414,7 +445,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
               { id: "all" as SearchType, label: "Alla" },
               { id: "artwork" as SearchType, label: "Verk" },
               { id: "artist" as SearchType, label: "Konstnärer" },
-              { id: "visual" as SearchType, label: "Visuellt" },
+              { id: "visual" as SearchType, label: "Bildsök" },
             ].map((option) => (
               <a
                 key={option.id}

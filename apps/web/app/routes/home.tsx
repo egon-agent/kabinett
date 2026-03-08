@@ -215,7 +215,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       setCursor(data.nextCursor ?? null);
       setHasMore(Boolean(data.hasMore));
     } catch {
-      setHasMore(false);
       setLoadError("Kunde inte ladda fler verk just nu.");
     } finally {
       setLoading(false);
@@ -303,8 +302,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </div>
         )}
         {loadError && !loading && (
-          <div aria-live="polite" className="text-center p-8 text-dark-text-muted text-[0.8rem]">
-            {loadError}
+          <div aria-live="polite" className="text-center p-8">
+            <p className="text-dark-text-muted text-[0.8rem] mb-3">{loadError}</p>
+            <button
+              type="button"
+              onClick={() => { setLoadError(""); void loadMore(); }}
+              className="px-4 py-2 rounded-full bg-dark-raised text-dark-text-secondary text-sm font-medium hover:bg-dark-hover hover:text-dark-text transition-colors focus-ring"
+            >
+              Försök igen
+            </button>
           </div>
         )}
       </div>
