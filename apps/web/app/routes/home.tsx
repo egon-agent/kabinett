@@ -298,12 +298,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
         {<div ref={sentinelRef} className="h-px" />}
         {loading && (
-          <div aria-live="polite" className="text-center p-8 text-[rgba(255,255,255,0.3)] text-[0.8rem]">
+          <div aria-live="polite" className="text-center p-8 text-dark-text-muted text-[0.8rem]">
             Laddar mer konst…
           </div>
         )}
         {loadError && !loading && (
-          <div aria-live="polite" className="text-center p-8 text-[rgba(255,255,255,0.45)] text-[0.8rem]">
+          <div aria-live="polite" className="text-center p-8 text-dark-text-muted text-[0.8rem]">
             {loadError}
           </div>
         )}

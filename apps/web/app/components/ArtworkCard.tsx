@@ -56,7 +56,7 @@ const FeedArtworkCard = React.memo(function FeedArtworkCard({
   return (
     <a
       href={`/artwork/${item.id}`}
-      className={`block relative w-full ${mobileHeight} lg:h-auto no-underline text-inherit overflow-hidden contain-[layout_paint] lg:rounded-xl group/card focus-ring ${variantClass}`}
+      className={`block relative w-full ${mobileHeight} lg:h-auto no-underline text-inherit overflow-hidden contain-[layout_paint] lg:rounded-card group/card focus-ring ${variantClass}`}
       style={{ backgroundColor: item.dominant_color || "#1A1815" }}
     >
       <img
@@ -138,7 +138,7 @@ const SearchArtworkCard = React.memo(function SearchArtworkCard({
   return (
     <a
       href={`/artwork/${item.id}`}
-      className="art-card block break-inside-avoid rounded-xl overflow-hidden bg-[#252019] group focus-ring"
+      className="art-card block break-inside-avoid rounded-card overflow-hidden bg-dark-raised group focus-ring"
     >
       <div
         style={{ backgroundColor: item.dominant_color || "#D4CDC3" }}
@@ -159,16 +159,16 @@ const SearchArtworkCard = React.memo(function SearchArtworkCard({
         />
       </div>
       <div className="p-3">
-        <p className="text-sm font-medium text-[#F5F0E8] leading-snug line-clamp-2">
+        <p className="text-sm font-medium text-dark-text leading-snug line-clamp-2">
           {item.title_sv || "Utan titel"}
         </p>
-        <p className="text-xs text-[rgba(245,240,232,0.55)] mt-1">{artworkArtist(item)}</p>
+        <p className="text-xs text-dark-text-secondary mt-1">{artworkArtist(item)}</p>
         {showMuseumBadge && item.museum_name && (
-          <p className="text-[0.65rem] text-[rgba(245,240,232,0.55)] mt-0.5">{item.museum_name}</p>
+          <p className="text-[0.65rem] text-dark-text-secondary mt-0.5">{item.museum_name}</p>
         )}
-        {yearLabel && <p className="text-xs text-[rgba(245,240,232,0.4)] mt-0.5">{yearLabel}</p>}
+        {yearLabel && <p className="text-xs text-dark-text-muted mt-0.5">{yearLabel}</p>}
         {snippet && (
-          <p className="text-[0.7rem] text-[rgba(245,240,232,0.4)] mt-1 line-clamp-2 italic">{snippet}</p>
+          <p className="text-[0.7rem] text-dark-text-muted mt-1 line-clamp-2 italic">{snippet}</p>
         )}
 
       </div>

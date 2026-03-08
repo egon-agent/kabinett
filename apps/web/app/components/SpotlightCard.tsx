@@ -11,15 +11,15 @@ export type SpotlightCardData = {
 
 export default function SpotlightCard({ spotlight }: { spotlight: SpotlightCardData }) {
   return (
-    <section className="bg-[#1E1D1A] rounded-none lg:rounded-[1.5rem] px-4 py-6 md:px-6 md:py-7 lg:px-8 lg:py-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+    <section className="bg-dark-base rounded-none lg:rounded-section px-4 py-6 md:px-6 md:py-7 lg:px-8 lg:py-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
       <div className="lg:max-w-[24rem]">
-        <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[rgba(255,255,255,0.45)]">Konstnär i fokus</p>
-        <h2 className="font-serif text-[2rem] md:text-[2.2rem] text-[#F5F0E8] leading-[1.05] mt-2">
+        <p className="text-xs uppercase tracking-[0.2em] text-dark-text-muted">Konstnär i fokus</p>
+        <h2 className="font-serif text-[2rem] md:text-[2.2rem] text-dark-text leading-[1.05] mt-2">
           {spotlight.artistName}
         </h2>
         <a
           href={`/artist/${encodeURIComponent(spotlight.artistName)}`}
-          className="inline-block mt-4 text-[0.8rem] tracking-[0.02em] text-[rgba(245,240,232,0.75)] no-underline focus-ring"
+          className="inline-block mt-4 text-sm tracking-[0.02em] text-dark-text-secondary no-underline focus-ring"
         >
           Utforska konstnären →
         </a>

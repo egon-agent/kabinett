@@ -4,6 +4,7 @@ import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
 import { parseArtist } from "../lib/parsing";
+import GridCard from "../components/GridCard";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -225,10 +226,10 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
   }, [loadMore]);
 
   return (
-    <div className="min-h-screen pt-[3.5rem] bg-[#1C1916] text-[#F5F0E8]">
+    <div className="min-h-screen pt-[3.5rem] bg-dark-base text-dark-text">
       <div id="top" className="md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-        <h1 className="font-serif text-[2rem] text-[#F5F0E8] px-5 md:px-0 pt-6 md:pt-8 pb-1">Tidslinje</h1>
-        <p className="px-5 md:px-0 pb-4 text-[0.9rem] text-[rgba(245,240,232,0.5)]">
+        <h1 className="font-serif text-[2rem] text-dark-text px-5 md:px-0 pt-6 md:pt-8 pb-1">Tidslinje</h1>
+        <p className="px-5 md:px-0 pb-4 text-[0.9rem] text-dark-text-secondary">
           800 år av konst — från medeltid till modernism
         </p>
       </div>
@@ -254,8 +255,8 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
                   </div>
                   <div className="timeline-card-meta">
                     <span className="text-[0.82rem] font-medium leading-[1.35] line-clamp-2 min-h-[2.2rem]">{art.title}</span>
-                    <span className="text-[0.72rem] text-[rgba(245,240,232,0.66)] leading-[1.3] line-clamp-1">{art.artist}</span>
-                    <span className="text-[0.65rem] text-[rgba(245,240,232,0.45)]">{art.year}</span>
+                    <span className="text-xs text-dark-text-secondary leading-snug line-clamp-1">{art.artist}</span>
+                    <span className="text-xs text-dark-text-muted">{art.year}</span>
                   </div>
                 </a>
               ))}
@@ -274,58 +275,36 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
               <h2 className="font-serif text-[1.7rem]">
                 {selectedLabel}
               </h2>
-              <p className="text-[0.8rem] text-[rgba(245,240,232,0.6)]">
+              <p className="text-sm text-dark-text-secondary">
                 {selectedTotal.toLocaleString("sv")} verk
               </p>
             </div>
             <a
               href="#top"
-              className="text-[0.8rem] text-[rgba(245,240,232,0.7)] no-underline focus-ring"
+              className="text-sm text-dark-text-secondary no-underline focus-ring"
             >
               Tillbaka upp
             </a>
           </div>
 
           {works.length > 0 ? (
-            <div className="timeline-grid mt-[1.2rem]">
+            <div className="timeline-grid mt-5">
               {works.map((art) => (
-                <a
+                <GridCard
                   key={art.id}
-                  href={`/artwork/${art.id}`}
-                  className="break-inside-avoid block rounded-[0.8rem] overflow-hidden bg-[#252019] mb-[0.8rem] no-underline text-inherit focus-ring"
-                >
-                  <div className="aspect-[3/4]" style={{ backgroundColor: art.color }}>
-                    <img
-                      src={art.imageUrl}
-                      alt={`${art.title} — ${art.artist}`}
-                      width={400}
-                      height={533}
-                      loading="lazy"
-                      onError={(event) => {
-                        event.currentTarget.classList.add("is-broken");
-                      }}
-                    />
-                  </div>
-                  <div className="p-[0.6rem]">
-                    <p className="text-[0.84rem] font-medium leading-[1.35] overflow-hidden line-clamp-2 min-h-[2.2rem]">{art.title}</p>
-                    <p className="text-[0.72rem] text-[rgba(245,240,232,0.66)] mt-[0.35rem] leading-[1.3] overflow-hidden line-clamp-1">
-                      {art.artist}
-                    </p>
-                    <p className="text-[0.65rem] text-[rgba(245,240,232,0.45)] mt-[0.15rem]">
-                      {art.year}
-                    </p>
-                  </div>
-                </a>
+                  item={{ id: art.id, title: art.title, artist: art.artist, year: String(art.year), imageUrl: art.imageUrl, color: art.color }}
+                  variant="dark"
+                />
               ))}
             </div>
           ) : (
-            <p className="py-8 text-[rgba(245,240,232,0.55)]">
+            <p className="py-8 text-dark-text-secondary">
               Inga verk från denna period.
             </p>
           )}
           <div ref={sentinelRef} className="h-4" />
           {loading && (
-            <p className="text-center text-[0.85rem] text-[rgba(245,240,232,0.55)] py-4">
+            <p className="text-center text-sm text-dark-text-secondary py-4">
               Laddar fler verk…
             </p>
           )}

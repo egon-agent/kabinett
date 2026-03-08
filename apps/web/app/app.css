@@ -2,6 +2,7 @@
 
 /* Kabinett Design System */
 @theme {
+  /* ── Palette ── */
   --color-cream: #FAF7F2;
   --color-linen: #F0EBE3;
   --color-stone: #D4CDC3;
@@ -11,11 +12,33 @@
   --color-accent: #C4553A;
   --color-accent-light: #E8987F;
 
+  /* Dark-mode surfaces (3-tier) */
+  --color-dark-base: #1C1916;
+  --color-dark-raised: #252019;
+  --color-dark-hover: #2E2820;
+
+  /* Dark-mode text */
+  --color-dark-text: #F5F0E8;
+  --color-dark-text-secondary: rgba(245, 240, 232, 0.55);
+  --color-dark-text-muted: rgba(245, 240, 232, 0.4);
+
+  /* ── Typography ── */
   --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Instrument Serif", ui-serif, Georgia, serif;
 
+  /* ── Spacing ── */
   --spacing-page: clamp(1rem, 5vw, 4rem);
 
+  /* ── Radius scale ── */
+  --radius-card: 0.75rem;
+  --radius-section: 1.5rem;
+  --radius-pill: 999px;
+
+  /* ── Shadows ── */
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.06);
+  --shadow-card-hover: 0 12px 40px -8px rgba(0, 0, 0, 0.12);
+
+  /* ── Animations ── */
   --animate-fadeIn: fadeIn 0.6s ease-out;
   --animate-slideDown: slideDown 0.25s ease-out;
   --animate-slideUp: slideUp 0.4s ease-out;
@@ -73,7 +96,7 @@ body {
 }
 
 .search-skeleton-shimmer {
-  background-image: linear-gradient(110deg, #252019 25%, #332b21 45%, #252019 65%);
+  background-image: linear-gradient(110deg, var(--color-dark-raised) 25%, #332b21 45%, var(--color-dark-raised) 65%);
   background-size: 220% 100%;
   animation: searchSkeletonShimmer 1.8s ease-in-out infinite;
 }
@@ -119,7 +142,7 @@ body {
 
 .art-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 40px -8px rgba(0,0,0,0.12);
+  box-shadow: var(--shadow-card-hover);
 }
 
 /* Image fade-in on load */
@@ -424,14 +447,14 @@ img[loading="lazy"] {
   font-size: 1rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  background: #1C1916;
+  background: var(--color-dark-base);
   z-index: 2;
 }
 
 .timeline-card {
-  border-radius: 0.7rem;
+  border-radius: var(--radius-card);
   overflow: hidden;
-  background: #252019;
+  background: var(--color-dark-raised);
   text-decoration: none;
   color: inherit;
   display: grid;

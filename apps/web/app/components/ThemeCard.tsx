@@ -20,7 +20,7 @@ export default function ThemeCard({ section, showMuseumBadge }: { section: Theme
 
   return (
     <div
-      className="pt-12 px-4 md:px-6 lg:px-8 pb-8 snap-start lg:rounded-[1.5rem] lg:overflow-hidden"
+      className="pt-12 px-4 md:px-6 lg:px-8 pb-8 snap-start lg:rounded-section lg:overflow-hidden"
       style={{ backgroundColor: section.color }}
     >
       <p className="text-[0.7rem] uppercase tracking-[0.2em] text-[rgba(255,255,255,0.4)] font-medium">
@@ -38,7 +38,7 @@ export default function ThemeCard({ section, showMuseumBadge }: { section: Theme
           <a
             key={item.id}
             href={`/artwork/${item.id}`}
-            className="shrink-0 w-[70vw] max-w-[280px] lg:w-auto lg:max-w-none rounded-xl overflow-hidden no-underline text-inherit snap-start lg:snap-none focus-ring"
+            className="shrink-0 w-[70vw] max-w-[280px] lg:w-auto lg:max-w-none rounded-card overflow-hidden no-underline text-inherit snap-start lg:snap-none focus-ring"
             style={{ backgroundColor: item.dominant_color || "#1A1815" }}
           >
             <div

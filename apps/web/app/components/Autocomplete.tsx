@@ -298,7 +298,7 @@ export default function Autocomplete({
         <div
           id={listboxId}
           role="listbox"
-          className={dropdownClassName || "absolute left-0 right-0 top-full mt-1 z-50 bg-[#1C1916] rounded-xl shadow-lg border border-[rgba(245,240,232,0.1)] overflow-hidden"}
+          className={dropdownClassName || "absolute left-0 right-0 top-full mt-1 z-50 bg-dark-base rounded-card shadow-lg border border-[rgba(245,240,232,0.1)] overflow-hidden"}
         >
           {(() => {
             const { artworks, artists, clips } = suggestions;
@@ -311,7 +311,7 @@ export default function Autocomplete({
                 {hasArtworkSection && (
                   <>
                     <div className="px-4 pt-2.5 pb-1">
-                      <span className="text-[0.65rem] uppercase tracking-[0.15em] text-[rgba(245,240,232,0.3)]">Verk</span>
+                      <span className="text-[0.65rem] uppercase tracking-[0.15em] text-dark-text-muted/75">Verk</span>
                     </div>
                     <div className="pb-2">
                       {artworks.map((suggestion, index) => {
@@ -330,8 +330,8 @@ export default function Autocomplete({
                             onMouseEnter={() => setActiveIndex(idx)}
                             className={[
                               "w-full text-left px-4 py-2.5 flex items-center gap-3 cursor-pointer transition-colors",
-                              "hover:bg-[#2E2820] focus-ring",
-                              isActive ? "bg-[#2E2820]" : "",
+                              "hover:bg-dark-hover focus-ring",
+                              isActive ? "bg-dark-hover" : "",
                               index > 0 ? "border-t border-[rgba(245,240,232,0.05)]" : "",
                             ].join(" ")}
                           >
@@ -339,18 +339,18 @@ export default function Autocomplete({
                               <img
                                 src={suggestion.imageUrl}
                                 alt=""
-                                className="h-8 w-8 rounded-md object-cover shrink-0 bg-[#252019]"
+                                className="h-8 w-8 rounded-md object-cover shrink-0 bg-dark-raised"
                                 loading="lazy"
                               />
                             ) : (
                               <div
-                                className="h-8 w-8 rounded-md shrink-0 bg-[#252019]"
+                                className="h-8 w-8 rounded-md shrink-0 bg-dark-raised"
                                 style={suggestion.dominant_color ? { backgroundColor: suggestion.dominant_color } : undefined}
                               />
                             )}
                             <span className="min-w-0">
-                              <span className="block text-sm text-[#F5F0E8] truncate">{suggestion.title}</span>
-                              <span className="block text-xs text-[rgba(245,240,232,0.45)] truncate">
+                              <span className="block text-sm text-dark-text truncate">{suggestion.title}</span>
+                              <span className="block text-xs text-dark-text-muted truncate">
                                 {suggestion.artist_name || "Okänd konstnär"}
                               </span>
                             </span>
@@ -364,7 +364,7 @@ export default function Autocomplete({
                 {hasArtistSection && (
                   <>
                     <div className={`px-4 pt-2.5 pb-1 ${hasArtworkSection ? "border-t border-[rgba(245,240,232,0.08)]" : ""}`}>
-                      <span className="text-[0.65rem] uppercase tracking-[0.15em] text-[rgba(245,240,232,0.3)]">Konstnärer</span>
+                      <span className="text-[0.65rem] uppercase tracking-[0.15em] text-dark-text-muted/75">Konstnärer</span>
                     </div>
                     <div className="pb-2">
                       {artists.map((suggestion, index) => {
@@ -383,13 +383,13 @@ export default function Autocomplete({
                             onMouseEnter={() => setActiveIndex(idx)}
                             className={[
                               "w-full text-left px-4 py-2.5 text-sm flex justify-between items-center cursor-pointer transition-colors",
-                              "hover:bg-[#2E2820] focus-ring",
-                              isActive ? "bg-[#2E2820]" : "",
+                              "hover:bg-dark-hover focus-ring",
+                              isActive ? "bg-dark-hover" : "",
                               index > 0 ? "border-t border-[rgba(245,240,232,0.05)]" : "",
                             ].join(" ")}
                           >
-                            <span className="text-[#F5F0E8] truncate">{suggestion.value}</span>
-                            <span className="text-xs text-[rgba(245,240,232,0.35)] ml-2 shrink-0">
+                            <span className="text-dark-text truncate">{suggestion.value}</span>
+                            <span className="text-xs text-dark-text-muted ml-2 shrink-0">
                               {suggestion.count ? `${suggestion.count} verk` : "Konstnär"}
                             </span>
                           </button>
@@ -402,7 +402,7 @@ export default function Autocomplete({
                 {clips.length > 0 && (
                   <>
                     <div className={`px-4 pt-2.5 pb-1 ${(hasArtworkSection || hasArtistSection) ? "border-t border-[rgba(245,240,232,0.08)]" : ""}`}>
-                      <span className="text-[0.65rem] uppercase tracking-[0.15em] text-[rgba(245,240,232,0.3)]">Sök visuellt</span>
+                      <span className="text-[0.65rem] uppercase tracking-[0.15em] text-dark-text-muted/75">Sök visuellt</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5 px-4 pb-3 pt-1">
                       {clips.map((suggestion) => {
@@ -421,10 +421,10 @@ export default function Autocomplete({
                             onMouseEnter={() => setActiveIndex(idx)}
                             className={[
                               "px-3 py-1.5 rounded-full text-sm cursor-pointer transition-colors",
-                              "hover:bg-[#2E2820] focus-ring",
+                              "hover:bg-dark-hover focus-ring",
                               isActive
-                                ? "bg-[#2E2820] text-[#F5F0E8]"
-                                : "bg-[rgba(245,240,232,0.06)] text-[rgba(245,240,232,0.55)]",
+                                ? "bg-dark-hover text-dark-text"
+                                : "bg-[rgba(245,240,232,0.06)] text-dark-text-secondary",
                             ].join(" ")}
                           >
                             {suggestion.value}

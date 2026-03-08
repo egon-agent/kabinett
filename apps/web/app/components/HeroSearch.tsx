@@ -72,16 +72,16 @@ export default function HeroSearch({
 
   return (
     <div className="pt-[4.8rem] pb-4 px-5 md:px-2 lg:px-0 lg:pt-[5rem] lg:pb-4">
-      <h1 className="font-serif text-[1.55rem] md:text-[1.8rem] lg:text-[2.2rem] text-[#F5F0E8] text-center leading-[1.15] tracking-[-0.01em]">
+      <h1 className="font-serif text-[1.55rem] md:text-[1.8rem] lg:text-[2.2rem] text-dark-text text-center leading-[1.15] tracking-[-0.01em]">
         {totalWorks.toLocaleString("sv-SE")} konstverk.{" "}
-        <span className="text-[rgba(245,240,232,0.45)]">Sök på vad som helst.</span>
+        <span className="text-dark-text-muted">Sök på vad som helst.</span>
       </h1>
 
       <Autocomplete
         query={query}
         onQueryChange={setQuery}
         onSelect={handleSelectSuggestion}
-        dropdownClassName="absolute left-0 right-0 top-full mt-1 z-50 max-w-lg mx-auto bg-[#1C1916] rounded-xl shadow-lg border border-[rgba(245,240,232,0.1)] overflow-hidden"
+        dropdownClassName="absolute left-0 right-0 top-full mt-1 z-50 max-w-lg mx-auto bg-dark-base rounded-card shadow-lg border border-[rgba(245,240,232,0.1)] overflow-hidden"
       >
         {({ inputProps }) => (
           <form action="/search" method="get" onSubmit={handleSubmit} className="mt-4 md:mt-5 max-w-lg mx-auto">
@@ -110,7 +110,7 @@ export default function HeroSearch({
                 name="q"
                 type="text" enterKeyHint="search" autoCorrect="off"
                 placeholder="porträtt, blå himmel, stilleben…"
-                className="flex-1 bg-transparent text-[#F5F0E8] placeholder:text-[rgba(245,240,232,0.35)] text-[1rem] md:text-[1.05rem] px-0 py-0 border-none outline-none [&::-webkit-search-cancel-button]:hidden"
+                className="flex-1 bg-transparent text-dark-text placeholder:text-dark-text-muted text-[1rem] md:text-[1.05rem] px-0 py-0 border-none outline-none [&::-webkit-search-cancel-button]:hidden"
               />
             </div>
           </form>

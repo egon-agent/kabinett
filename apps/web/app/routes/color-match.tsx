@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Route } from "./+types/color-match";
 import { buildImageUrl } from "../lib/images";
 import { parseArtist } from "../lib/parsing";
+import GridCard from "../components/GridCard";
 
 export function meta() {
   return [
@@ -144,7 +145,7 @@ export default function ColorMatch() {
           />
           {status && (
             <div
-              className="absolute inset-0 flex items-center justify-center text-[#F5F0E8] p-8 text-center bg-[rgba(26,24,21,0.75)]"
+              className="absolute inset-0 flex items-center justify-center text-dark-text p-8 text-center bg-[rgba(26,24,21,0.75)]"
             >
               {status}
             </div>
@@ -204,40 +205,18 @@ export default function ColorMatch() {
         <div className="mt-8">
           <h2 className="text-[1.2rem] font-semibold text-charcoal">Matchar</h2>
           {loading && <p className="text-warm-gray">Letar efter nyanser…</p>}
-          <div
-            className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-4 mt-4"
-          >
+          <div className="columns-2 gap-3 md:columns-3 lg:columns-4">
             {matches.map((item) => (
-              <a
+              <GridCard
                 key={item.id}
-                href={`/artwork/${item.id}`}
-                className="no-underline text-inherit bg-white rounded-[0.85rem] overflow-hidden border border-[rgba(212,205,195,0.3)] focus-ring"
-              >
-                <div
-                  className="aspect-[3/4]"
-                  style={{ backgroundColor: item.dominant_color || "#D4CDC3" }}
-                >
-                  <img
-                    src={buildImageUrl(item.iiif_url, 400)}
-                    alt={`${item.title_sv || "Utan titel"} — ${parseArtist(item.artists)}`}
-                    loading="lazy"
-                    width={400}
-                    height={533}
-                    onError={(event) => {
-                      event.currentTarget.classList.add("is-broken");
-                    }}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="p-[0.7rem]">
-                  <p className="text-[0.84rem] font-medium m-0 text-charcoal leading-[1.35] overflow-hidden line-clamp-2 min-h-[2.25rem]">
-                    {item.title_sv || "Utan titel"}
-                  </p>
-                  <p className="text-[0.72rem] mt-[0.35rem] text-warm-gray leading-[1.3] overflow-hidden line-clamp-1">
-                    {parseArtist(item.artists)}
-                  </p>
-                </div>
-              </a>
+                item={{
+                  id: item.id,
+                  title: item.title_sv || "Utan titel",
+                  artist: parseArtist(item.artists),
+                  imageUrl: buildImageUrl(item.iiif_url, 400),
+                  color: item.dominant_color || "#D4CDC3",
+                }}
+              />
             ))}
           </div>
         </div>

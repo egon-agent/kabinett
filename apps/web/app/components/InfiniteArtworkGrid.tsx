@@ -1,13 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-
-type GridWork = {
-  id: string | number;
-  title: string;
-  artist?: string;
-  imageUrl: string;
-  color: string;
-  year: string;
-};
+import GridCard, { type GridCardItem } from "./GridCard";
 
 type Props = {
   fetchUrl: string;
@@ -15,7 +7,7 @@ type Props = {
 };
 
 export default function InfiniteArtworkGrid({ fetchUrl, heading = "Alla verk" }: Props) {
-  const [works, setWorks] = useState<GridWork[]>([]);
+  const [works, setWorks] = useState<GridCardItem[]>([]);
   const [canLoadMore, setCanLoadMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
@@ -28,7 +20,7 @@ export default function InfiniteArtworkGrid({ fetchUrl, heading = "Alla verk" }:
       const separator = fetchUrl.includes("?") ? "&" : "?";
       const res = await fetch(`${fetchUrl}${separator}offset=${works.length}`);
       if (!res.ok) throw new Error("Kunde inte ladda verk");
-      const data = (await res.json()) as { works: GridWork[]; hasMore: boolean };
+      const data = (await res.json()) as { works: GridCardItem[]; hasMore: boolean };
       if (data.works.length === 0) {
         setCanLoadMore(false);
       } else {
@@ -43,7 +35,6 @@ export default function InfiniteArtworkGrid({ fetchUrl, heading = "Alla verk" }:
     }
   }, [fetchUrl, canLoadMore, loading, works.length]);
 
-  // Reset when fetchUrl changes
   useEffect(() => {
     setWorks([]);
     setCanLoadMore(true);
@@ -68,47 +59,14 @@ export default function InfiniteArtworkGrid({ fetchUrl, heading = "Alla verk" }:
   return (
     <section className="pt-10 pb-16">
       <h2 className="font-serif text-[1.4rem] text-charcoal mb-4">{heading}</h2>
-      <div className="columns-2 [column-gap:0.8rem] md:columns-3 lg:columns-4 lg:[column-gap:1rem]">
+      <div className="columns-2 gap-3 md:columns-3 lg:columns-4 lg:gap-4">
         {works.map((w) => (
-          <a
-            key={w.id}
-            href={`/artwork/${w.id}`}
-            className="break-inside-avoid block rounded-[0.8rem] overflow-hidden bg-linen mb-[0.8rem] no-underline focus-ring"
-          >
-            <div
-              className="aspect-[3/4] overflow-hidden"
-              style={{ backgroundColor: w.color }}
-            >
-              <img
-                src={w.imageUrl}
-                alt={w.title}
-                width={400}
-                height={533}
-                loading="lazy"
-                onError={(event) => {
-                  event.currentTarget.classList.add("is-broken");
-                }}
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="p-[0.7rem]">
-              <p className="text-[0.84rem] font-medium text-charcoal leading-[1.35] overflow-hidden line-clamp-2 min-h-[2.25rem]">
-                {w.title}
-              </p>
-              {(w.artist || w.year) && (
-                <p className="text-[0.72rem] text-warm-gray mt-[0.35rem] leading-[1.3] overflow-hidden line-clamp-1">
-                  {w.artist}
-                  {w.artist && w.year ? " · " : ""}
-                  {w.year}
-                </p>
-              )}
-            </div>
-          </a>
+          <GridCard key={w.id} item={w} />
         ))}
       </div>
       <div ref={sentinelRef} className="h-4" />
       {loading && (
-        <p className="text-center text-[0.85rem] text-warm-gray py-4">
+        <p className="text-center text-sm text-warm-gray py-4">
           Laddar fler verk…
         </p>
       )}

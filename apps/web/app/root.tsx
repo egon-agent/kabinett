@@ -144,7 +144,7 @@ function Header() {
           aria-current={path === "/" ? "page" : undefined}
           className={[
             "font-serif text-[1.5rem] lg:text-[1.75rem] font-bold tracking-tight no-underline focus-ring",
-            isHome ? "text-[#F5F0E8]" : "text-charcoal",
+            isHome ? "text-dark-text" : "text-charcoal",
           ].join(" ")}
         >
           Kabinett
@@ -152,34 +152,34 @@ function Header() {
         <div
           className={[
             "hidden lg:flex items-center gap-6 text-[0.9rem]",
-            isHome ? "text-[rgba(245,240,232,0.85)]" : "text-warm-gray",
+            isHome ? "text-dark-text/85" : "text-warm-gray",
           ].join(" ")}
         >
           <a
             href="/discover"
             aria-current={path === "/discover" ? "page" : undefined}
-            className={`${isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"} focus-ring`}
+            className={`${isHome ? "no-underline hover:text-dark-text" : "no-underline hover:text-ink"} focus-ring`}
           >
             Upptäck
           </a>
           <a
             href="/search"
             aria-current={path === "/search" ? "page" : undefined}
-            className={`${isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"} focus-ring`}
+            className={`${isHome ? "no-underline hover:text-dark-text" : "no-underline hover:text-ink"} focus-ring`}
           >
             Sök
           </a>
           <a
             href="/favorites"
             aria-current={path === "/favorites" ? "page" : undefined}
-            className={`${isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"} focus-ring`}
+            className={`${isHome ? "no-underline hover:text-dark-text" : "no-underline hover:text-ink"} focus-ring`}
           >
             Sparade
           </a>
           <a
             href="/om"
             aria-current={path === "/om" ? "page" : undefined}
-            className={`${isHome ? "no-underline hover:text-[#F5F0E8]" : "no-underline hover:text-ink"} focus-ring`}
+            className={`${isHome ? "no-underline hover:text-dark-text" : "no-underline hover:text-ink"} focus-ring`}
           >
             Om
           </a>
@@ -291,11 +291,11 @@ function BottomNav() {
       >
         {tabs.map((tab) => {
           const color = tab.active
-            ? (isDark ? "#F5F0E8" : "#3D3831")
+            ? (isDark ? "var(--color-dark-text)" : "#3D3831")
             : (isDark ? "rgba(245,240,232,0.4)" : "rgba(61,56,49,0.35)");
           const labelClass = tab.active
-            ? (isDark ? "text-[#F5F0E8]" : "text-charcoal")
-            : (isDark ? "text-[rgba(245,240,232,0.4)]" : "text-[rgba(61,56,49,0.35)]");
+            ? (isDark ? "text-dark-text" : "text-charcoal")
+            : (isDark ? "text-dark-text-muted" : "text-[rgba(61,56,49,0.35)]");
           return (
             <a
               key={tab.href}

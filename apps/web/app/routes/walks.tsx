@@ -122,14 +122,14 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
   const { walkPreviews, artworks, selected, walkInfo } = loaderData;
 
   return (
-    <div className="min-h-screen pt-[3.5rem] bg-[#1C1916] text-[#F5F0E8]">
+    <div className="min-h-screen pt-[3.5rem] bg-dark-base text-dark-text">
       {/* Header */}
       {!selected && (
         <div className="pt-10 px-4 pb-6 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-          <h1 className="font-serif text-[2rem] font-bold text-[#F5F0E8]">
+          <h1 className="font-serif text-[2rem] font-bold text-dark-text">
             Vandringar
           </h1>
-          <p className="text-[rgba(245,240,232,0.55)] text-[0.9rem] mt-2 leading-[1.5]">
+          <p className="text-dark-text-secondary text-[0.9rem] mt-2 leading-[1.5]">
             Utvalda resor genom samlingen. Varje vandring har ett tema och en berättelse.
           </p>
         </div>
@@ -222,10 +222,10 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
                   </div>
                   <div className="p-4">
                     <p className="text-[0.7rem] text-stone mb-1">{i + 1} / {artworks.length}</p>
-                    <p className="font-serif text-[1.125rem] font-semibold text-[#F5F0E8] leading-[1.3]">
+                    <p className="font-serif text-[1.125rem] font-semibold text-dark-text leading-[1.3]">
                       {a.title_sv || a.title_en || "Utan titel"}
                     </p>
-                    <p className="text-[0.8rem] text-[rgba(245,240,232,0.55)] mt-[0.375rem]">
+                    <p className="text-[0.8rem] text-dark-text-secondary mt-[0.375rem]">
                       {parseArtist(a.artists)}
                     </p>
                     {a.dating_text && (
@@ -234,7 +234,7 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
                   </div>
                 </a>
                 {a.narrative_text && i < artworks.length - 1 && (
-                  <div className="bg-[#F5F0E8] rounded-[0.9rem] py-[0.9rem] px-4 mb-5 text-[#6C6257]">
+                  <div className="bg-cream rounded-card py-[0.9rem] px-4 mb-5 text-warm-gray">
                     <p className="font-serif italic text-[0.95rem] leading-[1.6]">
                       {a.narrative_text}
                     </p>

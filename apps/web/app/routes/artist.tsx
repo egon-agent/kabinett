@@ -3,6 +3,7 @@ import type { Route } from "./+types/artist";
 import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
+import GridCard from "../components/GridCard";
 
 type ActorDate = { date_type?: string; date_earliest?: string | number };
 
@@ -316,40 +317,6 @@ type GridWork = {
   year: string;
 };
 
-function ArtworkCard({ w, altArtist }: { w: GridWork; altArtist: string }) {
-  return (
-    <a
-      key={w.id}
-      href={`/artwork/${w.id}`}
-      className="break-inside-avoid block rounded-[0.8rem] overflow-hidden bg-linen mb-[0.8rem] no-underline focus-ring"
-    >
-      <div className="aspect-[3/4] overflow-hidden" style={{ backgroundColor: w.color }}>
-        <img
-          src={w.imageUrl}
-          alt={`${w.title} — ${altArtist}`}
-          width={400}
-          height={533}
-          loading="lazy"
-          onError={(event) => {
-            event.currentTarget.classList.add("is-broken");
-          }}
-          className="w-full h-full object-cover"
-        />
-      </div>
-      <div className="p-[0.7rem]">
-        <p className="text-[0.84rem] font-medium text-charcoal leading-[1.35] overflow-hidden line-clamp-2 min-h-[2.25rem]">
-          {w.title}
-        </p>
-        {w.year && (
-          <p className="text-[0.72rem] text-warm-gray mt-[0.35rem] leading-[1.3] overflow-hidden line-clamp-1">
-            {w.year}
-          </p>
-        )}
-      </div>
-    </a>
-  );
-}
-
 export default function Artist({ loaderData }: Route.ComponentProps) {
   const {
     artistName,
@@ -418,10 +385,10 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
   return (
     <div className="min-h-screen pt-[3.5rem] bg-cream">
       <div className="pt-[2.75rem] px-5 pb-6 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-        <p className="text-[0.75rem] uppercase tracking-[0.2em] text-warm-gray">
+        <p className="text-xs uppercase tracking-[0.2em] text-warm-gray">
           Konstnärsresa
         </p>
-        <h1 className="font-serif text-[2.4rem] font-bold text-charcoal leading-[1.1] mt-2">
+        <h1 className="font-serif text-[2.2rem] lg:text-[2.6rem] font-bold text-charcoal leading-[1.1] mt-2">
           {artistName}
         </h1>
         <div className="flex flex-wrap gap-2 mt-3 text-[0.85rem] text-warm-gray">
@@ -459,7 +426,7 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
 
       {timelineWorks.length > 0 && (
         <section className="px-5 pb-8 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-          <h2 className="font-serif text-[1.35rem] text-charcoal mb-3">
+          <h2 className="font-serif text-[1.4rem] text-charcoal mb-3">
             Verk över tid
           </h2>
           <div className="grid grid-flow-col auto-cols-[minmax(140px,180px)] gap-3 overflow-x-auto pb-2 snap-x snap-mandatory no-scrollbar lg:auto-cols-[minmax(180px,220px)]">
@@ -467,7 +434,7 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
               <a
                 key={w.id}
                 href={`/artwork/${w.id}`}
-                className="no-underline rounded-[0.8rem] overflow-hidden bg-linen snap-start focus-ring"
+                className="no-underline rounded-card overflow-hidden bg-linen snap-start focus-ring"
               >
                 <div className="aspect-[3/4]" style={{ backgroundColor: w.color }}>
                   <img
@@ -482,11 +449,11 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <div className="p-[0.7rem]">
-                  <p className="text-[0.74rem] text-charcoal font-medium leading-[1.2]">
+                <div className="p-3">
+                  <p className="text-xs text-charcoal font-medium leading-snug">
                     {w.year}
                   </p>
-                  <p className="text-[0.78rem] text-warm-gray mt-[0.35rem] leading-[1.35] overflow-hidden line-clamp-2 min-h-[2.1rem]">
+                  <p className="text-sm text-warm-gray mt-1 leading-snug line-clamp-2 min-h-[2.1rem]">
                     {w.title}
                   </p>
                 </div>
@@ -497,12 +464,12 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
       )}
 
       <section className="px-5 pb-16 md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-        <h2 className="font-serif text-[1.35rem] text-charcoal mb-4">
+        <h2 className="font-serif text-[1.4rem] text-charcoal mb-4">
           Alla verk
         </h2>
-        <div className="columns-2 [column-gap:0.8rem] md:columns-3 lg:columns-4 lg:[column-gap:1rem]">
+        <div className="columns-2 gap-3 md:columns-3 lg:columns-4 lg:gap-4">
           {works.map((w) => (
-            <ArtworkCard key={w.id} w={w} altArtist={altArtist} />
+            <GridCard key={w.id} item={{ ...w, artist: altArtist }} />
           ))}
         </div>
         <div ref={sentinelRef} className="h-4" />

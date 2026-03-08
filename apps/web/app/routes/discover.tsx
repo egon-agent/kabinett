@@ -244,12 +244,12 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
   const { collections, topArtists, stats, museums } = loaderData;
 
   return (
-    <div className="min-h-screen pt-16 bg-[#1C1916] text-[#F5F0E8]">
+    <div className="min-h-screen pt-16 bg-dark-base text-dark-text">
       <div className="md:max-w-6xl lg:max-w-6xl md:mx-auto md:px-4 lg:px-6">
-        <h1 className="font-serif text-[2rem] text-[#F5F0E8] px-3 pt-4 pb-2">Upptäck</h1>
+        <h1 className="font-serif text-[2rem] text-dark-text px-3 pt-4 pb-2">Upptäck</h1>
         {/* Samlingar — 2-column grid */}
         <section className="pt-6 px-3">
-          <h2 className="font-serif text-[1.3rem] text-[#F5F0E8] mx-1 mb-3">Samlingar</h2>
+          <h2 className="font-serif text-[1.3rem] text-dark-text mx-1 mb-3">Samlingar</h2>
 
           <div className="grid grid-cols-2 gap-[0.6rem] md:gap-3 lg:grid-cols-4 lg:gap-4">
             {collections.map((c: Collection, i: number) => (
@@ -257,7 +257,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
                 key={c.title}
                 href={`/search?q=${encodeURIComponent(c.query || c.title)}`}
                 className={[
-                  "relative rounded-[14px] overflow-hidden no-underline focus-ring",
+                  "relative rounded-card overflow-hidden no-underline focus-ring",
                   "aspect-square",
                 ].join(" ")}
                 style={{ backgroundColor: c.color || "#2B2A27" }}
@@ -288,7 +288,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
 
         {/* Top artists */}
         <section className="pt-8">
-          <h2 className="font-serif text-[1.3rem] text-[#F5F0E8] mx-4 mb-3">Formgivare & konstnärer</h2>
+          <h2 className="font-serif text-[1.3rem] text-dark-text mx-4 mb-3">Formgivare & konstnärer</h2>
 
           <div className="flex gap-3 overflow-x-auto px-4 pb-2 no-scrollbar lg:grid lg:grid-cols-4 xl:grid-cols-6 lg:gap-4 lg:overflow-visible lg:pb-0">
             {topArtists.map((a: TopArtist) => (
@@ -313,10 +313,10 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
                     />
                   )}
                 </div>
-                <p className="text-[0.7rem] font-medium text-[#F5F0E8] mt-[0.4rem] leading-[1.2] overflow-hidden line-clamp-2">
+                <p className="text-[0.7rem] font-medium text-dark-text mt-[0.4rem] leading-[1.2] overflow-hidden line-clamp-2">
                   {a.name}
                 </p>
-                <p className="text-[0.6rem] text-[rgba(245,240,232,0.55)] mt-[0.1rem]">
+                <p className="text-[0.6rem] text-dark-text-secondary mt-[0.1rem]">
                   {a.count.toLocaleString("sv")} verk
                 </p>
               </a>
@@ -326,7 +326,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
 
         {/* Verktyg */}
         <section className="pt-8 px-4">
-          <h2 className="font-serif text-[1.3rem] text-[#F5F0E8] mb-3">Verktyg</h2>
+          <h2 className="font-serif text-[1.3rem] text-dark-text mb-3">Verktyg</h2>
           <div className="flex flex-col gap-2">
             <div className="md:hidden"><ToolLink title="Färgmatch" desc="Matcha en färg med konstverk" href="/color-match" /></div>
             <ToolLink title="Vandringar" desc="Tematiska resor genom samlingen" href="/walks" />
@@ -336,16 +336,16 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
         {/* Samlingar */}
         {museums.length > 0 && (
           <section className="pt-8 px-4">
-            <h2 className="font-serif text-[1.3rem] text-[#F5F0E8] mb-3">Samlingar</h2>
+            <h2 className="font-serif text-[1.3rem] text-dark-text mb-3">Samlingar</h2>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
               {museums.map((museum: MuseumSummary) => (
                 <a
                   key={museum.id}
                   href={`/samling/${encodeURIComponent(museum.name)}`}
-                  className="rounded-[14px] bg-[#252019] p-4 no-underline hover:bg-[#2E2820] transition-colors focus-ring"
+                  className="rounded-card bg-dark-raised p-4 no-underline hover:bg-dark-hover transition-colors focus-ring"
                 >
-                  <p className="text-[0.9rem] font-medium text-[#F5F0E8]">{museum.name}</p>
-                  <p className="text-[0.7rem] text-[rgba(245,240,232,0.55)] mt-1">
+                  <p className="text-[0.9rem] font-medium text-dark-text">{museum.name}</p>
+                  <p className="text-[0.7rem] text-dark-text-secondary mt-1">
                     {museum.count.toLocaleString("sv")} verk
                   </p>
                 </a>
@@ -356,7 +356,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
 
         {/* Samlingen i siffror */}
         <section className="pt-8 px-4 pb-12">
-          <h2 className="font-serif text-[1.3rem] text-[#F5F0E8] mb-4">Samlingen i siffror</h2>
+          <h2 className="font-serif text-[1.3rem] text-dark-text mb-4">Samlingen i siffror</h2>
 
           <div className="grid grid-cols-2 gap-2 lg:grid-cols-4 lg:gap-4">
             <StatCard number={stats.totalWorks.toLocaleString("sv")} label="verk" />
@@ -372,21 +372,21 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
 
 function ToolLink({ title, desc, href }: { title: string; desc: string; href: string }) {
   return (
-    <a href={href} className="flex items-center gap-[0.8rem] py-[0.9rem] px-4 min-h-11 rounded-[14px] bg-[#252019] no-underline hover:bg-[#2E2820] focus-ring">
+    <a href={href} className="flex items-center gap-[0.8rem] py-[0.9rem] px-4 min-h-11 rounded-card bg-dark-raised no-underline hover:bg-dark-hover focus-ring">
       <div className="flex-1">
-        <p className="text-[0.88rem] font-medium text-[#F5F0E8] m-0">{title}</p>
-        <p className="text-[0.72rem] text-[rgba(245,240,232,0.45)] mt-[0.1rem]">{desc}</p>
+        <p className="text-[0.88rem] font-medium text-dark-text m-0">{title}</p>
+        <p className="text-[0.72rem] text-dark-text-muted mt-[0.1rem]">{desc}</p>
       </div>
-      <span className="text-[rgba(245,240,232,0.4)] text-[1rem]">→</span>
+      <span className="text-dark-text-muted text-[1rem]">→</span>
     </a>
   );
 }
 
 function StatCard({ number, label }: { number: string; label: string }) {
   return (
-    <div className="py-[0.8rem] px-[0.7rem] rounded-[12px] bg-[#252019] text-center">
-      <p className="font-serif text-[1.3rem] font-semibold text-[#F5F0E8] m-0 leading-[1.1]">{number}</p>
-      <p className="text-[0.6rem] text-[rgba(245,240,232,0.55)] mt-[0.2rem] uppercase tracking-[0.06em]">{label}</p>
+    <div className="py-[0.8rem] px-[0.7rem] rounded-card bg-dark-raised text-center">
+      <p className="font-serif text-[1.3rem] font-semibold text-dark-text m-0 leading-[1.1]">{number}</p>
+      <p className="text-[0.6rem] text-dark-text-secondary mt-[0.2rem] uppercase tracking-[0.06em]">{label}</p>
     </div>
   );
 }

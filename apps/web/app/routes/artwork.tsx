@@ -111,7 +111,7 @@ function RelatedArtworkCard({
   return (
     <a
       href={`/artwork/${item.id}`}
-      className="shrink-0 w-32 lg:w-auto rounded-xl overflow-hidden bg-linen no-underline focus-ring"
+      className="shrink-0 w-32 lg:w-auto rounded-card overflow-hidden bg-linen no-underline focus-ring"
     >
       <div
         className="aspect-[3/4] overflow-hidden"
@@ -131,12 +131,12 @@ function RelatedArtworkCard({
           style={{ objectPosition: `${(item.focal_x ?? 0.5) * 100}% ${(item.focal_y ?? 0.5) * 100}%` }}
         />
       </div>
-      <div className="p-2.5">
-        <p className="text-[0.78rem] text-charcoal leading-[1.35] overflow-hidden line-clamp-2 min-h-[2.1rem]">
+      <div className="p-3">
+        <p className="text-sm text-charcoal leading-snug line-clamp-2 min-h-[2.1rem]">
           {title}
         </p>
         {secondaryText && (
-          <p className="text-[0.7rem] text-warm-gray mt-1 leading-[1.3] overflow-hidden line-clamp-1">
+          <p className="text-xs text-warm-gray mt-1 leading-snug line-clamp-1">
             {secondaryText}
           </p>
         )}
@@ -392,7 +392,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
               "shrink-0 mt-1 w-10 h-10 rounded-full border inline-flex items-center justify-center cursor-pointer transition-[transform,background] ease-[ease] duration-[200ms]",
               "focus-ring",
               saved
-                ? "bg-[rgba(196,85,58,0.12)] border-[rgba(196,85,58,0.3)] text-[#C4553A]"
+                ? "bg-[rgba(196,85,58,0.12)] border-[rgba(196,85,58,0.3)] text-accent"
                 : "bg-[rgba(0,0,0,0.03)] border-[rgba(0,0,0,0.1)] text-stone hover:bg-[rgba(0,0,0,0.06)]",
               pulsing ? "heart-pulse" : "",
             ].join(" ")}
@@ -454,7 +454,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
         {/* Description */}
         {descriptionSections.length > 0 && (
           <div className="mt-5 pt-5 border-t border-linen">
-            <p className="text-[0.65rem] text-warm-gray uppercase tracking-[0.05em] mb-[0.4rem]">Beskrivning</p>
+            <p className="text-xs text-warm-gray uppercase tracking-[0.05em] mb-[0.4rem]">Beskrivning</p>
             <div className={[
               "relative",
               canExpandDescription && !isDescriptionExpanded ? "max-h-[20rem] overflow-hidden" : "",
@@ -495,13 +495,13 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
           <div className="mt-5 pt-5 border-t border-linen grid grid-cols-1 gap-3">
             {artwork.signature && (
               <div>
-                <p className="text-[0.65rem] text-warm-gray uppercase tracking-[0.05em]">Signatur</p>
+                <p className="text-xs text-warm-gray uppercase tracking-[0.05em]">Signatur</p>
                 <p className="text-[0.8rem] text-charcoal mt-[0.15rem] italic">{artwork.signature}</p>
               </div>
             )}
             {artwork.inscription && (
               <div>
-                <p className="text-[0.65rem] text-warm-gray uppercase tracking-[0.05em]">Inskription</p>
+                <p className="text-xs text-warm-gray uppercase tracking-[0.05em]">Inskription</p>
                 <p className="text-[0.8rem] text-charcoal mt-[0.15rem] italic">{artwork.inscription}</p>
               </div>
             )}
@@ -511,7 +511,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
         {/* Exhibitions */}
         {artwork.exhibitions.length > 0 && (
           <div className="mt-5 pt-5 border-t border-linen">
-            <p className="text-[0.65rem] text-warm-gray uppercase tracking-[0.05em] mb-2">
+            <p className="text-xs text-warm-gray uppercase tracking-[0.05em] mb-2">
               Utställningar ({artwork.exhibitions.length})
             </p>
             <div className="flex flex-col gap-[0.4rem]">
@@ -519,11 +519,11 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                 <div key={i} className="text-[0.8rem] text-charcoal leading-[1.4]">
                   <span className="font-medium">{ex.title}</span>
                   {ex.venue && <span className="text-warm-gray"> — {ex.venue}</span>}
-                  {ex.year && <span className="text-[#B5AFA6]"> ({ex.year})</span>}
+                  {ex.year && <span className="text-stone"> ({ex.year})</span>}
                 </div>
               ))}
               {artwork.exhibitions.length > 5 && (
-                <p className="text-[0.7rem] text-[#B5AFA6]">
+                <p className="text-[0.7rem] text-stone">
                   +{artwork.exhibitions.length - 5} till
                 </p>
               )}
@@ -612,8 +612,8 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-[0.65rem] text-warm-gray uppercase tracking-[0.05em]">{label}</p>
-      <p className="text-[0.875rem] text-charcoal mt-[0.125rem]">{value}</p>
+      <p className="text-xs text-warm-gray uppercase tracking-[0.05em]">{label}</p>
+      <p className="text-sm text-charcoal mt-0.5">{value}</p>
     </div>
   );
 }

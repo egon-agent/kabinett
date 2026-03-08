@@ -4,6 +4,7 @@ import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
 import { parseArtist } from "../lib/parsing";
 import InfiniteArtworkGrid from "../components/InfiniteArtworkGrid";
+import FeaturedGrid from "../components/FeaturedGrid";
 
 type FeaturedRow = {
   id: number;
@@ -151,25 +152,25 @@ export default function Samling({ loaderData }: Route.ComponentProps) {
         <section className="pt-8">
           <h2 className="sr-only">Nyckeltal</h2>
           <div className="grid gap-3 md:grid-cols-3">
-            <div className="bg-white rounded-2xl p-4 shadow-[0_2px_16px_rgba(0,0,0,0.06)]">
-              <p className="text-[0.7rem] uppercase tracking-[0.16em] text-warm-gray m-0">Verk</p>
+            <div className="bg-white rounded-card p-4 shadow-card">
+              <p className="text-xs uppercase tracking-[0.16em] text-warm-gray m-0">Verk</p>
               <p className="text-[1.6rem] font-serif text-charcoal mt-2">{stats.totalWorks.toLocaleString("sv")}</p>
             </div>
-            <div className="bg-white rounded-2xl p-4 shadow-[0_2px_16px_rgba(0,0,0,0.06)]">
-              <p className="text-[0.7rem] uppercase tracking-[0.16em] text-warm-gray m-0">Tidsomfång</p>
+            <div className="bg-white rounded-card p-4 shadow-card">
+              <p className="text-xs uppercase tracking-[0.16em] text-warm-gray m-0">Tidsomfång</p>
               <p className="text-[1.6rem] font-serif text-charcoal mt-2">{stats.dateRange}</p>
             </div>
-            <div className="bg-white rounded-2xl p-4 shadow-[0_2px_16px_rgba(0,0,0,0.06)]">
-              <p className="text-[0.7rem] uppercase tracking-[0.16em] text-warm-gray m-0">Kategorier</p>
+            <div className="bg-white rounded-card p-4 shadow-card">
+              <p className="text-xs uppercase tracking-[0.16em] text-warm-gray m-0">Kategorier</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {stats.categories.length > 0 ? (
                   stats.categories.map((c) => (
-                    <span key={c.name} className="text-[0.75rem] px-2 py-[0.2rem] rounded-full bg-linen text-ink">
+                    <span key={c.name} className="text-xs px-2 py-0.5 rounded-pill bg-linen text-ink">
                       {c.name} · {c.count.toLocaleString("sv")}
                     </span>
                   ))
                 ) : (
-                  <span className="text-[0.8rem] text-warm-gray">Inga kategorier</span>
+                  <span className="text-sm text-warm-gray">Inga kategorier</span>
                 )}
               </div>
             </div>
@@ -178,41 +179,7 @@ export default function Samling({ loaderData }: Route.ComponentProps) {
 
         <section className="pt-10 pb-6">
           <h2 className="font-serif text-[1.4rem] text-charcoal">Utvalda verk</h2>
-          {featured.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-              {featured.map((item) => (
-                <a
-                  key={item.id}
-                  href={`/artwork/${item.id}`}
-                  className="block rounded-[14px] overflow-hidden bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)] no-underline contain-[layout_paint] focus-ring"
-                >
-                  <div className="relative aspect-[3/4]" style={{ backgroundColor: item.color }}>
-                    <img
-                      src={item.imageUrl}
-                      alt={`${item.title} — ${item.artist}`}
-                      loading="lazy"
-                      width={400}
-                      height={533}
-                      onError={(event) => {
-                        event.currentTarget.classList.add("is-broken");
-                      }}
-                      className="absolute inset-0 w-full h-full object-cover"
-                      style={{ objectPosition: `${(item.focal_x ?? 0.5) * 100}% ${(item.focal_y ?? 0.5) * 100}%` }}
-                    />
-                    <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(10,9,8,0.55)_0%,rgba(10,9,8,0.05)_60%,transparent_100%)]" />
-                  </div>
-                  <div className="p-[0.7rem]">
-                    <p className="text-[0.84rem] font-medium text-charcoal m-0 leading-[1.35] overflow-hidden line-clamp-2 min-h-[2.25rem]">{item.title}</p>
-                    <p className="text-[0.72rem] text-warm-gray mt-[0.35rem] leading-[1.3] overflow-hidden line-clamp-1">
-                      {item.artist}{item.datingText ? ` · ${item.datingText}` : ""}
-                    </p>
-                  </div>
-                </a>
-              ))}
-            </div>
-          ) : (
-            <p className="text-warm-gray mt-4">Inga verk att visa just nu.</p>
-          )}
+          <FeaturedGrid items={featured} />
         </section>
 
         <InfiniteArtworkGrid

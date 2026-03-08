@@ -41,19 +41,19 @@ export default function Favorites() {
   }, [idsKey]);
 
   return (
-    <div className="min-h-screen pt-[3.5rem] bg-[#1C1916] text-[#F5F0E8]">
+    <div className="min-h-screen pt-[3.5rem] bg-dark-base text-dark-text">
       <div className="max-w-6xl mx-auto p-6">
-        <h1 className="font-serif text-[2rem] text-[#F5F0E8]">Sparade</h1>
-        <p className="mt-1 text-[rgba(245,240,232,0.55)] text-[0.85rem]">
+        <h1 className="font-serif text-[2rem] text-dark-text">Sparade</h1>
+        <p className="mt-1 text-dark-text-secondary text-[0.85rem]">
           Tryck länge eller svep i sidled för att ta bort.
         </p>
 
         {loading && items.length === 0 && (
-          <div aria-live="polite" className="py-8 text-[rgba(245,240,232,0.55)]">Hämtar favoriter…</div>
+          <div aria-live="polite" className="py-8 text-dark-text-secondary">Hämtar favoriter…</div>
         )}
 
         {!loading && items.length === 0 && (
-          <div aria-live="polite" className="py-8 text-[rgba(245,240,232,0.55)]">
+          <div aria-live="polite" className="py-8 text-dark-text-secondary">
             Inga sparade verk än. Tryck på hjärtat för att spara.
           </div>
         )}
@@ -117,7 +117,7 @@ function FavoriteCard({ item, onRemove }: { item: FavoriteItem; onRemove: (id: n
           removedRef.current = false;
         }
       }}
-      className="no-underline text-inherit bg-[#252019] rounded-[0.85rem] overflow-hidden shadow-[0_10px_24px_rgba(0,0,0,0.06)] border border-[rgba(212,205,195,0.3)] focus-ring"
+      className="no-underline text-inherit bg-dark-raised rounded-card overflow-hidden shadow-card focus-ring"
     >
       <div
         className="aspect-[3/4]"
@@ -137,10 +137,10 @@ function FavoriteCard({ item, onRemove }: { item: FavoriteItem; onRemove: (id: n
         />
       </div>
       <div className="p-3">
-        <p className="text-[0.88rem] font-medium text-[#F5F0E8] m-0 leading-[1.35] overflow-hidden line-clamp-2 min-h-[2.35rem]">
+        <p className="text-sm font-medium text-dark-text leading-snug line-clamp-2 min-h-[2.25rem]">
           {item.title}
         </p>
-        <p className="mt-[0.35rem] text-[0.72rem] text-[rgba(245,240,232,0.62)] leading-[1.3] overflow-hidden line-clamp-1">
+        <p className="mt-1 text-xs text-dark-text-secondary leading-snug line-clamp-1">
           {parseArtist(item.artists)}
         </p>
       </div>
