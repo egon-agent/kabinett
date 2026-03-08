@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect, useCallback } from "react";
 import type { Route } from "./+types/artist";
 import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
@@ -189,7 +190,7 @@ export function meta({ data }: Route.MetaArgs) {
 
 const PAGE_SIZE = 60;
 
-export async function loader({ params, request }: Route.LoaderArgs) {
+export async function loader({ params }: Route.LoaderArgs) {
   let name = "";
   try {
     name = decodeURIComponent(params.name || "").trim();
@@ -201,9 +202,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   }
   if (!name) throw new Response("Saknar namn", { status: 400 });
 
-  const url = new URL(request.url);
-  const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10) || 1);
-  const offset = (page - 1) * PAGE_SIZE;
+  const offset = 0; // First page; infinite scroll loads more via /api/artist-works
 
   const db = getDb();
   const source = sourceFilter();
@@ -270,8 +269,8 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   const wikipedia = sanitizeExternalUrl(links.wikipedia);
   const wikiSummary = wikidata ? await fetchWikiSummary(wikidata, wikipedia) : {};
 
-  // Timeline: only on first page, cap at 30
-  const timelineWorks = page === 1
+  // Timeline: cap at 30
+  const timelineWorks = rows.length > 0
     ? rows
         .filter((w) => w.year_start)
         .slice(0, 30)
@@ -305,9 +304,50 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     total,
     timelineWorks,
     works: gridWorks,
-    page,
     hasMore,
   };
+}
+
+type GridWork = {
+  id: string;
+  title: string;
+  imageUrl: string;
+  color: string;
+  year: string;
+};
+
+function ArtworkCard({ w, altArtist }: { w: GridWork; altArtist: string }) {
+  return (
+    <a
+      key={w.id}
+      href={`/artwork/${w.id}`}
+      className="break-inside-avoid block rounded-[0.8rem] overflow-hidden bg-linen mb-[0.8rem] no-underline focus-ring"
+    >
+      <div className="aspect-[3/4] overflow-hidden" style={{ backgroundColor: w.color }}>
+        <img
+          src={w.imageUrl}
+          alt={`${w.title} — ${altArtist}`}
+          width={400}
+          height={533}
+          loading="lazy"
+          onError={(event) => {
+            event.currentTarget.classList.add("is-broken");
+          }}
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="p-[0.65rem]">
+        <p className="text-[0.8rem] font-medium text-charcoal leading-[1.3] overflow-hidden line-clamp-2">
+          {w.title}
+        </p>
+        {w.year && (
+          <p className="text-[0.65rem] text-stone mt-1">
+            {w.year}
+          </p>
+        )}
+      </div>
+    </a>
+  );
 }
 
 export default function Artist({ loaderData }: Route.ComponentProps) {
@@ -323,12 +363,57 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
     wikiExtract,
     total,
     timelineWorks,
-    works,
-    page,
-    hasMore,
+    works: initialWorks,
+    hasMore: initialHasMore,
   } = loaderData;
 
   const altArtist = artistName || "Okänd konstnär";
+
+  const [works, setWorks] = useState<GridWork[]>(initialWorks);
+  const [canLoadMore, setCanLoadMore] = useState(initialHasMore);
+  const [loading, setLoading] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  // Reset when navigating to a different artist
+  useEffect(() => {
+    setWorks(initialWorks);
+    setCanLoadMore(initialHasMore);
+  }, [initialWorks, initialHasMore]);
+
+  const loadMore = useCallback(async () => {
+    if (loading || !canLoadMore) return;
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        name: artistName,
+        offset: String(works.length),
+      });
+      const res = await fetch(`/api/artist-works?${params.toString()}`);
+      if (!res.ok) throw new Error("Kunde inte ladda fler verk");
+      const data = await res.json() as { works: GridWork[]; hasMore: boolean };
+      if (data.works.length === 0) {
+        setCanLoadMore(false);
+      } else {
+        setWorks((prev) => [...prev, ...data.works]);
+        setCanLoadMore(data.hasMore);
+      }
+    } catch {
+      setCanLoadMore(false);
+    } finally {
+      setLoading(false);
+    }
+  }, [artistName, canLoadMore, loading, works.length]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) loadMore(); },
+      { rootMargin: "600px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMore]);
 
   return (
     <div className="min-h-screen pt-[3.5rem] bg-cream">
@@ -416,57 +501,15 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
           Alla verk
         </h2>
         <div className="columns-2 [column-gap:0.8rem] md:columns-3 lg:columns-4 lg:[column-gap:1rem]">
-          {works.map((w: any) => (
-            <a
-              key={w.id}
-              href={`/artwork/${w.id}`}
-              className="break-inside-avoid block rounded-[0.8rem] overflow-hidden bg-linen mb-[0.8rem] no-underline focus-ring"
-            >
-              <div className="aspect-[3/4] overflow-hidden" style={{ backgroundColor: w.color }}>
-                <img
-                  src={w.imageUrl}
-                  alt={`${w.title} — ${altArtist}`}
-                  width={400}
-                  height={533}
-                  loading="lazy"
-                  onError={(event) => {
-                    event.currentTarget.classList.add("is-broken");
-                  }}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="p-[0.65rem]">
-                <p className="text-[0.8rem] font-medium text-charcoal leading-[1.3] overflow-hidden line-clamp-2">
-                  {w.title}
-                </p>
-                {w.year && (
-                  <p className="text-[0.65rem] text-stone mt-1">
-                    {w.year}
-                  </p>
-                )}
-              </div>
-            </a>
+          {works.map((w) => (
+            <ArtworkCard key={w.id} w={w} altArtist={altArtist} />
           ))}
         </div>
-        {(hasMore || page > 1) && (
-          <div className="flex justify-center gap-4 mt-8">
-            {page > 1 && (
-              <a
-                href={`?page=${page - 1}`}
-                className="px-5 py-2.5 rounded-full bg-linen text-charcoal text-[0.85rem] no-underline focus-ring"
-              >
-                ← Föregående
-              </a>
-            )}
-            {hasMore && (
-              <a
-                href={`?page=${page + 1}`}
-                className="px-5 py-2.5 rounded-full bg-charcoal text-cream text-[0.85rem] no-underline focus-ring"
-              >
-                Nästa sida →
-              </a>
-            )}
-          </div>
+        <div ref={sentinelRef} className="h-4" />
+        {loading && (
+          <p className="text-center text-[0.85rem] text-warm-gray py-4">
+            Laddar fler verk…
+          </p>
         )}
       </section>
     </div>
