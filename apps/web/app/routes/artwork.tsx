@@ -476,7 +476,6 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
         {/* Description */}
         {descriptionSections.length > 0 && (
           <div className="mt-5 pt-5 border-t border-linen">
-            <p className="text-xs text-warm-gray uppercase tracking-[0.05em] mb-[0.4rem]">Beskrivning</p>
             <div className={[
               "relative",
               canExpandDescription && !isDescriptionExpanded ? "max-h-[20rem] overflow-hidden" : "",
