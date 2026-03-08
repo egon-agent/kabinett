@@ -226,6 +226,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
         limit,
       });
 
+      // Visual-only: return pure CLIP results sorted by similarity
+      if (type === "visual") {
+        const sorted = [...clipResults].sort(
+          (a, b) => Number(b.similarity ?? 0) - Number(a.similarity ?? 0)
+        );
+        return Response.json(sorted.slice(0, limit));
+      }
+
       // Merge: overlap first, then adaptive CLIP/FTS interleaving
       const ftsIds = new Set(ftsResults.map((r: any) => r.id));
       const overlap: any[] = [];
