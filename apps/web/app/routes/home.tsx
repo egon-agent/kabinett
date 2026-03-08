@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ArtworkCard, { type CardVariant } from "../components/ArtworkCard";
 import HeroSearch from "../components/HeroSearch";
 import SpotlightCard, { type SpotlightCardData } from "../components/SpotlightCard";
@@ -130,6 +130,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const [loadedIds, setLoadedIds] = useState<Set<number>>(() => new Set(loaderData.initialItems.map((item: FeedItem) => item.id)));
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreRef = useRef<() => void>(() => {});
 
   const bgColor = useMemo(() => {
     const firstArt = feed.find((entry): entry is ArtCard => entry.type === "art");
@@ -171,7 +172,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     };
   }, [bgColor]);
 
-  async function loadMore() {
+  loadMoreRef.current = async function loadMore() {
     if (loading || !hasMore) return;
     setLoading(true);
     setLoadError("");
@@ -219,22 +220,26 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     } finally {
       setLoading(false);
     }
-  }
+  };
+
+  const stableLoadMore = useCallback(() => {
+    void loadMoreRef.current();
+  }, []);
 
   useEffect(() => {
     const target = sentinelRef.current;
-    if (!target) return;
+    if (!target || !hasMore || loading) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) {
-          void loadMore();
+          stableLoadMore();
         }
       },
       { rootMargin: "600px" }
     );
     observer.observe(target);
     return () => observer.disconnect();
-  }, [hasMore, loading, cursor, themeIndex]);
+  }, [hasMore, loading, stableLoadMore]);
 
   return (
     <div className="min-h-screen overflow-x-hidden">
@@ -306,7 +311,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             <p className="text-dark-text-muted text-[0.8rem] mb-3">{loadError}</p>
             <button
               type="button"
-              onClick={() => { setLoadError(""); void loadMore(); }}
+              onClick={() => { setLoadError(""); stableLoadMore(); }}
               className="px-4 py-2 rounded-full bg-dark-raised text-dark-text-secondary text-sm font-medium hover:bg-dark-hover hover:text-dark-text transition-colors focus-ring"
             >
               Försök igen

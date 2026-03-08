@@ -189,10 +189,12 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const offsetRef = useRef(initialWorks.length);
 
   useEffect(() => {
     setWorks(initialWorks);
     setCanLoadMore(initialHasMore);
+    offsetRef.current = initialWorks.length;
   }, [initialWorks, initialHasMore]);
 
   const loadMore = useCallback(async () => {
@@ -200,12 +202,13 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
     setLoading(true);
     setLoadError(false);
     try {
-      const res = await fetch(`/api/decade-works?decade=${selectedDecade}&offset=${works.length}`);
+      const res = await fetch(`/api/decade-works?decade=${selectedDecade}&offset=${offsetRef.current}`);
       if (!res.ok) throw new Error("Kunde inte ladda fler verk");
       const data = await res.json() as { works: DecadeWork[]; hasMore: boolean };
       if (data.works.length === 0) {
         setCanLoadMore(false);
       } else {
+        offsetRef.current += data.works.length;
         setWorks((prev) => [...prev, ...data.works]);
         setCanLoadMore(data.hasMore);
       }
@@ -214,7 +217,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
     } finally {
       setLoading(false);
     }
-  }, [selectedDecade, canLoadMore, loading, works.length]);
+  }, [selectedDecade, canLoadMore, loading]);
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -248,6 +251,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
                       src={art.imageUrl}
                       alt={`${art.title} — ${art.artist}`}
                       loading="lazy"
+                      decoding="async"
                       width={400}
                       height={533}
                       onError={(event) => {

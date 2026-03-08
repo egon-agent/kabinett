@@ -13,6 +13,7 @@ export default function InfiniteArtworkGrid({ fetchUrl, heading = "Alla verk" }:
   const [loadError, setLoadError] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const offsetRef = useRef(0);
 
   const loadMore = useCallback(async () => {
     if (loading || !canLoadMore) return;
@@ -20,12 +21,13 @@ export default function InfiniteArtworkGrid({ fetchUrl, heading = "Alla verk" }:
     setLoadError(false);
     try {
       const separator = fetchUrl.includes("?") ? "&" : "?";
-      const res = await fetch(`${fetchUrl}${separator}offset=${works.length}`);
+      const res = await fetch(`${fetchUrl}${separator}offset=${offsetRef.current}`);
       if (!res.ok) throw new Error("Kunde inte ladda verk");
       const data = (await res.json()) as { works: GridCardItem[]; hasMore: boolean };
       if (data.works.length === 0) {
         setCanLoadMore(false);
       } else {
+        offsetRef.current += data.works.length;
         setWorks((prev) => [...prev, ...data.works]);
         setCanLoadMore(data.hasMore);
       }
@@ -35,12 +37,13 @@ export default function InfiniteArtworkGrid({ fetchUrl, heading = "Alla verk" }:
       setLoading(false);
       setInitialLoad(false);
     }
-  }, [fetchUrl, canLoadMore, loading, works.length]);
+  }, [fetchUrl, canLoadMore, loading]);
 
   useEffect(() => {
     setWorks([]);
     setCanLoadMore(true);
     setInitialLoad(true);
+    offsetRef.current = 0;
   }, [fetchUrl]);
 
   useEffect(() => {
