@@ -3,6 +3,7 @@ import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
 import { parseArtist } from "../lib/parsing";
+import InfiniteArtworkGrid from "../components/InfiniteArtworkGrid";
 
 type FeaturedRow = {
   id: number;
@@ -175,7 +176,7 @@ export default function Samling({ loaderData }: Route.ComponentProps) {
           </div>
         </section>
 
-        <section className="pt-10 pb-10">
+        <section className="pt-10 pb-6">
           <h2 className="font-serif text-[1.4rem] text-charcoal">Utvalda verk</h2>
           {featured.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
@@ -213,6 +214,10 @@ export default function Samling({ loaderData }: Route.ComponentProps) {
             <p className="text-warm-gray mt-4">Inga verk att visa just nu.</p>
           )}
         </section>
+
+        <InfiniteArtworkGrid
+          fetchUrl={`/api/collection-works?samling=${encodeURIComponent(name)}`}
+        />
       </div>
     </div>
   );

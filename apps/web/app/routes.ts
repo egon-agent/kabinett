@@ -23,4 +23,5 @@ export default [
   route("color-match", "routes/color-match.tsx"),
   route("api/artworks", "routes/api.artworks.tsx"),
   route("api/artist-works", "routes/api.artist-works.tsx"),
+  route("api/collection-works", "routes/api.collection-works.tsx"),
 ] satisfies RouteConfig;
