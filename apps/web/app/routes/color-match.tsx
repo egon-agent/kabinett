@@ -130,11 +130,11 @@ export default function ColorMatch() {
 
   return (
     <div className="min-h-screen pt-[3.5rem] bg-cream">
-      <div className="max-w-[60rem] mx-auto p-6">
+      <div className="max-w-[60rem] mx-auto px-5 pt-8 pb-6 lg:px-6">
         <h1 className="font-serif text-[2rem] text-charcoal">
           Färg-match
         </h1>
-        <p className="mt-[0.35rem] text-warm-gray">
+        <p className="mt-1.5 text-[0.9rem] text-warm-gray">
           Rikta kameran mot en nyans och hitta konst som matchar.
         </p>
 

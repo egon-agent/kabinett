@@ -58,9 +58,9 @@ export default function Favorites() {
 
   return (
     <div className="min-h-screen pt-[3.5rem] bg-dark-base text-dark-text">
-      <div className="max-w-6xl mx-auto p-6">
+      <div className="max-w-6xl mx-auto px-5 pt-6 pb-6 md:px-6 lg:px-8">
         <h1 className="font-serif text-[2rem] text-dark-text">Sparade</h1>
-        <p className="mt-1 text-dark-text-secondary text-[0.85rem]">
+        <p className="mt-1.5 text-dark-text-secondary text-[0.82rem]">
           {ids.length > 0 ? `${ids.length} verk` : ""}
         </p>
 

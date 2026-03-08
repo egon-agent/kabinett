@@ -17,7 +17,7 @@ export default function FeaturedGrid({ items }: { items: FeaturedItem[] }) {
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-3.5 mt-5">
       {items.map((item) => (
         <a
           key={item.id}

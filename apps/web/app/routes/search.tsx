@@ -430,7 +430,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
   return (
     <div className="min-h-screen pt-14 bg-dark-base text-dark-text">
       <div className="px-(--spacing-page) pt-8 pb-4 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-        <h1 className="font-serif text-[2rem] text-dark-text mb-4">Sök</h1>
+        <h1 className="font-serif text-[2rem] text-dark-text mb-2">Sök</h1>
         <SearchAutocompleteForm
           defaultValue={query}
           museum={museum || undefined}
@@ -438,8 +438,8 @@ export default function Search({ loaderData }: Route.ComponentProps) {
           autoFocus={shouldAutoFocus}
         />
 
-        <div className="mt-4">
-          <p className="text-xs text-dark-text-secondary mb-2">Typ</p>
+        <div className="mt-5">
+          <p className="text-[0.68rem] uppercase tracking-[0.08em] text-dark-text-muted mb-2.5">Typ</p>
           <div className="flex flex-wrap gap-2">
             {[
               { id: "all" as SearchType, label: "Alla" },
@@ -451,7 +451,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
                 key={option.id}
                 href={buildSearchUrl({ type: option.id, museumId: museum })}
                 className={[
-                  "px-3 py-1.5 min-h-11 rounded-full text-sm font-medium transition-colors inline-flex items-center",
+                  "px-3.5 py-[0.4rem] rounded-full text-[0.8rem] font-medium transition-colors inline-flex items-center",
                   "focus-ring",
                   searchType === option.id
                     ? "bg-charcoal text-cream"
@@ -466,12 +466,12 @@ export default function Search({ loaderData }: Route.ComponentProps) {
 
         {showMuseumFilters && (
           <div className="mt-4">
-            <p className="text-xs text-dark-text-secondary mb-2">Samlingar</p>
+            <p className="text-[0.68rem] uppercase tracking-[0.08em] text-dark-text-muted mb-2.5">Samlingar</p>
             <div className="flex flex-wrap gap-2">
               <a
                 href={buildSearchUrl({ type: searchType })}
                 className={[
-                  "px-3 py-1.5 min-h-11 rounded-full text-sm font-medium transition-colors inline-flex items-center",
+                  "px-3.5 py-[0.4rem] rounded-full text-[0.8rem] font-medium transition-colors inline-flex items-center",
                   "focus-ring",
                   museum
                     ? "bg-dark-raised text-dark-text-secondary hover:bg-dark-hover hover:text-dark-text"
@@ -485,7 +485,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
                   key={option.id}
                   href={buildSearchUrl({ museumId: option.id })}
                   className={[
-                    "px-3 py-1.5 min-h-11 rounded-full text-sm font-medium transition-colors inline-flex items-center",
+                    "px-3.5 py-[0.4rem] rounded-full text-[0.8rem] font-medium transition-colors inline-flex items-center",
                     "focus-ring",
                     museum === option.id
                       ? "bg-charcoal text-cream"
@@ -501,11 +501,11 @@ export default function Search({ loaderData }: Route.ComponentProps) {
 
         {!query && (
           <div className="mt-6">
-            <p className="text-xs text-dark-text-secondary mb-3">Prova:</p>
+            <p className="text-[0.68rem] uppercase tracking-[0.08em] text-dark-text-muted mb-3">Prova</p>
             <div className="flex flex-wrap gap-2">
               {["Carl Larsson","Rembrandt","Olja på duk","Akvarell","Porträtt","Landskap","Skulptur","1700-tal","Guld","Vinter"].map(s => (
                 <a key={s} href={buildSearchUrl({ queryValue: s, museumId: museum, type: searchType })}
-                  className="px-3 py-1.5 min-h-11 inline-flex items-center rounded-full bg-dark-raised text-dark-text-secondary text-sm font-medium
+                  className="px-3.5 py-[0.4rem] inline-flex items-center rounded-full bg-dark-raised text-dark-text-secondary text-[0.8rem] font-medium
                              hover:bg-dark-hover hover:text-dark-text transition-colors focus-ring">{s}</a>
               ))}
             </div>

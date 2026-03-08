@@ -387,11 +387,11 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="min-h-screen pt-[3.5rem] bg-cream">
-      <div className="pt-[2.75rem] px-5 pb-6 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-        <p className="text-xs uppercase tracking-[0.2em] text-warm-gray">
+      <div className="pt-8 px-5 pb-6 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
+        <p className="text-[0.65rem] uppercase tracking-[0.2em] text-warm-gray">
           Konstnärsresa
         </p>
-        <h1 className="font-serif text-[2.2rem] lg:text-[2.6rem] font-bold text-charcoal leading-[1.1] mt-2">
+        <h1 className="font-serif text-[2.2rem] lg:text-[2.6rem] text-charcoal leading-[1.08] mt-2">
           {artistName}
         </h1>
         <div className="flex flex-wrap gap-2 mt-3 text-[0.85rem] text-warm-gray">
@@ -412,15 +412,15 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
           </p>
         )}
         {(wikidata || wikipedia) && (
-          <div className="flex gap-3 mt-4 flex-wrap">
-            {wikidata && (
-              <a href={wikidata} className="text-[0.8rem] text-warm-gray no-underline focus-ring">
-                Wikidata
+          <div className="flex gap-2 mt-4 flex-wrap">
+            {wikipedia && (
+              <a href={wikipedia} target="_blank" rel="noopener noreferrer" className="text-[0.78rem] px-3 py-1 rounded-full border border-stone/30 text-warm-gray no-underline hover:bg-linen hover:text-charcoal transition-colors focus-ring">
+                Wikipedia →
               </a>
             )}
-            {wikipedia && (
-              <a href={wikipedia} className="text-[0.8rem] text-warm-gray no-underline focus-ring">
-                Wikipedia
+            {wikidata && (
+              <a href={wikidata} target="_blank" rel="noopener noreferrer" className="text-[0.78rem] px-3 py-1 rounded-full border border-stone/30 text-warm-gray no-underline hover:bg-linen hover:text-charcoal transition-colors focus-ring">
+                Wikidata
               </a>
             )}
           </div>
@@ -428,8 +428,8 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
       </div>
 
       {timelineWorks.length > 0 && (
-        <section className="px-5 pb-8 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-          <h2 className="font-serif text-[1.4rem] text-charcoal mb-3">
+        <section className="px-5 pb-10 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
+          <h2 className="font-serif text-[1.35rem] text-charcoal mb-4">
             Verk över tid
           </h2>
           <div className="grid grid-flow-col auto-cols-[minmax(140px,180px)] gap-3 overflow-x-auto pb-2 snap-x snap-mandatory no-scrollbar lg:auto-cols-[minmax(180px,220px)]">
@@ -467,7 +467,7 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
       )}
 
       <section className="px-5 pb-16 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-        <h2 className="font-serif text-[1.4rem] text-charcoal mb-4">
+        <h2 className="font-serif text-[1.35rem] text-charcoal mb-5">
           Alla verk
         </h2>
         <div className="columns-2 gap-3 md:columns-3 lg:columns-4 lg:gap-4">

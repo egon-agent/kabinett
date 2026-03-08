@@ -76,7 +76,7 @@ window.addEventListener('error',function(event){
           Hoppa till innehåll
         </a>
         <Header />
-        <main id="main-content" className="app-main pb-[6.5rem] lg:pb-8">{children}</main>
+        <main id="main-content" className="app-main pb-[7rem] lg:pb-0">{children}</main>
         <BottomNav />
         <ScrollRestoration />
         <Scripts />
@@ -95,20 +95,69 @@ window.__toast=function(msg){
   );
 }
 
+function useIsLightPage() {
+  const path = useLocation().pathname;
+  return (
+    path.startsWith("/artwork/") ||
+    path.startsWith("/artist/") ||
+    path.startsWith("/samling/") ||
+    path.startsWith("/museum/") ||
+    path.startsWith("/color-match")
+  );
+}
+
+function NavLink({
+  href,
+  label,
+  path,
+  isDark,
+}: {
+  href: string;
+  label: string;
+  path: string;
+  isDark: boolean;
+}) {
+  const isActive = path === href || (href !== "/" && path.startsWith(href));
+  return (
+    <a
+      href={href}
+      aria-current={isActive ? "page" : undefined}
+      className={[
+        "no-underline transition-colors focus-ring relative pb-0.5",
+        isDark ? "hover:text-dark-text" : "hover:text-ink",
+        isActive
+          ? isDark
+            ? "text-dark-text font-medium"
+            : "text-charcoal font-medium"
+          : "",
+      ].join(" ")}
+    >
+      {label}
+      {isActive && (
+        <span
+          className={[
+            "absolute left-0 right-0 -bottom-[0.35rem] h-[1.5px] rounded-full",
+            isDark ? "bg-dark-text/50" : "bg-charcoal/40",
+          ].join(" ")}
+        />
+      )}
+    </a>
+  );
+}
+
 function Header() {
   const location = useLocation();
   const path = location.pathname;
-  // Light header only on artwork detail page
-  const isLight = path.startsWith("/artwork/") || path.startsWith("/artist/");
-  const isHome = !isLight;
+  const isLight = useIsLightPage();
+  const isDark = !isLight;
 
   return (
     <header
       className={[
         "fixed top-0 left-0 right-0 z-[60]",
-        isHome
-          ? "bg-[rgba(10,9,8,0.35)] backdrop-blur-[8px] border-b border-transparent"
-          : "bg-[rgba(250,247,242,0.92)] backdrop-blur-[12px] border-b border-[rgba(212,205,195,0.3)]",
+        isDark
+          ? "bg-[rgba(10,9,8,0.45)] backdrop-blur-[10px] border-b border-[rgba(255,255,255,0.04)]"
+          : "bg-[rgba(250,247,242,0.92)] backdrop-blur-[12px] border-b border-[rgba(212,205,195,0.25)]",
       ].join(" ")}
     >
       <nav
@@ -119,46 +168,22 @@ function Header() {
           href="/"
           aria-current={path === "/" ? "page" : undefined}
           className={[
-            "font-serif text-[1.5rem] lg:text-[1.75rem] font-bold tracking-tight no-underline focus-ring",
-            isHome ? "text-dark-text" : "text-charcoal",
+            "font-serif text-[1.45rem] lg:text-[1.65rem] tracking-tight no-underline focus-ring",
+            isDark ? "text-dark-text" : "text-charcoal",
           ].join(" ")}
         >
           Kabinett
         </a>
         <div
           className={[
-            "hidden lg:flex items-center gap-7 text-[0.85rem] tracking-[0.01em]",
-            isHome ? "text-dark-text/85" : "text-warm-gray",
+            "hidden lg:flex items-center gap-8 text-[0.82rem] tracking-[0.015em]",
+            isDark ? "text-dark-text/70" : "text-warm-gray",
           ].join(" ")}
         >
-          <a
-            href="/discover"
-            aria-current={path === "/discover" ? "page" : undefined}
-            className={`${isHome ? "no-underline hover:text-dark-text" : "no-underline hover:text-ink"} transition-colors focus-ring`}
-          >
-            Upptäck
-          </a>
-          <a
-            href="/search"
-            aria-current={path === "/search" ? "page" : undefined}
-            className={`${isHome ? "no-underline hover:text-dark-text" : "no-underline hover:text-ink"} transition-colors focus-ring`}
-          >
-            Sök
-          </a>
-          <a
-            href="/favorites"
-            aria-current={path === "/favorites" ? "page" : undefined}
-            className={`${isHome ? "no-underline hover:text-dark-text" : "no-underline hover:text-ink"} transition-colors focus-ring`}
-          >
-            Sparade
-          </a>
-          <a
-            href="/om"
-            aria-current={path === "/om" ? "page" : undefined}
-            className={`${isHome ? "no-underline hover:text-dark-text" : "no-underline hover:text-ink"} transition-colors focus-ring`}
-          >
-            Om
-          </a>
+          <NavLink href="/discover" label="Upptäck" path={path} isDark={isDark} />
+          <NavLink href="/search" label="Sök" path={path} isDark={isDark} />
+          <NavLink href="/favorites" label="Sparade" path={path} isDark={isDark} />
+          <NavLink href="/om" label="Om" path={path} isDark={isDark} />
         </div>
       </nav>
     </header>
@@ -166,11 +191,10 @@ function Header() {
 }
 
 function BottomNav() {
-  const location = useLocation();
   const { count } = useFavorites();
-  const path = location.pathname;
+  const path = useLocation().pathname;
 
-  const isLight = path.startsWith("/artwork/") || path.startsWith("/artist/");
+  const isLight = useIsLightPage();
   const isDark = !isLight;
 
   const tabs = [
@@ -231,7 +255,7 @@ function BottomNav() {
       ].join(" ")}
     >
       <div
-        className="flex justify-around items-center h-[3.2rem] max-w-[32rem] mx-auto"
+        className="flex justify-around items-center h-[3.5rem] max-w-[32rem] mx-auto"
       >
         {tabs.map((tab) => {
           const color = tab.active
@@ -279,7 +303,7 @@ export default function App() {
     <>
       {isNavigating && (
         <div className="fixed top-0 left-0 right-0 z-[100] h-[2px]">
-          <div className="h-full bg-[#C9B08E] animate-[loading-bar_1.5s_ease-in-out_infinite]" />
+          <div className="h-full bg-[rgba(201,176,142,0.7)] animate-[loading-bar_1.5s_ease-in-out_infinite]" />
         </div>
       )}
       <Outlet />
@@ -310,21 +334,21 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   const showStack = import.meta.env.DEV;
 
   return (
-    <div className="py-[4rem] px-4 min-h-screen flex items-center justify-center">
+    <div className="py-[4rem] px-5 min-h-screen flex items-center justify-center">
       <div className="max-w-md text-center">
-        <h1 className="font-serif text-[2.2rem] md:text-[2.5rem] font-bold text-charcoal">{message}</h1>
-        <p className="mt-3 text-warm-gray leading-relaxed">{details}</p>
-        <div className="mt-6 flex flex-wrap gap-3 justify-center">
+        <h1 className="font-serif text-[2rem] md:text-[2.4rem] text-charcoal">{message}</h1>
+        <p className="mt-4 text-warm-gray leading-relaxed text-[0.92rem]">{details}</p>
+        <div className="mt-8 flex flex-wrap gap-3 justify-center">
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="px-5 py-2.5 rounded-full bg-charcoal text-cream text-sm font-medium border-none cursor-pointer hover:bg-ink active:scale-[0.97] transition-[background-color,transform] focus-ring"
+            className="px-5 py-2.5 rounded-full bg-charcoal text-cream text-[0.82rem] font-medium border-none cursor-pointer hover:bg-ink active:scale-[0.97] transition-[background-color,transform] focus-ring"
           >
             Försök igen
           </button>
           <a
             href="/"
-            className="px-5 py-2.5 rounded-full border border-[rgba(61,56,49,0.22)] text-charcoal text-sm font-medium no-underline hover:bg-linen active:scale-[0.97] transition-[background-color,transform] focus-ring"
+            className="px-5 py-2.5 rounded-full border border-stone/25 text-charcoal text-[0.82rem] font-medium no-underline hover:bg-linen active:scale-[0.97] transition-[background-color,transform] focus-ring"
           >
             Till startsidan
           </a>

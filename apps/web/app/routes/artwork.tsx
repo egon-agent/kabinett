@@ -361,13 +361,13 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(artworkJsonLd) }}
       />
       {/* Back button */}
-      <div className="max-w-3xl mx-auto px-4 lg:px-8 pt-3">
+      <div className="max-w-3xl mx-auto px-5 lg:px-8 pt-4">
         <button
           type="button"
           onClick={handleBack}
-          className="inline-flex items-center gap-1.5 text-sm text-warm-gray hover:text-charcoal transition-colors bg-transparent border-none cursor-pointer focus-ring py-1"
+          className="inline-flex items-center gap-1.5 text-[0.82rem] text-warm-gray hover:text-charcoal transition-colors bg-transparent border-none cursor-pointer focus-ring py-1"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M15 18l-6-6 6-6" />
           </svg>
           Tillbaka
@@ -375,7 +375,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
       </div>
       {/* Hero image with color bg */}
       <div
-        className="flex justify-center items-center py-6 px-4 md:px-6 lg:px-8 min-h-[50vh] lg:min-h-[55vh] lg:max-h-[70vh] lg:max-w-5xl lg:mx-auto"
+        className="flex justify-center items-center py-8 px-4 md:px-6 lg:px-8 min-h-[50vh] lg:min-h-[55vh] lg:max-h-[70vh] lg:max-w-5xl lg:mx-auto"
         style={{ backgroundColor: artwork.color }}
       >
         <img
@@ -394,9 +394,9 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
       </div>
 
       {/* Info card — overlapping the image slightly */}
-      <div className="-mt-8 mx-4 mb-0 p-6 bg-white rounded-2xl relative z-10 shadow-[0_2px_20px_rgba(0,0,0,0.06)] max-w-3xl lg:mx-auto lg:px-8">
+      <div className="-mt-8 mx-4 mb-0 p-6 md:p-8 bg-white rounded-2xl relative z-10 shadow-[0_2px_24px_rgba(0,0,0,0.06)] max-w-3xl lg:mx-auto">
         <div className="flex items-start gap-3">
-          <h1 className="font-serif text-[1.5rem] lg:text-[2rem] font-bold text-charcoal leading-[1.3] flex-1">
+          <h1 className="font-serif text-[1.5rem] lg:text-[1.85rem] text-charcoal leading-[1.25] flex-1">
             {artwork.title}
           </h1>
           <button
@@ -461,7 +461,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 
         {/* Details grid */}
         {(artwork.datingText || artwork.category || artwork.techniqueMaterial || artwork.dimensions || artwork.acquisitionYear || artwork.objectType || artwork.style || artwork.motiveCategory) && (
-          <div className="grid grid-cols-2 gap-4 mt-5 pt-5 border-t border-linen">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-4 mt-6 pt-6 border-t border-linen">
             {artwork.datingText && <Detail label={artwork.datingType || "Datering"} value={artwork.datingText} />}
             {artwork.category && <Detail label="Kategori" value={artwork.category} />}
             {artwork.techniqueMaterial && <Detail label="Teknik" value={artwork.techniqueMaterial} />}
@@ -475,7 +475,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 
         {/* Description */}
         {descriptionSections.length > 0 && (
-          <div className="mt-5 pt-5 border-t border-linen">
+          <div className="mt-6 pt-6 border-t border-linen">
             <div className={[
               "relative",
               canExpandDescription && !isDescriptionExpanded ? "max-h-[20rem] overflow-hidden" : "",
@@ -513,7 +513,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 
         {/* Signature & Inscription */}
         {(artwork.signature || artwork.inscription) && (
-          <div className="mt-5 pt-5 border-t border-linen grid grid-cols-1 gap-3">
+          <div className="mt-6 pt-6 border-t border-linen grid grid-cols-1 gap-3">
             {artwork.signature && (
               <div>
                 <p className="text-xs text-warm-gray uppercase tracking-[0.05em]">Signatur</p>
@@ -531,7 +531,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 
         {/* Exhibitions */}
         {artwork.exhibitions.length > 0 && (
-          <div className="mt-5 pt-5 border-t border-linen">
+          <div className="mt-6 pt-6 border-t border-linen">
             <p className="text-xs text-warm-gray uppercase tracking-[0.05em] mb-2">
               Utställningar ({artwork.exhibitions.length})
             </p>
@@ -552,14 +552,14 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
           </div>
         )}
 
-        {/* Color + link row */}
-        <div className="flex justify-between items-center mt-5 pt-5 border-t border-linen">
-          <div className="flex items-center gap-2">
+        {/* Actions row */}
+        <div className="flex flex-wrap justify-between items-center gap-3 mt-6 pt-6 border-t border-linen">
+          <div className="flex items-center gap-2.5">
             <div
-              className="w-6 h-6 rounded-full border border-[rgba(212,205,195,0.4)]"
+              className="w-5 h-5 rounded-full border border-[rgba(212,205,195,0.35)]"
               style={{ backgroundColor: artwork.color }}
             />
-            <span className="text-[0.75rem] text-stone font-mono">{artwork.color}</span>
+            <span className="text-[0.72rem] text-stone font-mono tracking-wide">{artwork.color}</span>
           </div>
           <div className="flex gap-3 items-center">
             <button
@@ -575,13 +575,13 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                   window.__toast?.("Länk kopierad");
                 }
               }}
-              className="py-2 px-4 min-h-11 rounded-full border border-linen bg-white text-[0.8rem] text-charcoal cursor-pointer font-medium hover:bg-linen active:scale-[0.97] transition-[background-color,transform] focus-ring"
+              className="py-2 px-5 min-h-11 rounded-full border border-stone/20 bg-white text-[0.8rem] text-charcoal cursor-pointer font-medium hover:bg-linen active:scale-[0.97] transition-[background-color,transform] focus-ring"
             >
               Dela
             </button>
             {artwork.museumSiteUrl && (
               <a href={artwork.museumSiteUrl} target="_blank" rel="noopener noreferrer"
-                className="text-[0.8rem] text-warm-gray hover:text-charcoal transition-colors no-underline focus-ring">
+                className="text-[0.78rem] text-warm-gray hover:text-charcoal transition-colors no-underline focus-ring">
                 {`Visa på ${artwork.museumName}`} →
               </a>
             )}
@@ -591,11 +591,11 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 
       {/* Same artist section */}
       {!relatedLoading && related.sameArtist.length > 0 && (
-        <section className="pt-10 px-4 md:px-6 lg:px-8 max-w-[50rem] lg:max-w-5xl mx-auto">
-          <h2 className="font-serif text-[1.25rem] font-semibold text-charcoal">
+        <section className="pt-12 px-5 md:px-6 lg:px-8 max-w-[50rem] lg:max-w-5xl mx-auto">
+          <h2 className="font-serif text-[1.3rem] text-charcoal">
             Mer av {artistName}
           </h2>
-          <div className="flex gap-3 overflow-x-auto pt-4 pb-2 no-scrollbar lg:grid lg:grid-cols-4 lg:gap-4 lg:overflow-visible lg:pb-0">
+          <div className="flex gap-3 overflow-x-auto pt-5 pb-2 no-scrollbar lg:grid lg:grid-cols-4 lg:gap-4 lg:overflow-visible lg:pb-0">
             {related.sameArtist.map((s) => (
               <RelatedArtworkCard
                 key={s.id}
@@ -608,13 +608,13 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
         </section>
       )}
 
-      {/* Similar colors */}
+      {/* Similar works */}
       {!relatedLoading && related.similar.length > 0 && (
-        <section className="pt-10 px-4 md:px-6 lg:px-8 max-w-[50rem] lg:max-w-5xl mx-auto">
-          <h2 className="font-serif text-[1.25rem] font-semibold text-charcoal">
+        <section className="pt-12 px-5 md:px-6 lg:px-8 max-w-[50rem] lg:max-w-5xl mx-auto">
+          <h2 className="font-serif text-[1.3rem] text-charcoal">
             Liknande verk
           </h2>
-          <div className="flex gap-3 overflow-x-auto pt-4 pb-2 no-scrollbar lg:grid lg:grid-cols-4 lg:gap-4 lg:overflow-visible lg:pb-0">
+          <div className="flex gap-3 overflow-x-auto pt-5 pb-2 no-scrollbar lg:grid lg:grid-cols-4 lg:gap-4 lg:overflow-visible lg:pb-0">
             {related.similar.map((s) => (
               <RelatedArtworkCard
                 key={s.id}
@@ -627,7 +627,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
         </section>
       )}
 
-      <div className="pb-12" />
+      <div className="pb-16" />
     </div>
   );
 }

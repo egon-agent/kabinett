@@ -125,11 +125,11 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
     <div className="min-h-screen pt-[3.5rem] bg-dark-base text-dark-text">
       {/* Header */}
       {!selected && (
-        <div className="pt-10 px-4 pb-6 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-          <h1 className="font-serif text-[2rem] font-bold text-dark-text">
+        <div className="pt-10 px-5 pb-6 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
+          <h1 className="font-serif text-[2rem] text-dark-text">
             Vandringar
           </h1>
-          <p className="text-dark-text-secondary text-[0.9rem] mt-2 leading-[1.5]">
+          <p className="text-dark-text-secondary text-[0.88rem] mt-2.5 leading-[1.6]">
             Utvalda resor genom samlingen. Varje vandring har ett tema och en berättelse.
           </p>
         </div>
@@ -137,10 +137,10 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
 
       {/* Walk cards */}
       {!selected && (
-        <div className="px-4 pb-16 flex flex-col gap-3 md:max-w-6xl md:mx-auto md:px-6 lg:px-8 lg:grid lg:grid-cols-2 lg:gap-4">
+        <div className="px-5 pb-16 flex flex-col gap-3.5 md:max-w-6xl md:mx-auto md:px-6 lg:px-8 lg:grid lg:grid-cols-2 lg:gap-4">
           {walkPreviews.map((w) => (
             <a key={w.slug} href={"/walks?walk=" + w.slug}
-              className="block relative overflow-hidden rounded-2xl h-40 no-underline group/walk focus-ring"
+              className="block relative overflow-hidden rounded-2xl h-44 no-underline group/walk focus-ring"
               style={{ backgroundColor: w.color }}
             >
               {w.previewUrl && (

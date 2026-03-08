@@ -167,10 +167,10 @@ export default function Museum({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="min-h-screen pt-16 bg-cream">
-      <div className="max-w-5xl mx-auto px-4 lg:px-6">
-        <div className="pt-6">
-          <p className="text-[0.7rem] tracking-[0.2em] uppercase text-warm-gray">Museum</p>
-          <h1 className="font-serif text-[2.2rem] lg:text-[2.6rem] text-charcoal m-0">
+      <div className="max-w-5xl mx-auto px-5 lg:px-6">
+        <div className="pt-8">
+          <p className="text-[0.65rem] tracking-[0.2em] uppercase text-warm-gray">Museum</p>
+          <h1 className="font-serif text-[2.2rem] lg:text-[2.6rem] text-charcoal m-0 mt-1">
             {museum.name}
           </h1>
           {museum.description && (
@@ -179,10 +179,10 @@ export default function Museum({ loaderData }: Route.ComponentProps) {
             </p>
           )}
 
-          <div className="mt-5 flex flex-wrap gap-3">
+          <div className="mt-6 flex flex-wrap gap-3">
             <a
               href={`/search?museum=${encodeURIComponent(museum.id)}`}
-              className="inline-flex items-center justify-center px-5 h-[2.6rem] rounded-full bg-ink text-cream text-[0.85rem] no-underline font-medium focus-ring"
+              className="inline-flex items-center justify-center px-5 h-[2.5rem] rounded-full bg-charcoal text-cream text-[0.82rem] no-underline font-medium hover:bg-ink transition-colors focus-ring"
             >
               Utforska
             </a>
@@ -191,7 +191,7 @@ export default function Museum({ loaderData }: Route.ComponentProps) {
                 href={museum.url}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center justify-center px-5 h-[2.6rem] rounded-full border border-stone text-ink text-[0.85rem] no-underline font-medium focus-ring"
+                className="inline-flex items-center justify-center px-5 h-[2.5rem] rounded-full border border-stone/30 text-charcoal text-[0.82rem] no-underline font-medium hover:bg-linen transition-colors focus-ring"
               >
                 Besök webbplats
               </a>
@@ -199,23 +199,23 @@ export default function Museum({ loaderData }: Route.ComponentProps) {
           </div>
         </div>
 
-        <section className="pt-8">
+        <section className="pt-10">
           <h2 className="sr-only">Nyckeltal</h2>
           <div className="grid gap-3 md:grid-cols-3">
-            <div className="bg-white rounded-card p-4 shadow-card">
-              <p className="text-xs uppercase tracking-[0.16em] text-warm-gray m-0">Verk</p>
+            <div className="bg-white rounded-card p-5 shadow-card">
+              <p className="text-[0.65rem] uppercase tracking-[0.14em] text-warm-gray m-0">Verk</p>
               <p className="text-[1.6rem] font-serif text-charcoal mt-2">
                 {stats.totalWorks.toLocaleString("sv")}
               </p>
             </div>
-            <div className="bg-white rounded-card p-4 shadow-card">
-              <p className="text-xs uppercase tracking-[0.16em] text-warm-gray m-0">Tidsomfång</p>
+            <div className="bg-white rounded-card p-5 shadow-card">
+              <p className="text-[0.65rem] uppercase tracking-[0.14em] text-warm-gray m-0">Tidsomfång</p>
               <p className="text-[1.6rem] font-serif text-charcoal mt-2">
                 {stats.dateRange}
               </p>
             </div>
-            <div className="bg-white rounded-card p-4 shadow-card">
-              <p className="text-xs uppercase tracking-[0.16em] text-warm-gray m-0">Kategorier</p>
+            <div className="bg-white rounded-card p-5 shadow-card">
+              <p className="text-[0.65rem] uppercase tracking-[0.14em] text-warm-gray m-0">Kategorier</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {stats.categories.length > 0 ? (
                   stats.categories.map((c) => (
@@ -235,7 +235,7 @@ export default function Museum({ loaderData }: Route.ComponentProps) {
         </section>
 
         <section className="pt-10 pb-6">
-          <h2 className="font-serif text-[1.4rem] text-charcoal">Utvalda verk</h2>
+          <h2 className="font-serif text-[1.35rem] text-charcoal">Utvalda verk</h2>
           <FeaturedGrid items={featured} />
         </section>
 

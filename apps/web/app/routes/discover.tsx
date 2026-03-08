@@ -246,12 +246,12 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
   return (
     <div className="min-h-screen pt-16 bg-dark-base text-dark-text">
       <div className="md:max-w-6xl md:mx-auto md:px-4 lg:px-6">
-        <h1 className="font-serif text-[2rem] text-dark-text px-4 pt-4 pb-2">Upptäck</h1>
-        {/* Samlingar — 2-column grid */}
-        <section className="pt-6 px-4">
-          <h2 className="font-serif text-[1.3rem] text-dark-text mb-3">Teman</h2>
+        <h1 className="font-serif text-[2rem] text-dark-text px-5 pt-6 pb-2">Upptäck</h1>
+        {/* Teman — 2-column grid */}
+        <section className="pt-6 px-5">
+          <h2 className="font-serif text-[1.3rem] text-dark-text mb-4">Teman</h2>
 
-          <div className="grid grid-cols-2 gap-[0.6rem] md:gap-3 lg:grid-cols-4 lg:gap-4">
+          <div className="grid grid-cols-2 gap-2 md:gap-3 lg:grid-cols-4 lg:gap-3.5">
             {collections.map((c: Collection, i: number) => (
               <a
                 key={c.title}
@@ -277,9 +277,9 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
                   />
                 )}
                 <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(10,9,8,0.75)_0%,rgba(10,9,8,0.1)_60%,transparent_100%)]" />
-                <div className="absolute bottom-0 left-0 right-0 py-[0.7rem] px-[0.8rem]">
+                <div className="absolute bottom-0 left-0 right-0 py-3 px-3.5">
                   <p className="font-serif text-[0.95rem] text-white m-0 leading-[1.2]">{c.title}</p>
-                  <p className="text-[0.65rem] text-[rgba(255,255,255,0.5)] mt-[0.1rem]">{c.subtitle}</p>
+                  <p className="text-[0.62rem] text-[rgba(255,255,255,0.50)] mt-[0.15rem]">{c.subtitle}</p>
                 </div>
               </a>
             ))}
@@ -287,10 +287,10 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
         </section>
 
         {/* Top artists */}
-        <section className="pt-8">
-          <h2 className="font-serif text-[1.3rem] text-dark-text px-4 mb-3">Formgivare & konstnärer</h2>
+        <section className="pt-10">
+          <h2 className="font-serif text-[1.3rem] text-dark-text px-5 mb-4">Formgivare & konstnärer</h2>
 
-          <div className="flex gap-3 overflow-x-auto px-4 pb-2 no-scrollbar lg:grid lg:grid-cols-4 xl:grid-cols-6 lg:gap-4 lg:overflow-visible lg:pb-0">
+          <div className="flex gap-3 overflow-x-auto px-5 pb-2 no-scrollbar lg:grid lg:grid-cols-4 xl:grid-cols-6 lg:gap-4 lg:overflow-visible lg:pb-0">
             {topArtists.map((a: TopArtist) => (
               <a
                 key={a.name}
@@ -325,8 +325,8 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
         </section>
 
         {/* Verktyg */}
-        <section className="pt-8 px-4">
-          <h2 className="font-serif text-[1.3rem] text-dark-text mb-3">Verktyg</h2>
+        <section className="pt-10 px-5">
+          <h2 className="font-serif text-[1.3rem] text-dark-text mb-4">Verktyg</h2>
           <div className="flex flex-col gap-2">
             <div className="md:hidden"><ToolLink title="Färgmatch" desc="Matcha en färg med konstverk" href="/color-match" /></div>
             <ToolLink title="Vandringar" desc="Tematiska resor genom samlingen" href="/walks" />
@@ -335,8 +335,8 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
 
         {/* Samlingar */}
         {museums.length > 0 && (
-          <section className="pt-8 px-4">
-            <h2 className="font-serif text-[1.3rem] text-dark-text mb-3">Samlingar</h2>
+          <section className="pt-10 px-5">
+            <h2 className="font-serif text-[1.3rem] text-dark-text mb-4">Samlingar</h2>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
               {museums.map((museum: MuseumSummary) => (
                 <a
@@ -355,10 +355,10 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
         )}
 
         {/* Samlingen i siffror */}
-        <section className="pt-8 px-4 pb-12">
+        <section className="pt-10 px-5 pb-16">
           <h2 className="font-serif text-[1.3rem] text-dark-text mb-4">Samlingen i siffror</h2>
 
-          <div className="grid grid-cols-2 gap-2 lg:grid-cols-4 lg:gap-4">
+          <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4 lg:gap-4">
             <StatCard number={stats.totalWorks.toLocaleString("sv")} label="verk" />
             <StatCard number={stats.museums.toLocaleString("sv")} label="samlingar" />
             <StatCard number={`${stats.yearsSpan} år`} label="av historia" />
@@ -384,9 +384,9 @@ function ToolLink({ title, desc, href }: { title: string; desc: string; href: st
 
 function StatCard({ number, label }: { number: string; label: string }) {
   return (
-    <div className="py-[0.8rem] px-[0.7rem] rounded-card bg-dark-raised text-center">
-      <p className="font-serif text-[1.3rem] font-semibold text-dark-text m-0 leading-[1.1]">{number}</p>
-      <p className="text-[0.6rem] text-dark-text-secondary mt-[0.2rem] uppercase tracking-[0.06em]">{label}</p>
+    <div className="py-4 px-3 rounded-card bg-dark-raised text-center">
+      <p className="font-serif text-[1.4rem] font-semibold text-dark-text m-0 leading-[1.1]">{number}</p>
+      <p className="text-[0.6rem] text-dark-text-secondary mt-1 uppercase tracking-[0.08em]">{label}</p>
     </div>
   );
 }

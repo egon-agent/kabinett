@@ -63,7 +63,7 @@ export default function InfiniteArtworkGrid({ fetchUrl, heading = "Alla verk" }:
 
   return (
     <section className="pt-10 pb-16">
-      <h2 className="font-serif text-[1.4rem] text-charcoal mb-4">{heading}</h2>
+      <h2 className="font-serif text-[1.35rem] text-charcoal mb-5">{heading}</h2>
       <div className="columns-2 gap-3 md:columns-3 lg:columns-4 lg:gap-4">
         {works.map((w) => (
           <GridCard key={w.id} item={w} />
