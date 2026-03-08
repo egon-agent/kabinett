@@ -22,7 +22,8 @@
     "backfill:collection": "tsx scripts/backfill-collection.ts",
     "migrate:vec": "tsx scripts/migrate-vec.ts",
     "stats:refresh": "tsx scripts/refresh-site-stats.ts",
-    "related:refresh": "tsx scripts/refresh-artwork-related.ts"
+    "related:refresh": "tsx scripts/refresh-artwork-related.ts",
+    "focal:backfill": "tsx scripts/backfill-focal-points.ts"
   },
   "dependencies": {
     "@xenova/transformers": "^2.17.2",
