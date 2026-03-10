@@ -1,47 +1,57 @@
-# Museum-kampanjer med Cloudflare + Fly.io
+# Museum-kampanjer i en enda Fly-app
 
-Den här kodbasen stöder nu museum-specifika kampanjlägen via två env-variabler:
+Kampanjläge styrs nu primärt av `Host`-headern per request, inte av separata Fly-appar.
+Samma app + samma databas kan därför servera flera subdomäner samtidigt.
 
-- `MUSEUMS` låser vilka källor som är aktiva i queries.
-- `KABINETT_CAMPAIGN` styr copy/meta på startsidan (`default`, `nationalmuseum`, `nordiska`, `shm`).
+## Hostname-routing
 
-## Rekommenderad topologi
+Följande mapping används i `campaign.server.ts`:
 
-Kör en separat Fly-app per kampanjsubdomän:
+- `nm.norrava.com` → `nationalmuseum`
+- `nationalmuseum.norrava.com` → `nationalmuseum`
+- `nordiska.norrava.com` → `nordiska`
+- `shm.norrava.com` → `shm`
+- allt annat → `default`
 
-- `kabinett` (huvuddomän, multi-museum)
-- `kabinett-nm` (`MUSEUMS=nationalmuseum`, `KABINETT_CAMPAIGN=nationalmuseum`)
-- `kabinett-nordiska` (`MUSEUMS=nordiska`, `KABINETT_CAMPAIGN=nordiska`)
-- `kabinett-shm` (`MUSEUMS=shm`, `KABINETT_CAMPAIGN=shm`)
+Varje kampanj-ID definierar också vilka museer som tillåts i queries:
 
-## Exempel: Nationalmuseum-kampanj
+- `nationalmuseum` → `['nationalmuseum']`
+- `nordiska` → `['nordiska']`
+- `shm` → `['shm']`
+- `default` → `null` (alla DB-aktiverade museer)
 
-1. Skapa appen:
+## Fallback-beteende
 
-```bash
-fly apps create kabinett-nm
-```
+Om request-kontekst saknas (t.ex. i äldre körvägar), används samma fallback som tidigare:
 
-2. Sätt env:
+- `KABINETT_CAMPAIGN` styr kampanjcopy/meta
+- `MUSEUMS` begränsar datakällor
 
-```bash
-fly secrets set -a kabinett-nm \
-  MUSEUMS="nationalmuseum" \
-  KABINETT_CAMPAIGN="nationalmuseum"
-```
+Det gör migreringen bakåtkompatibel.
 
-3. Deploya samma image/kod som huvudappen.
+## Fly-konfiguration (en app)
 
-4. Koppla subdomän i Cloudflare:
+Behåll en app, till exempel `kabinett`, med gemensam databas-volym.
 
-- DNS `CNAME nationalmuseum.kabinett.se` -> `kabinett-nm.fly.dev`
-- Proxy på (orange cloud) och SSL mode Full/Strict.
+`fly.toml` kan fortsatt ha:
 
-## Cloudflare-routing
+- `KABINETT_CAMPAIGN = "default"` (fallback)
+- `MUSEUMS = "nationalmuseum,nordiska,shm"` (global fallback)
 
-Ingen Worker krävs för detta upplägg. Varje subdomän pekar direkt till rätt Fly-app.
+Ingen extra Fly-app och ingen extra databas behövs för kampanjsubdomäner.
+
+## DNS/Cloudflare
+
+Peka alla kampanjsubdomäner till samma Fly-app, till exempel:
+
+- `nm.norrava.com` → `kabinett.fly.dev`
+- `nationalmuseum.norrava.com` → `kabinett.fly.dev`
+- `nordiska.norrava.com` → `kabinett.fly.dev`
+- `shm.norrava.com` → `kabinett.fly.dev`
+
+Cloudflare kan fortsätta proxy:a trafiken (orange cloud) med SSL-läge Full/Strict.
 
 ## SEO
 
-Kampanjlägen (`KABINETT_CAMPAIGN != default`) sätter `robots: noindex,nofollow` på startsidan.
-Om du vill noindexa hela kampanjsubdomänen, gör det även i Cloudflare via transform rules eller edge headers.
+Kampanjlägen (`nationalmuseum`, `nordiska`, `shm`) sätter `noindex` på startsidan,
+medan `default` beter sig som ordinarie indexerbar sida.

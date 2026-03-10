@@ -1,4 +1,5 @@
 import { getDb } from "./db.server";
+import { getRequestContext } from "./request-context.server";
 
 export type MuseumRow = {
   id: string;
@@ -13,11 +14,10 @@ export type MuseumRow = {
 function parseEnvMuseums(): string[] | null {
   const raw = process.env.MUSEUMS?.trim();
   if (!raw) return null;
-  const parsed = raw
+  return sanitizeMuseumList(raw
     .split(",")
     .map((m) => m.trim().toLowerCase())
-    .filter(Boolean);
-  return parsed.length > 0 ? parsed : null;
+    .filter(Boolean));
 }
 
 function sanitizeMuseumId(value: string): string | null {
@@ -27,10 +27,20 @@ function sanitizeMuseumId(value: string): string | null {
   return normalized;
 }
 
+function sanitizeMuseumList(values: string[] | null | undefined): string[] | null {
+  if (!values) return null;
+
+  const sanitized = values
+    .map((value) => sanitizeMuseumId(value))
+    .filter((id): id is string => Boolean(id));
+
+  if (sanitized.length === 0) return null;
+  return [...new Set(sanitized)];
+}
+
 let enabledMuseumsCache: string[] | null = null;
 let enabledMuseumsCacheTime = 0;
 const ENABLED_MUSEUMS_TTL_MS = 60 * 1000;
-let sourceFilterCacheKey = "";
 const sourceFilterCache = new Map<string, { sql: string; params: string[] }>();
 const COLLECTION_OPTIONS_TTL_MS = 60 * 1000;
 let collectionOptionsCache:
@@ -43,6 +53,19 @@ let collectionOptionsCache:
 
 export function getEnabledMuseums(): string[] {
   const now = Date.now();
+  const allEnabledMuseums = getDbEnabledMuseums(now);
+  const contextMuseums = sanitizeMuseumList(getRequestContext()?.museums);
+  const requestedMuseums = contextMuseums ?? parseEnvMuseums();
+
+  if (!requestedMuseums) {
+    return allEnabledMuseums;
+  }
+
+  const allowed = new Set(allEnabledMuseums);
+  return requestedMuseums.filter((id) => allowed.has(id));
+}
+
+function getDbEnabledMuseums(now: number): string[] {
   if (enabledMuseumsCache && now - enabledMuseumsCacheTime < ENABLED_MUSEUMS_TTL_MS) {
     return enabledMuseumsCache;
   }
@@ -52,21 +75,10 @@ export function getEnabledMuseums(): string[] {
   const all = rows
     .map((r) => sanitizeMuseumId(r.id))
     .filter((id): id is string => Boolean(id));
-  const envMuseums = parseEnvMuseums();
-  if (!envMuseums) {
-    enabledMuseumsCache = all;
-    enabledMuseumsCacheTime = now;
-    return all;
-  }
 
-  const sanitizedEnvMuseums = envMuseums
-    .map((id) => sanitizeMuseumId(id))
-    .filter((id): id is string => Boolean(id));
-  const allowed = new Set(all);
-  const filtered = sanitizedEnvMuseums.filter((id) => allowed.has(id));
-  enabledMuseumsCache = filtered;
+  enabledMuseumsCache = all;
   enabledMuseumsCacheTime = now;
-  return filtered;
+  return all;
 }
 
 export function isMuseumEnabled(source: string): boolean {
@@ -86,21 +98,16 @@ export function getMuseumInfo(source: string): MuseumRow | null {
 
 export function sourceFilter(prefix?: string): { sql: string; params: string[] } {
   const museums = getEnabledMuseums();
-  const cacheKey = museums.join(",");
-  if (cacheKey !== sourceFilterCacheKey) {
-    sourceFilterCacheKey = cacheKey;
-    sourceFilterCache.clear();
-  }
-
   const prefixKey = prefix || "";
-  const cached = sourceFilterCache.get(prefixKey);
+  const cacheKey = `${museums.join(",")}::${prefixKey}`;
+  const cached = sourceFilterCache.get(cacheKey);
   if (cached) {
     return cached;
   }
 
   if (museums.length === 0) {
     const empty = { sql: "1 = 0", params: [] };
-    sourceFilterCache.set(prefixKey, empty);
+    sourceFilterCache.set(cacheKey, empty);
     return empty;
   }
 
@@ -109,7 +116,7 @@ export function sourceFilter(prefix?: string): { sql: string; params: string[] }
     sql: `${col} IN (${museums.map(() => "?").join(",")})`,
     params: museums,
   };
-  sourceFilterCache.set(prefixKey, result);
+  sourceFilterCache.set(cacheKey, result);
   return result;
 }
 
