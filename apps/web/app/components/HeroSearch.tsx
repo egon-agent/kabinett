@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import Autocomplete from "./Autocomplete";
 import type { AutocompleteSuggestion } from "./Autocomplete";
@@ -8,11 +8,13 @@ export default function HeroSearch({
   headline,
   subline,
   introText,
+  isCampaign,
 }: {
   totalWorks: number;
   headline?: string;
   subline?: string;
   introText?: string | null;
+  isCampaign?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
@@ -20,11 +22,9 @@ export default function HeroSearch({
   const resolvedHeadline = headline || `${totalWorks.toLocaleString("sv-SE")} konstverk.`;
   const resolvedSubline = subline || "Sök på vad som helst.";
 
-  // Keep cursor at end on iOS when focusing an empty-looking input
   const handleFocus = useCallback(() => {
     const el = inputRef.current;
     if (!el) return;
-    // Scroll to top first so iOS keyboard scroll positions input correctly
     window.scrollTo(0, 0);
     if (typeof el.setSelectionRange === "function") {
       requestAnimationFrame(() => {
@@ -38,7 +38,6 @@ export default function HeroSearch({
     (q: string, type: "all" | "visual" = "all") => {
       const trimmed = q.trim();
       if (!trimmed) return;
-      // Blur input to close autocomplete dropdown before navigating
       inputRef.current?.blur();
       const params = new URLSearchParams({ q: trimmed });
       if (type !== "all") params.set("type", type);
@@ -54,13 +53,11 @@ export default function HeroSearch({
         navigate(`/artwork/${suggestion.id}`);
         return;
       }
-
       if (suggestion.type === "artist") {
         inputRef.current?.blur();
         navigate(`/artist/${encodeURIComponent(suggestion.value)}`);
         return;
       }
-
       goToSearch(suggestion.value, "visual");
     },
     [goToSearch, navigate]
@@ -69,7 +66,6 @@ export default function HeroSearch({
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      // Read directly from input to avoid stale state
       const inputValue = inputRef.current?.value || query;
       goToSearch(inputValue);
     },
@@ -78,14 +74,37 @@ export default function HeroSearch({
 
   return (
     <div className="pt-[5.5rem] pb-8 px-5 md:px-2 md:pb-10 lg:px-0 lg:pt-[8rem] lg:pb-16">
-      <h1 className="font-serif text-[2rem] md:text-[2.6rem] lg:text-[3.2rem] text-dark-text text-center leading-[1.08] tracking-[-0.02em]">
-        {resolvedHeadline}{" "}
-        <span className="text-dark-text-muted">{resolvedSubline}</span>
-      </h1>
-      {introText && (
-        <p className="mt-4 mx-auto max-w-[36rem] text-center text-dark-text-muted text-[0.9rem] leading-relaxed">
-          {introText}
-        </p>
+      {isCampaign ? (
+        /* ── Campaign hero: clear hierarchy ── */
+        <div className="text-center">
+          <p className="text-[0.8rem] md:text-[0.85rem] uppercase tracking-[0.2em] text-[rgba(201,176,142,0.50)] mb-3">
+            Kabinett ×
+          </p>
+          <h1 className="font-serif text-[2.4rem] md:text-[3rem] lg:text-[3.6rem] text-dark-text leading-[1.05] tracking-[-0.02em]">
+            {resolvedHeadline}
+          </h1>
+          <p className="mt-3 text-[1rem] md:text-[1.1rem] text-dark-text-muted tracking-[-0.01em]">
+            {resolvedSubline}
+          </p>
+          {introText && (
+            <p className="mt-3 mx-auto max-w-[32rem] text-[0.85rem] text-[rgba(201,176,142,0.45)] leading-relaxed">
+              {introText}
+            </p>
+          )}
+        </div>
+      ) : (
+        /* ── Default hero: original layout ── */
+        <>
+          <h1 className="font-serif text-[2rem] md:text-[2.6rem] lg:text-[3.2rem] text-dark-text text-center leading-[1.08] tracking-[-0.02em]">
+            {resolvedHeadline}{" "}
+            <span className="text-dark-text-muted">{resolvedSubline}</span>
+          </h1>
+          {introText && (
+            <p className="mt-4 mx-auto max-w-[36rem] text-center text-dark-text-muted text-[0.9rem] leading-relaxed">
+              {introText}
+            </p>
+          )}
+        </>
       )}
 
       <Autocomplete

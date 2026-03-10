@@ -258,6 +258,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           headline={loaderData.heroHeadline}
           subline={loaderData.heroSubline}
           introText={loaderData.heroIntro}
+          isCampaign={loaderData.noindex}
         />
 
         {<div className="grid grid-cols-1 md:gap-2.5 lg:grid-cols-3 lg:gap-3.5 lg:grid-flow-dense">
