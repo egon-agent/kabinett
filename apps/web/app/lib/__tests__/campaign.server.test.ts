@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getCampaignConfig, resolveCampaignFromHost } from "../campaign.server";
-import { requestContext } from "../request-context.server";
+import { ensureRequestContext } from "../request-context.server";
 
 const originalCampaign = process.env.KABINETT_CAMPAIGN;
 
@@ -68,10 +68,12 @@ describe("campaign.server", () => {
   it("prefers request context over env campaign", () => {
     process.env.KABINETT_CAMPAIGN = "nordiska";
 
-    const campaign = requestContext.run(
-      { museums: ["shm"], campaignId: "shm" },
-      () => getCampaignConfig(),
-    );
+    // Simulate root loader setting context from Host header
+    const fakeRequest = new Request("http://shm.norrava.com/", {
+      headers: { host: "shm.norrava.com" },
+    });
+    ensureRequestContext(fakeRequest);
+    const campaign = getCampaignConfig();
 
     expect(campaign.id).toBe("shm");
     expect(campaign.museums).toEqual(["shm"]);

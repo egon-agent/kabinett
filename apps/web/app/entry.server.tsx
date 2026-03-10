@@ -6,7 +6,6 @@ import { ServerRouter } from "react-router";
 import { isbot } from "isbot";
 import type { RenderToPipeableStreamOptions } from "react-dom/server";
 import { renderToPipeableStream } from "react-dom/server";
-import { resolveCampaignFromHost } from "./lib/campaign.server";
 import {
   installServerFetchInstrumentation,
   logRequestComplete,
@@ -15,7 +14,7 @@ import {
   logRequestStart,
   nowMs,
 } from "./lib/perf.server";
-import { requestContext } from "./lib/request-context.server";
+
 
 installServerFetchInstrumentation();
 
@@ -64,12 +63,6 @@ export default function handleRequest(
   const requestId = ++requestSequence;
   const startMs = nowMs();
   const url = new URL(request.url);
-  const campaign = resolveCampaignFromHost(request.headers.get("host"));
-  const contextValue = {
-    museums: campaign.museums,
-    campaignId: campaign.id,
-  };
-
   // Ensure caches (Fly edge, CDN) vary responses by hostname so
   // campaign subdomains never serve each other's cached HTML.
   responseHeaders.append("Vary", "Host");
@@ -102,9 +95,7 @@ export default function handleRequest(
     });
   }
 
-  return requestContext.run(
-    contextValue,
-    () => new Promise((resolve, reject) => {
+  return new Promise((resolve, reject) => {
       let shellRendered = false;
       let userAgent = request.headers.get("user-agent");
 
@@ -203,6 +194,5 @@ export default function handleRequest(
           },
         },
       );
-    }),
-  );
+    });
 }
