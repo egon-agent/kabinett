@@ -5,12 +5,20 @@ import type { AutocompleteSuggestion } from "./Autocomplete";
 
 export default function HeroSearch({
   totalWorks,
+  headline,
+  subline,
+  introText,
 }: {
   totalWorks: number;
+  headline?: string;
+  subline?: string;
+  introText?: string | null;
 }) {
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
+  const resolvedHeadline = headline || `${totalWorks.toLocaleString("sv-SE")} konstverk.`;
+  const resolvedSubline = subline || "Sök på vad som helst.";
 
   // Keep cursor at end on iOS when focusing an empty-looking input
   const handleFocus = useCallback(() => {
@@ -71,9 +79,14 @@ export default function HeroSearch({
   return (
     <div className="pt-[5.5rem] pb-8 px-5 md:px-2 md:pb-10 lg:px-0 lg:pt-[8rem] lg:pb-16">
       <h1 className="font-serif text-[2rem] md:text-[2.6rem] lg:text-[3.2rem] text-dark-text text-center leading-[1.08] tracking-[-0.02em]">
-        {totalWorks.toLocaleString("sv-SE")} konstverk.{" "}
-        <span className="text-dark-text-muted">Sök på vad som helst.</span>
+        {resolvedHeadline}{" "}
+        <span className="text-dark-text-muted">{resolvedSubline}</span>
       </h1>
+      {introText && (
+        <p className="mt-4 mx-auto max-w-[36rem] text-center text-dark-text-muted text-[0.9rem] leading-relaxed">
+          {introText}
+        </p>
+      )}
 
       <Autocomplete
         query={query}

@@ -17,16 +17,35 @@ import {
 
 installServerFetchInstrumentation();
 
-// Pre-warm the discover page cache after server starts
-setTimeout(() => {
-  const origin = "http://localhost:3000";
-  Promise.all([
-    fetch(`${origin}/`).then(() => console.log("[Warmup] Home cached")),
-    fetch(`${origin}/discover`).then(() => console.log("[Warmup] Discover cached")),
-    fetch(`${origin}/om`).then(() => console.log("[Warmup] Om cached")),
-    fetch(`${origin}/timeline`).then(() => console.log("[Warmup] Timeline cached")),
-  ]).catch(() => {});
-}, 5000);
+const isProduction = process.env.NODE_ENV === "production";
+const startupWarmupEnabled = isProduction && process.env.KABINETT_STARTUP_WARMUP !== "0";
+
+function normalizedOrigin(raw: string): string {
+  return raw.replace(/\/+$/, "");
+}
+
+function getWarmupOrigin(): string {
+  const configured = process.env.KABINETT_WARMUP_ORIGIN?.trim();
+  if (configured) return normalizedOrigin(configured);
+  const port = (process.env.PORT || "3000").trim();
+  return `http://127.0.0.1:${port}`;
+}
+
+if (startupWarmupEnabled) {
+  // Pre-warm cached pages shortly after server starts.
+  setTimeout(() => {
+    const origin = getWarmupOrigin();
+    Promise.all([
+      fetch(`${origin}/`).then(() => console.log("[Warmup] Home cached")),
+      fetch(`${origin}/discover`).then(() => console.log("[Warmup] Discover cached")),
+      fetch(`${origin}/om`).then(() => console.log("[Warmup] Om cached")),
+      fetch(`${origin}/timeline`).then(() => console.log("[Warmup] Timeline cached")),
+    ]).catch((error: unknown) => {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.warn(`[Warmup] Failed: ${msg}`);
+    });
+  }, 5000);
+}
 
 export const streamTimeout = 5_000;
 let requestSequence = 0;

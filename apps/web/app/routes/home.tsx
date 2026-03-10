@@ -24,10 +24,11 @@ type WalkPromoCardEntry = { type: "walkPromo" };
 type FeedEntry = ArtCard | ThemeSectionEntry | StatsCardEntry | SpotlightCardEntry | WalkPromoCardEntry;
 
 export function meta({ data }: Route.MetaArgs) {
-  const title = "Kabinett — Utforska Sveriges kulturarv";
   const total = data?.stats?.total ?? 0;
   const museums = data?.stats?.museums ?? 0;
-  const description = `Upptäck över ${Math.floor(total / 1000) * 1000} verk från ${museums} svenska samlingar.`;
+  const roundedTotal = total >= 1000 ? Math.floor(total / 1000) * 1000 : total;
+  const title = data?.metaTitle || "Kabinett — Utforska Sveriges kulturarv";
+  const description = data?.metaDescription || `Upptäck över ${roundedTotal} verk från ${museums} svenska samlingar.`;
   const tags = [
     { title },
     { name: "description", content: description },
@@ -43,6 +44,9 @@ export function meta({ data }: Route.MetaArgs) {
       { property: "og:image", content: data.ogImageUrl },
       { name: "twitter:image", content: data.ogImageUrl }
     );
+  }
+  if (data?.noindex) {
+    tags.push({ name: "robots", content: "noindex,nofollow" });
   }
   return tags;
 }
@@ -249,7 +253,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(websiteJsonLd) }}
       />
       <div className="md:max-w-4xl lg:max-w-7xl md:mx-auto md:px-6 lg:px-8">
-        <HeroSearch totalWorks={loaderData.stats.total} />
+        <HeroSearch
+          totalWorks={loaderData.stats.total}
+          headline={loaderData.heroHeadline}
+          subline={loaderData.heroSubline}
+          introText={loaderData.heroIntro}
+        />
 
         {<div className="grid grid-cols-1 md:gap-2.5 lg:grid-cols-3 lg:gap-3.5 lg:grid-flow-dense">
           {(() => {

@@ -92,8 +92,14 @@ export async function loader() {
       if (c.imageIds?.length) {
         const pickedId = c.imageIds[Math.floor((randomSeed + index) % c.imageIds.length)];
         row = db.prepare(
-          `SELECT iiif_url, dominant_color, title_sv, title_en, artists, focal_x, focal_y FROM artworks WHERE id = ?`
-        ).get(pickedId);
+          `SELECT a.iiif_url, a.dominant_color, a.title_sv, a.title_en, a.artists, a.focal_x, a.focal_y
+           FROM artworks a
+           WHERE a.id = ?
+             AND a.iiif_url IS NOT NULL
+             AND LENGTH(a.iiif_url) > 40
+             AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+             AND ${sourceA.sql}`
+        ).get(pickedId, ...sourceA.params);
       }
       if (!row) {
         const searchText = c.query || c.title;

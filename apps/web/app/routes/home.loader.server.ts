@@ -5,10 +5,10 @@ import type { SpotlightCardData } from "../components/SpotlightCard";
 import type { StatsCardData } from "../components/StatsSection";
 import type { ThemeCardSection } from "../components/ThemeCard";
 import type { ArtworkDisplayItem } from "../components/artwork-meta";
+import { getCampaignConfig } from "../lib/campaign.server";
 import { getDb } from "../lib/db.server";
 import { buildDirectImageUrl, buildImageUrl } from "../lib/images";
 import { getEnabledMuseums, sourceFilter } from "../lib/museums.server";
-import { parseArtist } from "../lib/parsing";
 import { getCachedSiteStats } from "../lib/stats.server";
 
 export type HomeLoaderData = {
@@ -17,9 +17,15 @@ export type HomeLoaderData = {
   initialHasMore: boolean;
   preloadedThemes: ThemeCardSection[];
   showMuseumBadge: boolean;
+  heroHeadline: string;
+  heroSubline: string;
+  heroIntro: string | null;
   stats: StatsCardData;
   spotlight: SpotlightCardData | null;
   ogImageUrl: string | null;
+  metaTitle: string;
+  metaDescription: string;
+  noindex: boolean;
   canonicalUrl: string;
   origin: string;
 };
@@ -41,6 +47,8 @@ export async function homeLoader(request: Request): Promise<HomeLoaderData> {
   const url = new URL(request.url);
   const canonicalUrl = `${url.origin}${url.pathname}`;
   const enabledMuseums = getEnabledMuseums();
+  const sourceA = sourceFilter("a");
+  const campaign = getCampaignConfig();
   const db = getDb();
 
   // 1. Curated initial items — fast lookup by ID
@@ -54,14 +62,28 @@ export async function homeLoader(request: Request): Promise<HomeLoaderData> {
      FROM artworks a
      LEFT JOIN museums m ON m.id = a.source
      WHERE a.id IN (${placeholders})
-       AND a.iiif_url IS NOT NULL`
-  ).all(...pickedIds) as any[];
+       AND a.iiif_url IS NOT NULL
+       AND LENGTH(a.iiif_url) > 40
+       AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+       AND ${sourceA.sql}`
+  ).all(...pickedIds, ...sourceA.params) as any[];
 
-  const initialItems: ArtworkDisplayItem[] = curatedRows.map((row: any) => ({
+  let initialItems: ArtworkDisplayItem[] = curatedRows.map((row: any) => ({
     ...row,
     title_sv: row.title_sv || row.title_en || "Utan titel",
     imageUrl: buildImageUrl(row.iiif_url, 400),
   }));
+
+  if (initialItems.length < 12) {
+    const fallback = await fetchFeed({ cursor: null, limit: 15, filter: "Alla" });
+    const seen = new Set(initialItems.map((item) => item.id));
+    for (const item of fallback.items) {
+      if (seen.has(item.id)) continue;
+      initialItems.push(item);
+      seen.add(item.id);
+      if (initialItems.length >= 15) break;
+    }
+  }
 
   const ogImageUrl = initialItems[0]?.iiif_url
     ? buildDirectImageUrl(initialItems[0].iiif_url, 800)
@@ -75,6 +97,16 @@ export async function homeLoader(request: Request): Promise<HomeLoaderData> {
     paintings: siteStats.paintings,
     yearsSpan: siteStats.yearsSpan,
   };
+  const roundedTotal = stats.total >= 1000 ? Math.floor(stats.total / 1000) * 1000 : stats.total;
+  const defaultMetaDescription = `Upptäck över ${roundedTotal} verk från ${stats.museums} svenska samlingar.`;
+  const heroHeadline = campaign.museumName
+    ? `${stats.total.toLocaleString("sv-SE")} verk från ${campaign.museumName}.`
+    : `${stats.total.toLocaleString("sv-SE")} konstverk.`;
+  const metaTitle = campaign.metaTitle || "Kabinett — Utforska Sveriges kulturarv";
+  const metaDescription = campaign.metaDescription
+    || (campaign.museumName
+      ? `Upptäck verk från ${campaign.museumName} i Kabinett.`
+      : defaultMetaDescription);
 
   // 3. Preload first theme (lightweight — single FTS query)
   const firstTheme = THEMES[0];
@@ -92,9 +124,15 @@ export async function homeLoader(request: Request): Promise<HomeLoaderData> {
     initialHasMore: true,
     preloadedThemes,
     showMuseumBadge: enabledMuseums.length > 1,
+    heroHeadline,
+    heroSubline: campaign.heroSubline,
+    heroIntro: campaign.heroIntro,
     stats,
     spotlight: null,
     ogImageUrl,
+    metaTitle,
+    metaDescription,
+    noindex: campaign.noindex,
     canonicalUrl,
     origin: url.origin,
   };
