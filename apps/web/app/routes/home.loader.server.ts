@@ -20,6 +20,7 @@ export type HomeLoaderData = {
   heroHeadline: string;
   heroSubline: string;
   heroIntro: string | null;
+  museumName: string | null;
   stats: StatsCardData;
   spotlight: SpotlightCardData | null;
   ogImageUrl: string | null;
@@ -127,6 +128,7 @@ export async function homeLoader(request: Request): Promise<HomeLoaderData> {
     heroHeadline,
     heroSubline: campaign.heroSubline,
     heroIntro: campaign.heroIntro,
+    museumName: campaign.museumName,
     stats,
     spotlight: null,
     ogImageUrl,

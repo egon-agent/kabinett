@@ -2,17 +2,24 @@ import type { Route } from "./+types/om";
 import { getDb } from "../lib/db.server";
 import { sourceFilter } from "../lib/museums.server";
 import { getCachedSiteStats as getSiteStats } from "../lib/stats.server";
+import { getCampaignConfig } from "../lib/campaign.server";
 
 export function headers() {
   return { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" };
 }
 
-export function meta() {
+export function meta({ data }: Route.MetaArgs) {
+  const title = data?.museumName
+    ? `Om Kabinett × ${data.museumName}`
+    : "Om Kabinett — Kabinett";
+  const desc = data?.museumName
+    ? `Utforska ${data.museumName}s samling med semantisk sökning som förstår vad du letar efter.`
+    : "Kabinett samlar Sveriges kulturarv på ett ställe — med semantisk sökning som förstår vad du letar efter.";
   return [
-    { title: "Om Kabinett — Kabinett" },
-    { name: "description", content: "Kabinett samlar Sveriges kulturarv på ett ställe — med semantisk sökning som förstår vad du letar efter." },
-    { property: "og:title", content: "Om Kabinett" },
-    { property: "og:description", content: "Kabinett samlar Sveriges kulturarv på ett ställe — med semantisk sökning som förstår vad du letar efter." },
+    { title },
+    { name: "description", content: desc },
+    { property: "og:title", content: title },
+    { property: "og:description", content: desc },
     { property: "og:type", content: "website" },
   ];
 }
@@ -21,6 +28,7 @@ export async function loader() {
   const db = getDb();
   const sourceA = sourceFilter("a");
   const siteStats = getSiteStats(db);
+  const campaign = getCampaignConfig();
   const stats = {
     totalWorks: siteStats.totalWorks,
     museums: siteStats.museums,
@@ -40,7 +48,7 @@ export async function loader() {
   `).all(...sourceA.params) as Array<{ name: string; id: string; cnt: number }>;
   const museums = collections.map((row: any) => ({ id: row.id, name: row.coll_name }));
 
-  return { stats, museums };
+  return { stats, museums, museumName: campaign.museumName };
 }
 
 function formatRange(minYear: number | null, maxYear: number | null): string {
@@ -50,15 +58,24 @@ function formatRange(minYear: number | null, maxYear: number | null): string {
 }
 
 export default function About({ loaderData }: Route.ComponentProps) {
-  const { stats, museums } = loaderData;
+  const { stats, museums, museumName } = loaderData;
+
+  const museumList = museums.length > 1
+    ? `${museums.map(m => m.name).slice(0, -1).join(", ")} och ${museums[museums.length - 1]?.name}`
+    : museums[0]?.name || "";
 
   return (
     <div className="min-h-screen pt-16 bg-dark-base text-dark-text">
       <div className="max-w-3xl mx-auto px-5 lg:px-6">
         <div className="pt-8">
-          <h1 className="font-serif text-[2rem] text-dark-text m-0">Om Kabinett</h1>
+          <h1 className="font-serif text-[2rem] text-dark-text m-0">
+            {museumName ? `Om Kabinett × ${museumName}` : "Om Kabinett"}
+          </h1>
           <p className="mt-4 text-[1rem] lg:text-[1.05rem] text-dark-text-secondary leading-[1.7]">
-            Kabinett samlar Sveriges kulturarv på ett ställe. Utforska över {stats.totalWorks.toLocaleString("sv")} verk från {museums.map(m => m.name).slice(0, -1).join(", ")} och {museums[museums.length - 1]?.name} — med semantisk sökning som förstår vad du letar efter.
+            {museumName
+              ? `Utforska ${stats.totalWorks.toLocaleString("sv")} verk från ${museumList} — med semantisk sökning som förstår vad du letar efter.`
+              : `Kabinett samlar Sveriges kulturarv på ett ställe. Utforska över ${stats.totalWorks.toLocaleString("sv")} verk från ${museumList} — med semantisk sökning som förstår vad du letar efter.`
+            }
           </p>
         </div>
 
