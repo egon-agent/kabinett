@@ -10,8 +10,7 @@ export type SiteStats = {
   yearsSpan: number;
 };
 
-let cachedStats: SiteStats | null = null;
-let cachedStatsTs = 0;
+const statsCache = new Map<string, { stats: SiteStats; ts: number }>();
 const STATS_CACHE_TTL_MS = 300_000;
 let hasMaterializedStatsTables: boolean | null = null;
 
@@ -129,9 +128,12 @@ export function getSiteStats(db: Database.Database): SiteStats {
 
 export function getCachedSiteStats(db: Database.Database): SiteStats {
   const now = Date.now();
-  if (!cachedStats || now - cachedStatsTs > STATS_CACHE_TTL_MS) {
-    cachedStats = querySiteStats(db);
-    cachedStatsTs = now;
+  const cacheKey = sourceFilter().params.join(",") || "__all__";
+  const cached = statsCache.get(cacheKey);
+  if (cached && now - cached.ts < STATS_CACHE_TTL_MS) {
+    return cached.stats;
   }
-  return cachedStats;
+  const stats = querySiteStats(db);
+  statsCache.set(cacheKey, { stats, ts: now });
+  return stats;
 }
