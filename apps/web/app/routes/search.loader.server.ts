@@ -247,11 +247,21 @@ function buildTitleOnlyFtsQuery(query: string): string {
     .join(" AND ");
 }
 
+function hasColorData(): boolean {
+  const db = getDb();
+  const src = sourceFilter();
+  const row = db.prepare(
+    `SELECT 1 FROM artworks WHERE color_r IS NOT NULL AND ${src.sql} LIMIT 1`
+  ).get(...src.params);
+  return !!row;
+}
+
 function resolveSearchMode(rawMode: string | null, query: string): SearchMode {
   const parsed = parseMode(rawMode);
+  if (parsed === "color" && !hasColorData()) return "clip";
   if (parsed) return parsed;
   const normalized = query.trim().toLowerCase();
-  if (normalized && COLOR_TERMS[normalized]) return "color";
+  if (normalized && COLOR_TERMS[normalized] && hasColorData()) return "color";
   return "clip";
 }
 
