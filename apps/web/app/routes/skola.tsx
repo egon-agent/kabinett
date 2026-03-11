@@ -266,11 +266,11 @@ export default function Skola({ loaderData }: Route.ComponentProps) {
           {/* Discussion intro */}
           {walkInfo.discussion_intro && (
             <div className="px-4 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-              <div className="bg-[rgba(201,176,142,0.08)] border border-[rgba(201,176,142,0.12)] rounded-xl px-5 py-4 mt-6 max-w-[36rem]">
-                <p className="text-[0.65rem] uppercase tracking-[0.15em] text-dark-text-muted mb-1.5">
-                  Innan ni börjar
+              <div className="bg-dark-raised border border-[rgba(201,176,142,0.15)] rounded-xl px-5 py-4 mt-6 max-w-[36rem]">
+                <p className="text-[0.65rem] uppercase tracking-[0.15em] text-[rgba(201,176,142,0.55)] mb-1.5">
+                  📖 Innan ni börjar
                 </p>
-                <p className="text-[0.88rem] text-dark-text-secondary leading-[1.6]">
+                <p className="text-[0.88rem] text-dark-text leading-[1.6]">
                   {walkInfo.discussion_intro}
                 </p>
               </div>
@@ -330,11 +330,11 @@ export default function Skola({ loaderData }: Route.ComponentProps) {
 
                 {/* Discussion question */}
                 {a.discussion_question && (
-                  <div className="bg-[rgba(201,176,142,0.06)] border border-[rgba(201,176,142,0.10)] rounded-card py-[0.9rem] px-4 mb-5">
-                    <p className="text-[0.65rem] uppercase tracking-[0.12em] text-dark-text-muted mb-1">
-                      Diskutera
+                  <div className="bg-dark-raised border border-[rgba(201,176,142,0.12)] rounded-card py-[0.9rem] px-4 mb-5">
+                    <p className="text-[0.65rem] uppercase tracking-[0.12em] text-[rgba(201,176,142,0.55)] mb-1.5">
+                      💬 Diskutera
                     </p>
-                    <p className="text-[0.9rem] text-dark-text-secondary leading-[1.6]">
+                    <p className="text-[0.9rem] text-dark-text leading-[1.6]">
                       {a.discussion_question}
                     </p>
                   </div>
@@ -355,11 +355,17 @@ export default function Skola({ loaderData }: Route.ComponentProps) {
           __html: `
         @media print {
           nav, footer, .no-print { display: none !important; }
-          body { background: white !important; color: black !important; }
-          .min-h-screen { min-height: auto; }
-          img { max-height: 300px; object-fit: contain; }
+          body, div, section, main { background: white !important; background-color: white !important; color: black !important; }
+          .min-h-screen { min-height: auto; background: white !important; }
+          .pt-\\[3\\.5rem\\] { padding-top: 0 !important; }
+          img { max-height: 250px; object-fit: contain; break-inside: avoid; }
           a { color: inherit !important; text-decoration: none !important; }
-          * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          h1, h2, p { color: black !important; }
+          [class*="bg-"] { background: white !important; background-color: white !important; }
+          [class*="border-"] { border-color: #ddd !important; }
+          [class*="text-dark"], [class*="text-stone"], [class*="text-warm"], [class*="text-charcoal"] { color: #333 !important; }
+          [class*="rounded-card"], [class*="rounded-xl"] { border: 1px solid #ddd !important; }
+          .shadow-lg, [class*="shadow-"] { box-shadow: none !important; }
         }
       `,
         }}

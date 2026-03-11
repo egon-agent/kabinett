@@ -148,7 +148,7 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
       {!selected && (
         <div className="px-5 pb-16 flex flex-col gap-3.5 md:max-w-6xl md:mx-auto md:px-6 lg:px-8 lg:grid lg:grid-cols-2 lg:gap-4">
           {walkPreviews.map((w) => (
-            <a key={w.slug} href={"/walks?walk=" + w.slug}
+            <a key={w.slug} href={"/vandringar?walk=" + w.slug}
               className="block relative overflow-hidden rounded-2xl h-44 no-underline group/walk focus-ring"
               style={{ backgroundColor: w.color }}
             >
@@ -194,7 +194,7 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
                 />
             )}
             <div className="relative md:max-w-6xl md:mx-auto md:px-0 lg:px-0">
-              <a href="/walks" className="text-[0.8rem] text-[rgba(255,255,255,0.5)] no-underline focus-ring">
+              <a href="/vandringar" className="text-[0.8rem] text-[rgba(255,255,255,0.5)] no-underline focus-ring">
                 ← Vandringar
               </a>
               <h1 className="font-serif text-[2rem] font-bold text-white mt-3 leading-[1.2]">

@@ -8,7 +8,7 @@ export default function WalkPromoCard() {
       <p className="mt-2.5 text-[0.82rem] text-dark-text-secondary leading-[1.5]">
         Utvalda resor genom samlingarna — med berättelser och utvalda verk.
       </p>
-      <a href="/walks" className="inline-block mt-5 text-[0.72rem] tracking-[0.08em] uppercase text-dark-text-secondary hover:text-dark-text transition-colors no-underline focus-ring">
+      <a href="/vandringar" className="inline-block mt-5 text-[0.72rem] tracking-[0.08em] uppercase text-dark-text-secondary hover:text-dark-text transition-colors no-underline focus-ring">
         Till vandringarna →
       </a>
     </section>

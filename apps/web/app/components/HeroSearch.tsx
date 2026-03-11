@@ -164,7 +164,7 @@ export default function HeroSearch({
             key={`${campaignId}-${chip}`}
             type="button"
             onClick={() => goToSearch(chip, "visual")}
-            className="rounded-full border border-[rgba(245,240,232,0.10)] bg-[rgba(245,240,232,0.04)] px-3.5 py-1.5 text-[0.8rem] leading-none text-[rgba(201,176,142,0.50)] transition-colors duration-200 hover:border-[rgba(245,240,232,0.18)] hover:text-[rgba(201,176,142,0.72)] focus-ring"
+            className="cursor-pointer rounded-full border border-[rgba(245,240,232,0.10)] bg-[rgba(245,240,232,0.04)] px-3.5 py-1.5 text-[0.8rem] leading-none text-[rgba(201,176,142,0.50)] transition-colors duration-200 hover:border-[rgba(245,240,232,0.18)] hover:text-[rgba(201,176,142,0.72)] focus-ring"
           >
             {chip}
           </button>
