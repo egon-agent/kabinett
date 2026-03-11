@@ -7,7 +7,7 @@ import ThemeCard, { type ThemeCardSection } from "../components/ThemeCard";
 import WalkPromoCard from "../components/WalkPromoCard";
 import type { ArtworkDisplayItem } from "../components/artwork-meta";
 import { homeLoader, type HomeLoaderData } from "./home.loader.server";
-import { THEMES } from "../lib/themes";
+import { getThemes } from "../lib/themes";
 import type { Route } from "./+types/home";
 
 function serializeJsonLd(value: unknown): string {
@@ -192,8 +192,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         newEntries.push({ type: "art", item });
       }
 
-      if (themeIndex < THEMES.length) {
-        const theme = THEMES[themeIndex];
+      const campaignThemes = getThemes(loaderData.campaignId);
+      if (themeIndex < campaignThemes.length) {
+        const theme = campaignThemes[themeIndex];
         try {
           const themeRes = await fetch(`/api/feed?filter=${encodeURIComponent(theme.filter)}&limit=8`);
           if (!themeRes.ok) throw new Error("Kunde inte hämta tema");

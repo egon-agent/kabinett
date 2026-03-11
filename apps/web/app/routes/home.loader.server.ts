@@ -1,5 +1,5 @@
 import { getCuratedIds } from "../lib/curated-home";
-import { THEMES } from "../lib/themes";
+import { getThemes } from "../lib/themes";
 import { fetchFeed } from "../lib/feed.server";
 import type { SpotlightCardData } from "../components/SpotlightCard";
 import type { StatsCardData } from "../components/StatsSection";
@@ -112,7 +112,8 @@ export async function homeLoader(request: Request): Promise<HomeLoaderData> {
       : defaultMetaDescription);
 
   // 3. Preload first theme (lightweight — single FTS query)
-  const firstTheme = THEMES[0];
+  const themes = getThemes(campaign.id);
+  const firstTheme = themes[0];
   let preloadedThemes: ThemeCardSection[] = [];
   try {
     const themeResult = await fetchFeed({ cursor: null, limit: 8, filter: firstTheme.filter });
