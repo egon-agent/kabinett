@@ -302,17 +302,17 @@ export default function Skola({ loaderData }: Route.ComponentProps) {
                     />
                   </div>
                   <div className="p-4">
-                    <p className="text-[0.7rem] text-stone mb-1">
+                    <p className="text-[0.7rem] text-[#8a7e72] mb-1">
                       {i + 1} / {artworks.length}
                     </p>
                     <p className="font-serif text-[1.125rem] font-semibold text-charcoal leading-[1.3]">
                       {a.title_sv || a.title_en || "Utan titel"}
                     </p>
-                    <p className="text-[0.8rem] text-warm-gray mt-[0.375rem]">
+                    <p className="text-[0.8rem] text-[#6b6054] mt-[0.375rem]">
                       {parseArtist(a.artists)}
                     </p>
                     {a.dating_text && (
-                      <p className="text-[0.75rem] text-stone mt-1">
+                      <p className="text-[0.75rem] text-[#8a7e72] mt-1">
                         {a.dating_text}
                       </p>
                     )}
