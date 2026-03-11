@@ -148,62 +148,46 @@ export async function fetchFeed(options: {
   let dedupeOrderBy = "a.id ASC";
 
   if (filter === "Alla") {
-    // Balanced feed: pick equally from each source to avoid SHM domination.
-    // Use a seeded random offset so every page load looks different.
-    const perSource = Math.ceil(limit / sourceA.params.length);
-    const seed = cursor ?? Math.floor(Date.now() / 30_000);
-    const allRows: FeedItemRow[] = [];
+    const overFetchLimit = limit * 4;
+    const cursorSql = cursor ? "AND a.id < ?" : "";
 
-    for (const src of sourceA.params) {
-      const rows = db.prepare(
-        `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
+    const rawRows = db.prepare(
+      `WITH ranked AS (
+         SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
                 a.focal_x, a.focal_y,
-                COALESCE(a.sub_museum, m.name) as museum_name
+                COALESCE(a.sub_museum, m.name) as museum_name,
+                ROW_NUMBER() OVER (PARTITION BY a.source ORDER BY a.id DESC) as source_rank
          FROM artworks a
          LEFT JOIN museums m ON m.id = a.source
-         WHERE a.source = ?
-           AND a.iiif_url IS NOT NULL
+         WHERE a.iiif_url IS NOT NULL
            AND LENGTH(a.iiif_url) > 40
            AND a.id NOT IN (SELECT artwork_id FROM broken_images)
            AND LENGTH(a.title_sv) < 60
-         ORDER BY ((a.rowid * 1103515245 + ?) & 2147483647)
-         LIMIT ?`
-      ).all(src, seed, perSource * 3) as FeedItemRow[];
-      allRows.push(...rows);
-    }
+           AND ${sourceA.sql}
+           ${cursorSql}
+       )
+       SELECT id, title_sv, title_en, artists, dating_text, iiif_url, dominant_color, category, technique_material,
+              focal_x, focal_y, museum_name
+       FROM ranked
+       ORDER BY source_rank ASC, id DESC
+       LIMIT ?`
+    ).all(...sourceA.params, ...(cursor ? [cursor] : []), overFetchLimit) as FeedItemRow[];
 
-    // Interleave sources and dedupe
-    const bySource = new Map<string, FeedItemRow[]>();
-    for (const row of allRows) {
-      const src = row.museum_name || "unknown";
-      if (!bySource.has(src)) bySource.set(src, []);
-      bySource.get(src)!.push(row);
-    }
-    const sources = [...bySource.values()];
     const seen = new Set<string>();
     const rows: FeedItemRow[] = [];
-    let i = 0;
-    while (rows.length < limit) {
-      let added = false;
-      for (const srcRows of sources) {
-        if (i < srcRows.length) {
-          const row = srcRows[i];
-          if (row.iiif_url && !seen.has(row.iiif_url)) {
-            seen.add(row.iiif_url);
-            rows.push(row);
-            if (rows.length >= limit) break;
-          }
-          added = true;
-        }
-      }
-      if (!added) break;
-      i++;
+    for (const row of rawRows) {
+      if (row.iiif_url && seen.has(row.iiif_url)) continue;
+      if (row.iiif_url) seen.add(row.iiif_url);
+      rows.push(row);
+      if (rows.length >= limit) break;
     }
+
+    const nextCursor = rows.length > 0 ? Math.min(...rows.map((row) => row.id)) : cursor;
 
     return {
       items: mapRows(rows),
-      nextCursor: seed + 1,
-      hasMore: true,
+      nextCursor,
+      hasMore: rows.length === limit,
       mode: "cursor" as const,
     };
   }

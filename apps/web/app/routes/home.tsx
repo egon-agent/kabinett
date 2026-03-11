@@ -125,16 +125,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     return entries;
   });
 
-  
-  const [cursor, setCursor] = useState<number | null>(loaderData.initialCursor ?? null);
   const [hasMore, setHasMore] = useState(loaderData.initialHasMore);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
-  const [themeIndex, setThemeIndex] = useState(loaderData.preloadedThemes?.length ?? 1);
-  const [loadedIds, setLoadedIds] = useState<Set<number>>(() => new Set(loaderData.initialItems.map((item: FeedItem) => item.id)));
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
-  const loadMoreRef = useRef<() => void>(() => {});
+  const cursorRef = useRef<number | null>(loaderData.initialCursor ?? null);
+  const themeIndexRef = useRef(loaderData.preloadedThemes?.length ?? 1);
+  const loadedIdsRef = useRef<Set<number>>(new Set(loaderData.initialItems.map((item: FeedItem) => item.id)));
+  const inFlightRef = useRef(false);
 
   const bgColor = useMemo(() => {
     const firstArt = feed.find((entry): entry is ArtCard => entry.type === "art");
@@ -177,60 +176,56 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     };
   }, [bgColor]);
 
-  loadMoreRef.current = async function loadMore() {
-    if (loading || !hasMore) return;
+  const loadMore = useCallback(async () => {
+    if (inFlightRef.current || !hasMore) return;
+    inFlightRef.current = true;
     setLoading(true);
     setLoadError("");
     try {
-      const res = await fetch(`/api/feed?filter=Alla&limit=12&cursor=${cursor ?? ""}`);
+      const res = await fetch(`/api/feed?filter=Alla&limit=12&cursor=${cursorRef.current ?? ""}`);
       if (!res.ok) throw new Error("Kunde inte hämta fler verk");
-      const data = await res.json();
-      const nextItems: FeedItem[] = (data.items || []).filter((item: FeedItem) => !loadedIds.has(item.id));
+      const data = await res.json() as { items?: FeedItem[]; nextCursor?: number | null; hasMore?: boolean };
+      const nextItems: FeedItem[] = (data.items || []).filter((item: FeedItem) => !loadedIdsRef.current.has(item.id));
 
-      const newEntries: FeedEntry[] = [];
-      for (const item of nextItems) {
-        newEntries.push({ type: "art", item });
-      }
+      const newEntries: FeedEntry[] = nextItems.map((item) => ({ type: "art", item }));
 
-      const campaignThemes = getThemes(loaderData.campaignId);
-      if (themeIndex < campaignThemes.length) {
-        const theme = campaignThemes[themeIndex];
-        try {
-          const themeRes = await fetch(`/api/feed?filter=${encodeURIComponent(theme.filter)}&limit=8`);
-          if (!themeRes.ok) throw new Error("Kunde inte hämta tema");
-          const themeData = await themeRes.json();
-          if (themeData.items?.length > 0) {
-            const insertAt = Math.min(5, newEntries.length);
-            newEntries.splice(insertAt, 0, {
-              type: "theme",
-              ...theme,
-              items: themeData.items,
-            });
+      if (nextItems.length > 0) {
+        const campaignThemes = getThemes(loaderData.campaignId);
+        if (themeIndexRef.current < campaignThemes.length) {
+          const theme = campaignThemes[themeIndexRef.current];
+          try {
+            const themeRes = await fetch(`/api/feed?filter=${encodeURIComponent(theme.filter)}&limit=8`);
+            if (!themeRes.ok) throw new Error("Kunde inte hämta tema");
+            const themeData = await themeRes.json() as { items?: FeedItem[] };
+            if (themeData.items?.length) {
+              const insertAt = Math.min(5, newEntries.length);
+              newEntries.splice(insertAt, 0, {
+                type: "theme",
+                ...theme,
+                items: themeData.items,
+              });
+            }
+          } catch {
+            // skip theme on error
           }
-        } catch {
-          // skip theme on error
+          themeIndexRef.current += 1;
         }
-        setThemeIndex((prev: number) => prev + 1);
       }
 
-      setFeed((prev) => [...prev, ...newEntries]);
-      setLoadedIds((prev) => {
-        const next = new Set(prev);
-        nextItems.forEach((item) => next.add(item.id));
-        return next;
-      });
-      setCursor(data.nextCursor ?? null);
+      if (newEntries.length > 0) {
+        setFeed((prev) => [...prev, ...newEntries]);
+      }
+
+      nextItems.forEach((item) => loadedIdsRef.current.add(item.id));
+      cursorRef.current = data.nextCursor ?? null;
       setHasMore(Boolean(data.hasMore));
     } catch {
       setLoadError("Kunde inte ladda fler verk just nu.");
     } finally {
+      inFlightRef.current = false;
       setLoading(false);
     }
-  };
-
-  const stableLoadMore = useCallback(() => {
-    void loadMoreRef.current();
-  }, []);
+  }, [hasMore, loaderData.campaignId]);
 
   useEffect(() => {
     const target = sentinelRef.current;
@@ -238,14 +233,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) {
-          stableLoadMore();
+          void loadMore();
         }
       },
       { rootMargin: "600px" }
     );
     observer.observe(target);
     return () => observer.disconnect();
-  }, [hasMore, loading, stableLoadMore]);
+  }, [hasMore, loading, loadMore]);
 
   return (
     <div className="min-h-screen overflow-x-hidden">
@@ -326,7 +321,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             <p className="text-dark-text-muted text-[0.8rem] mb-3">{loadError}</p>
             <button
               type="button"
-              onClick={() => { setLoadError(""); stableLoadMore(); }}
+              onClick={() => { setLoadError(""); void loadMore(); }}
               className="px-4 py-2 rounded-full bg-dark-raised text-dark-text-secondary text-sm font-medium hover:bg-dark-hover hover:text-dark-text transition-colors focus-ring"
             >
               Försök igen
