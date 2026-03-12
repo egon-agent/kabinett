@@ -145,6 +145,17 @@ function RelatedArtworkCard({
   );
 }
 
+const CC_LICENSE_URLS: Record<string, string> = {
+  "CC0": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "Public Domain": "https://creativecommons.org/publicdomain/mark/1.0/",
+  "CC BY": "https://creativecommons.org/licenses/by/4.0/",
+  "CC BY-SA": "https://creativecommons.org/licenses/by-sa/4.0/",
+  "CC BY-NC": "https://creativecommons.org/licenses/by-nc/4.0/",
+  "CC BY-NC-SA": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+  "CC BY-NC-ND": "https://creativecommons.org/licenses/by-nc-nd/4.0/",
+  "CC BY-ND": "https://creativecommons.org/licenses/by-nd/4.0/",
+};
+
 const DESCRIPTION_PREFIX = /^Beskrivning i inventariet:\s*/i;
 const DESCRIPTION_MARKERS = /(Proveniens:|Utställningar:|Litteratur:|Beskrivning:?)/g;
 
@@ -278,6 +289,8 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     exhibitions: parseExhibitions(row.exhibitions_json),
     materialTags: row.material_tags || null,
     techniqueTags: row.technique_tags || null,
+    mediaLicense: row.media_license || null,
+    mediaCopyright: row.media_copyright || null,
   };
 
   const artistName = artists[0]?.name;
@@ -546,6 +559,38 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
               {artwork.exhibitions.length > 5 && (
                 <p className="text-[0.7rem] text-stone">
                   +{artwork.exhibitions.length - 5} till
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* License / Copyright */}
+        {(artwork.mediaLicense || artwork.mediaCopyright) && (
+          <div className="mt-6 pt-6 border-t border-linen">
+            <p className="text-xs text-warm-gray uppercase tracking-[0.05em] mb-1.5">
+              Bildlicens
+            </p>
+            <div className="flex flex-col gap-1">
+              {artwork.mediaLicense && (
+                <p className="text-[0.8rem] text-charcoal">
+                  {CC_LICENSE_URLS[artwork.mediaLicense] ? (
+                    <a
+                      href={CC_LICENSE_URLS[artwork.mediaLicense]}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-charcoal underline decoration-stone underline-offset-2 hover:decoration-warm-gray transition-colors focus-ring"
+                    >
+                      {artwork.mediaLicense}
+                    </a>
+                  ) : (
+                    <span>{artwork.mediaLicense}</span>
+                  )}
+                </p>
+              )}
+              {artwork.mediaCopyright && (
+                <p className="text-[0.78rem] text-warm-gray leading-snug">
+                  {artwork.mediaCopyright}
                 </p>
               )}
             </div>

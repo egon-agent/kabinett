@@ -56,4 +56,6 @@ export interface ArtworkRow {
   material_tags: string | null;
   technique_tags: string | null;
   inventory_number: string | null;
+  media_license: string | null;
+  media_copyright: string | null;
 }

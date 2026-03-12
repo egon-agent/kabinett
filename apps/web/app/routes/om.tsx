@@ -112,7 +112,13 @@ export default function About({ loaderData }: Route.ComponentProps) {
         <section className="pt-10">
           <h2 className="font-serif text-[1.3rem] text-dark-text">Datakällor</h2>
           <p className="mt-3 text-[0.95rem] text-dark-text-secondary leading-[1.7]">
-            All metadata är CC0. Bilderna är i Public Domain. Data hämtas via K-samsök (Riksantikvarieämbetets aggregator) och Nationalmuseums API.
+            All metadata (text) är CC0 — fri att använda utan hänvisning. Bilderna delas under respektive museums licensvillkor — vanligtvis{" "}
+            <a href="https://creativecommons.org/publicdomain/zero/1.0/" target="_blank" rel="noopener noreferrer" className="text-dark-text underline decoration-dark-text-muted underline-offset-2 hover:decoration-dark-text transition-colors">CC0</a>,{" "}
+            <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer" className="text-dark-text underline decoration-dark-text-muted underline-offset-2 hover:decoration-dark-text transition-colors">CC BY</a> eller{" "}
+            <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener noreferrer" className="text-dark-text underline decoration-dark-text-muted underline-offset-2 hover:decoration-dark-text transition-colors">CC BY-NC-ND</a>.
+            Licensinformation visas på varje verks sida. Data hämtas via{" "}
+            <a href="https://www.raa.se/hitta-information/k-samsok/" target="_blank" rel="noopener noreferrer" className="text-dark-text underline decoration-dark-text-muted underline-offset-2 hover:decoration-dark-text transition-colors">K-samsök</a>{" "}
+            (Riksantikvarieämbetets aggregator) och Nationalmuseums API.
           </p>
         </section>
 
