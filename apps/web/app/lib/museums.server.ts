@@ -42,6 +42,7 @@ let enabledMuseumsCache: string[] | null = null;
 let enabledMuseumsCacheTime = 0;
 const ENABLED_MUSEUMS_TTL_MS = 60 * 1000;
 const sourceFilterCache = new Map<string, { sql: string; params: string[] }>();
+let hasMediaLicenseColumnCache: boolean | null = null;
 const COLLECTION_OPTIONS_TTL_MS = 60 * 1000;
 let collectionOptionsCache:
   | {
@@ -99,7 +100,8 @@ export function getMuseumInfo(source: string): MuseumRow | null {
 export function sourceFilter(prefix?: string): { sql: string; params: string[] } {
   const museums = getEnabledMuseums();
   const prefixKey = prefix || "";
-  const cacheKey = `${museums.join(",")}::${prefixKey}`;
+  const hasMediaLicenseColumn = getHasMediaLicenseColumn();
+  const cacheKey = `${museums.join(",")}::${prefixKey}::lic:${hasMediaLicenseColumn ? "1" : "0"}`;
   const cached = sourceFilterCache.get(cacheKey);
   if (cached) {
     return cached;
@@ -114,11 +116,24 @@ export function sourceFilter(prefix?: string): { sql: string; params: string[] }
   const col = prefix ? `${prefix}.source` : "source";
   const licCol = prefix ? `${prefix}.media_license` : "media_license";
   const result = {
-    sql: `${col} IN (${museums.map(() => "?").join(",")}) AND (${licCol} IS NULL OR ${licCol} NOT IN ('In Copyright', '© Bildupphovsrätt i Sverige'))`,
+    sql: hasMediaLicenseColumn
+      ? `${col} IN (${museums.map(() => "?").join(",")}) AND (${licCol} IS NULL OR ${licCol} NOT IN ('In Copyright', '© Bildupphovsrätt i Sverige'))`
+      : `${col} IN (${museums.map(() => "?").join(",")})`,
     params: museums,
   };
   sourceFilterCache.set(cacheKey, result);
   return result;
+}
+
+function getHasMediaLicenseColumn(): boolean {
+  if (hasMediaLicenseColumnCache !== null) {
+    return hasMediaLicenseColumnCache;
+  }
+
+  const db = getDb();
+  const columns = db.prepare("PRAGMA table_info(artworks)").all() as Array<{ name?: string }>;
+  hasMediaLicenseColumnCache = columns.some((column) => column.name === "media_license");
+  return hasMediaLicenseColumnCache;
 }
 
 /**
