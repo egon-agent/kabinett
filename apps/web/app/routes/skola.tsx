@@ -196,9 +196,10 @@ function WalkGrid({ walks, isDefault }: { walks: SchoolWalkPreview[]; isDefault:
   // On subdomains: group by subject only
   const [groupBy, setGroupBy] = useState<"museum" | "subject">(isDefault ? "museum" : "subject");
 
-  const groupKey = groupBy === "museum" ? "campaign_id" : "subject";
-  const labels = groupBy === "museum" ? MUSEUM_LABELS : Object.fromEntries(SUBJECT_ORDER.map((s) => [s, s]));
-  const order = groupBy === "museum" ? MUSEUM_ORDER : SUBJECT_ORDER;
+  const labels: Record<string, string> = groupBy === "museum"
+    ? { ...MUSEUM_LABELS, Övrigt: "Övrigt" }
+    : { ...Object.fromEntries(SUBJECT_ORDER.map((s) => [s, s])), Övrigt: "Övrigt" };
+  const preferredOrder = groupBy === "museum" ? MUSEUM_ORDER : SUBJECT_ORDER;
 
   const grouped = new Map<string, SchoolWalkPreview[]>();
   for (const w of walks) {
@@ -206,6 +207,13 @@ function WalkGrid({ walks, isDefault }: { walks: SchoolWalkPreview[]; isDefault:
     if (!grouped.has(key)) grouped.set(key, []);
     grouped.get(key)!.push(w);
   }
+
+  const orderedKeys = [
+    ...preferredOrder.filter((key) => grouped.has(key)),
+    ...Array.from(grouped.keys())
+      .filter((key) => !preferredOrder.includes(key))
+      .sort((a, b) => a.localeCompare(b, "sv")),
+  ];
 
   return (
     <div className="px-5 pb-16 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
@@ -228,7 +236,7 @@ function WalkGrid({ walks, isDefault }: { walks: SchoolWalkPreview[]; isDefault:
         </div>
       )}
 
-      {order.filter((k) => grouped.has(k)).map((key) => (
+      {orderedKeys.map((key) => (
         <div key={key} className="mb-8">
           <h2 className="font-serif text-[1.2rem] text-dark-text mb-3 mt-2">
             {labels[key] || key}
