@@ -67,6 +67,9 @@ let textEncoderPromise: Promise<TextEncoder> | null = null;
 let queryCacheInitAttempted = false;
 let queryCacheWritable = false;
 let queryCacheWarningShown = false;
+let localVecAvailability: boolean | null = null;
+let localVecWarningShown = false;
+let faissFallbackWarningShown = false;
 
 function logQueryCacheWarning(error: unknown): void {
   if (queryCacheWarningShown) return;
@@ -93,6 +96,42 @@ function initQueryEmbeddingCache(): void {
     queryCacheWritable = false;
     logQueryCacheWarning(error);
   }
+}
+
+function hasLocalVecIndex(): boolean {
+  if (localVecAvailability !== null) return localVecAvailability;
+
+  const db = getDb();
+  try {
+    const rows = db.prepare(
+      `SELECT name
+       FROM sqlite_master
+       WHERE type IN ('table', 'view')
+         AND name IN ('vec_artworks', 'vec_artwork_map')`
+    ).all() as Array<{ name: string }>;
+    localVecAvailability = rows.length === 2;
+  } catch {
+    localVecAvailability = false;
+  }
+  return localVecAvailability;
+}
+
+function vecDistanceToSimilarity(distance: number): number {
+  if (!Number.isFinite(distance)) return 0;
+  const normalizedDistance = Math.max(0, distance);
+  return clampSimilarity(1 / (1 + normalizedDistance));
+}
+
+function logLocalVecWarning(error: unknown): void {
+  if (localVecWarningShown) return;
+  localVecWarningShown = true;
+  console.warn("[CLIP] Local sqlite-vec fallback unavailable:", error);
+}
+
+function logFaissFallbackWarning(error: unknown): void {
+  if (faissFallbackWarningShown) return;
+  faissFallbackWarningShown = true;
+  console.warn("[CLIP] FAISS unavailable, falling back to sqlite-vec:", error);
 }
 
 function getCachedQueryEmbedding(query: string): Buffer | null {
@@ -257,59 +296,122 @@ async function runKnnQuery(
   filterSource?: string | null,
   filterSubMuseum?: string | null,
 ): Promise<VectorRow[]> {
-  const queryVector = Array.from(new Float32Array(
-    vectorBlob.buffer,
-    vectorBlob.byteOffset,
-    vectorBlob.byteLength / Float32Array.BYTES_PER_ELEMENT
-  ));
-
-  const body: Record<string, unknown> = {
-    vector: queryVector,
-    k,
-    allowed_sources: allowedSource.params,
-  };
-  if (filterSubMuseum) {
-    body.filter_sub_museum = filterSubMuseum;
-  } else if (filterSource) {
-    body.filter_source = filterSource;
-  }
-
-  const res = await fetch(`${FAISS_URL}/knn`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) {
-    console.error(`[CLIP] FAISS server error: ${res.status}`);
-    return [];
-  }
-
-  const data = await res.json() as { results: Array<{ artwork_id: number; distance: number }> };
-  const artworkIds = data.results.map((r) => r.artwork_id);
-  if (artworkIds.length === 0) return [];
-
   const db = getDb();
-  const placeholders = artworkIds.map(() => "?").join(",");
-  const metaRows = db.prepare(
-    `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
-            a.source, a.sub_museum, COALESCE(a.sub_museum, m.name) as museum_name,
-            a.focal_x, a.focal_y
-     FROM artworks a
-     LEFT JOIN museums m ON m.id = a.source
-     WHERE a.id IN (${placeholders})`
-  ).all(...artworkIds) as Array<Omit<VectorRow, "distance">>;
+  const queryFaiss = async (): Promise<VectorRow[]> => {
+    const queryVector = Array.from(new Float32Array(
+      vectorBlob.buffer,
+      vectorBlob.byteOffset,
+      vectorBlob.byteLength / Float32Array.BYTES_PER_ELEMENT
+    ));
 
-  const metaMap = new Map(metaRows.map((r) => [r.id, r]));
-  const distanceMap = new Map(data.results.map((r) => [r.artwork_id, r.distance]));
+    const body: Record<string, unknown> = {
+      vector: queryVector,
+      k,
+      allowed_sources: allowedSource.params,
+    };
+    if (filterSubMuseum) {
+      body.filter_sub_museum = filterSubMuseum;
+    } else if (filterSource) {
+      body.filter_source = filterSource;
+    }
 
-  return artworkIds
-    .map((id) => {
-      const meta = metaMap.get(id);
-      if (!meta) return null;
-      return { ...meta, distance: distanceMap.get(id) ?? 0 } as VectorRow;
-    })
-    .filter((r): r is VectorRow => r !== null);
+    const res = await fetch(`${FAISS_URL}/knn`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      throw new Error(`FAISS server error: ${res.status}`);
+    }
+
+    const data = await res.json() as { results: Array<{ artwork_id: number; distance: number }> };
+    const artworkIds = data.results.map((r) => r.artwork_id);
+    if (artworkIds.length === 0) return [];
+
+    const placeholders = artworkIds.map(() => "?").join(",");
+    const metaRows = db.prepare(
+      `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
+              a.source, a.sub_museum, COALESCE(a.sub_museum, m.name) as museum_name,
+              a.focal_x, a.focal_y
+       FROM artworks a
+       LEFT JOIN museums m ON m.id = a.source
+       WHERE a.id IN (${placeholders})`
+    ).all(...artworkIds) as Array<Omit<VectorRow, "distance">>;
+
+    const metaMap = new Map(metaRows.map((r) => [r.id, r]));
+    const distanceMap = new Map(data.results.map((r) => [r.artwork_id, r.distance]));
+
+    return artworkIds
+      .map((id) => {
+        const meta = metaMap.get(id);
+        if (!meta) return null;
+        return { ...meta, distance: distanceMap.get(id) ?? 0 } as VectorRow;
+      })
+      .filter((r): r is VectorRow => r !== null);
+  };
+
+  const queryLocalVec = (): VectorRow[] => {
+    if (!hasLocalVecIndex()) return [];
+
+    const scopedSql = filterSubMuseum
+      ? "AND a.source = 'shm' AND a.sub_museum = ?"
+      : filterSource
+        ? "AND a.source = ?"
+        : "";
+    const scopedParams = filterSubMuseum
+      ? [filterSubMuseum]
+      : filterSource
+        ? [filterSource]
+        : [];
+
+    const rows = db.prepare(
+      `SELECT map.artwork_id AS id,
+              v.distance AS distance,
+              a.title_sv,
+              a.title_en,
+              a.iiif_url,
+              a.dominant_color,
+              a.artists,
+              a.dating_text,
+              COALESCE(a.sub_museum, m.name) as museum_name,
+              a.source,
+              a.sub_museum,
+              a.focal_x,
+              a.focal_y
+       FROM vec_artworks v
+       JOIN vec_artwork_map map ON map.vec_rowid = v.rowid
+       JOIN artworks a ON a.id = map.artwork_id
+       LEFT JOIN museums m ON m.id = a.source
+       WHERE v.embedding MATCH ?
+         AND k = ?
+         AND a.iiif_url IS NOT NULL
+         AND LENGTH(a.iiif_url) > 40
+         AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+         AND ${allowedSource.sql}
+         ${scopedSql}
+       ORDER BY v.distance
+       LIMIT ?`
+    ).all(vectorBlob, k, ...allowedSource.params, ...scopedParams, k) as VectorRow[];
+
+    return rows.map((row) => ({
+      ...row,
+      distance: vecDistanceToSimilarity(row.distance),
+    }));
+  };
+
+  try {
+    return await queryFaiss();
+  } catch (error) {
+    logFaissFallbackWarning(error);
+    try {
+      return queryLocalVec();
+    } catch (localError) {
+      logLocalVecWarning(localError);
+      console.error("[CLIP] Original FAISS error:", error);
+      return [];
+    }
+  }
 }
 
 export async function clipSearch(q: string, limit = 60, offset = 0, source?: string): Promise<ClipResult[]> {

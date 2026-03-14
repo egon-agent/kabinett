@@ -2,6 +2,7 @@ import type { LoaderFunctionArgs } from "react-router";
 import { clipSearch, clipSearchFromSeedIds } from "../lib/clip-search.server";
 import { getDb } from "../lib/db.server";
 import { isMuseumEnabled, sourceFilter } from "../lib/museums.server";
+import { buildArtworkSnippet, searchArtworksText } from "../lib/text-search.server";
 import { translateToEnglish } from "../lib/translate.server";
 
 type SearchMode = "clip" | "fts" | "color";
@@ -23,9 +24,10 @@ function logClipDebug(event: string, payload: Record<string, unknown>): void {
   console.log(event, JSON.stringify(payload));
 }
 
-function parseMode(rawMode: string | null): SearchMode {
+function parseMode(rawMode: string | null, searchType: SearchType): SearchMode {
   if (rawMode === "fts" || rawMode === "clip" || rawMode === "color") return rawMode;
-  return "clip";
+  if (searchType === "visual") return "clip";
+  return "fts";
 }
 
 function parseType(rawType: string | null): SearchType {
@@ -33,15 +35,6 @@ function parseType(rawType: string | null): SearchType {
     return rawType;
   }
   return "all";
-}
-
-function buildFtsQuery(q: string): string {
-  return q
-    .split(/\s+/)
-    .map((word) => word.replace(/"/g, "").trim())
-    .filter(Boolean)
-    .map((word) => `"${word}"*`)
-    .join(" ");
 }
 
 function normalizeQueryToken(input: string): string {
@@ -131,8 +124,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 200) : 20;
   const offset = Number.isFinite(rawOffset) ? Math.min(Math.max(rawOffset, 0), 10_000) : 0;
   const museum = url.searchParams.get("museum")?.trim().toLowerCase() || "";
-  const mode = parseMode(url.searchParams.get("mode"));
   const type = parseType(url.searchParams.get("type"));
+  const mode = parseMode(url.searchParams.get("mode"), type);
   const visualIntent = isVisualObjectQuery(q);
 
   if (!q) return Response.json([]);
@@ -140,6 +133,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const scoped = museum && isMuseumEnabled(museum) ? museum : undefined;
   const db = getDb();
   const sourceA = sourceFilter("a");
+  const museumSql = scoped ? { sql: "a.source = ?", params: [scoped] } : null;
 
   if (mode === "clip") {
     try {
@@ -157,24 +151,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
       const [clipBatches, ftsResults] = await Promise.all([
         Promise.all(clipPromises),
         (async () => {
-          const ftsQuery = buildFtsQuery(q);
-          if (!ftsQuery) return [];
           try {
-            return db.prepare(
-              `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
-                      a.focal_x, a.focal_y,
-                      COALESCE(a.sub_museum, m.name) as museum_name
-               FROM artworks_fts
-               JOIN artworks a ON a.id = artworks_fts.rowid
-               LEFT JOIN museums m ON m.id = a.source
-               WHERE artworks_fts MATCH ?
-                 AND a.iiif_url IS NOT NULL
-                 AND LENGTH(a.iiif_url) > 40
-                 AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-                 AND ${sourceA.sql}
-                 ${scoped ? "AND a.source = ?" : ""}
-               ORDER BY rank LIMIT ? OFFSET ?`
-            ).all(ftsQuery, ...sourceA.params, ...(scoped ? [scoped] : []), limit, offset) as any[];
+            return searchArtworksText({
+              db,
+              query: q,
+              source: sourceA,
+              museum: museumSql,
+              limit,
+              offset,
+            }) as any[];
           } catch {
             return [];
           }
@@ -297,7 +282,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
           merged.push(row);
         }
       }
-      return Response.json(merged.slice(0, limit));
+      const results = merged.slice(0, limit).map((row) => ({
+        ...row,
+        snippet: buildArtworkSnippet(row, q),
+      }));
+      return Response.json(results);
     } catch (err) {
       console.error(err);
       return errorResponse();
@@ -340,49 +329,22 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }
   }
 
-  const ftsQuery = buildFtsQuery(q);
-  if (!ftsQuery) return Response.json([]);
-
   try {
-    const results = db.prepare(
-      `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
-              a.focal_x, a.focal_y,
-              COALESCE(a.sub_museum, m.name) as museum_name
-       FROM artworks_fts
-       JOIN artworks a ON a.id = artworks_fts.rowid
-       LEFT JOIN museums m ON m.id = a.source
-       WHERE artworks_fts MATCH ?
-         AND a.iiif_url IS NOT NULL
-         AND LENGTH(a.iiif_url) > 40
-         AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-         AND ${sourceA.sql}
-         ${scoped ? "AND a.source = ?" : ""}
-       ORDER BY rank LIMIT ? OFFSET ?`
-    ).all(ftsQuery, ...sourceA.params, ...(scoped ? [scoped] : []), limit, offset) as any[];
+    const results = searchArtworksText({
+      db,
+      query: q,
+      source: sourceA,
+      museum: museumSql,
+      limit,
+      offset,
+    }).map((row) => ({
+      ...row,
+      snippet: buildArtworkSnippet(row, q),
+    }));
 
     return Response.json(results);
-  } catch {
-    try {
-      const like = `%${q}%`;
-      const results = db.prepare(
-        `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
-                a.focal_x, a.focal_y,
-                COALESCE(a.sub_museum, m.name) as museum_name
-         FROM artworks a
-         LEFT JOIN museums m ON m.id = a.source
-         WHERE (a.title_sv LIKE ? OR a.artists LIKE ?)
-           AND a.iiif_url IS NOT NULL
-           AND LENGTH(a.iiif_url) > 40
-           AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-           AND ${sourceA.sql}
-           ${scoped ? "AND a.source = ?" : ""}
-         LIMIT ? OFFSET ?`
-      ).all(like, like, ...sourceA.params, ...(scoped ? [scoped] : []), limit, offset) as any[];
-
-      return Response.json(results);
-    } catch (err) {
-      console.error(err);
-      return errorResponse();
-    }
+  } catch (err) {
+    console.error(err);
+    return errorResponse();
   }
 }

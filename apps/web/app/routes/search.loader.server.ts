@@ -2,6 +2,7 @@
 import { getDb } from "../lib/db.server";
 import { fetchFeed } from "../lib/feed.server";
 import { getEnabledMuseums, isValidMuseumFilter, museumFilterSql, getCollectionOptions, sourceFilter } from "../lib/museums.server";
+import { buildArtworkSnippet, searchArtworksText } from "../lib/text-search.server";
 
 export type SearchMode = "fts" | "clip" | "color" | "theme";
 import type { MatchType } from "../lib/search-types";
@@ -152,43 +153,6 @@ function filterClipByConfidence(
   return sorted.slice(0, Math.min(visual ? Math.min(limit, 24) : 8, sorted.length));
 }
 
-/** Build a short snippet showing where the query matched */
-function buildSnippet(result: SearchResult, query: string): string | null {
-  if (!query) return null;
-  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-  if (terms.length === 0) return null;
-
-  // Check fields in priority order: technique_material, descriptions_sv
-  const fields = [
-    result.technique_material,
-    result.descriptions_sv,
-  ].filter(Boolean) as string[];
-
-  for (const field of fields) {
-    const lower = field.toLowerCase();
-    for (const term of terms) {
-      const idx = lower.indexOf(term);
-      if (idx !== -1) {
-        // Extract ~80 chars around the match
-        const start = Math.max(0, idx - 30);
-        const end = Math.min(field.length, idx + term.length + 50);
-        let snippet = field.slice(start, end).trim();
-        if (start > 0) snippet = "…" + snippet;
-        if (end < field.length) snippet = snippet + "…";
-        return snippet;
-      }
-    }
-  }
-
-  // If technique_material exists, show it as context even without direct match
-  if (result.technique_material) {
-    const tm = result.technique_material.slice(0, 80);
-    return tm.length < result.technique_material.length ? tm + "…" : tm;
-  }
-
-  return null;
-}
-
 export type SearchResultsPayload = {
   results: SearchResultItem[];
   total: number;
@@ -225,28 +189,6 @@ function toArtworkSearchResults(results: SearchResult[]): ArtworkSearchResult[] 
   }));
 }
 
-function buildFtsQuery(query: string): string {
-  return query
-    .split(/\s+/)
-    .map((word) => word.replace(/["'()]/g, "").trim())
-    .filter(Boolean)
-    .map((word) => `"${word}"*`)
-    .join(" ");
-}
-
-function buildTitleOnlyFtsQuery(query: string): string {
-  const terms = query
-    .split(/\s+/)
-    .map((word) => word.replace(/["'()]/g, "").trim())
-    .filter(Boolean);
-
-  if (terms.length === 0) return "";
-
-  return terms
-    .map((word) => `(title_sv : \"${word}\"* OR title_en : \"${word}\"*)`)
-    .join(" AND ");
-}
-
 function hasColorData(): boolean {
   const db = getDb();
   const src = sourceFilter();
@@ -256,13 +198,14 @@ function hasColorData(): boolean {
   return !!row;
 }
 
-function resolveSearchMode(rawMode: string | null, query: string): SearchMode {
+function resolveSearchMode(rawMode: string | null, query: string, searchType: SearchType): SearchMode {
+  if (searchType === "visual") return "clip";
   const parsed = parseMode(rawMode);
   if (parsed === "color" && !hasColorData()) return "clip";
   if (parsed) return parsed;
   const normalized = query.trim().toLowerCase();
   if (normalized && COLOR_TERMS[normalized] && hasColorData()) return "color";
-  return "clip";
+  return "fts";
 }
 
 async function loadSearchResults(args: {
@@ -371,32 +314,18 @@ async function loadSearchResults(args: {
   }
 
   if (query && type === "artwork") {
-    const titleFtsQuery = buildTitleOnlyFtsQuery(query);
-    if (!titleFtsQuery) {
-      return { results: [], total: 0, cursor: null };
-    }
-
     try {
-      const rows = db.prepare(
-        `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
-                a.technique_material, a.descriptions_sv,
-                a.focal_x, a.focal_y,
-                COALESCE(a.sub_museum, m.name) as museum_name
-         FROM artworks_fts
-         JOIN artworks a ON a.id = artworks_fts.rowid
-         LEFT JOIN museums m ON m.id = a.source
-         WHERE artworks_fts MATCH ?
-           AND a.iiif_url IS NOT NULL
-           AND LENGTH(a.iiif_url) > 40
-           AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-           AND ${sourceA.sql}
-           ${mf ? "AND " + mf.sql : ""}
-         ORDER BY rank LIMIT ?`
-      ).all(titleFtsQuery, ...sourceA.params, ...(mf ? mf.params : []), PAGE_SIZE) as SearchResult[];
+      const rows = searchArtworksText({
+        db,
+        query,
+        source: sourceA,
+        museum: mf,
+        limit: PAGE_SIZE,
+      }) as SearchResult[];
 
       rows.forEach((r) => {
         r.matchType = "fts" as MatchType;
-        r.snippet = buildSnippet(r, query);
+        r.snippet = buildArtworkSnippet(r, query);
       });
 
       return {
@@ -439,7 +368,7 @@ async function loadSearchResults(args: {
 
     for (const row of filteredClip) {
       row.matchType = "clip" as MatchType;
-      row.snippet = buildSnippet(row, query);
+      row.snippet = buildArtworkSnippet(row, query);
     }
 
     return {
@@ -516,31 +445,45 @@ async function loadSearchResults(args: {
     };
   }
 
-  const ftsQuery = buildFtsQuery(query);
+  if (query && mode === "fts") {
+    try {
+      const rows = searchArtworksText({
+        db,
+        query,
+        source: sourceA,
+        museum: mf,
+        limit: PAGE_SIZE,
+      }) as SearchResult[];
+
+      rows.forEach((row) => {
+        row.matchType = "fts" as MatchType;
+        row.snippet = buildArtworkSnippet(row, query);
+      });
+
+      return {
+        results: toArtworkSearchResults(rows),
+        total: rows.length,
+        cursor: nextCursor(rows.length),
+      };
+    } catch (ftsErr) {
+      console.error("[Text search error]", ftsErr);
+      return { results: [], total: 0, cursor: null };
+    }
+  }
 
   const clipPromise = runClipSearch();
 
   const ftsPromise = (async () => {
-    logClipDebug("[FTS query]", { q: query, ftsQuery });
-    if (!ftsQuery) return [] as SearchResult[];
-
     try {
-      const rows = db.prepare(
-        `SELECT a.id, a.title_sv, a.title_en, a.iiif_url, a.dominant_color, a.artists, a.dating_text,
-                a.technique_material, a.descriptions_sv,
-                a.focal_x, a.focal_y,
-                COALESCE(a.sub_museum, m.name) as museum_name
-         FROM artworks_fts
-         JOIN artworks a ON a.id = artworks_fts.rowid
-         LEFT JOIN museums m ON m.id = a.source
-         WHERE artworks_fts MATCH ?
-           AND a.iiif_url IS NOT NULL
-           AND LENGTH(a.iiif_url) > 40
-           AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-           AND ${sourceA.sql}
-           ${mf ? "AND " + mf.sql : ""}
-         ORDER BY rank LIMIT ?`
-      ).all(ftsQuery, ...sourceA.params, ...(mf ? mf.params : []), PAGE_SIZE) as SearchResult[];
+      const rows = searchArtworksText({
+        db,
+        query,
+        source: sourceA,
+        museum: mf,
+        limit: PAGE_SIZE,
+      }) as SearchResult[];
+
+      logClipDebug("[FTS query]", { q: query, count: rows.length });
       rows.forEach((r) => { r.matchType = "fts" as MatchType; });
       return rows;
     } catch (ftsErr) {
@@ -689,7 +632,7 @@ async function loadSearchResults(args: {
 
   // Generate snippets
   for (const r of merged) {
-    r.snippet = buildSnippet(r, query);
+    r.snippet = buildArtworkSnippet(r, query);
   }
 
   const results = merged.slice(0, PAGE_SIZE);
@@ -713,8 +656,8 @@ export function searchLoader(request: Request): SearchLoaderData {
   const enabledMuseums = getEnabledMuseums();
   const museumOptions: MuseumOption[] = getCollectionOptions();
   const showMuseumBadge = enabledMuseums.length > 1;
-  const searchMode = resolveSearchMode(url.searchParams.get("mode"), query);
   const searchType = parseSearchType(url.searchParams.get("type"));
+  const searchMode = resolveSearchMode(url.searchParams.get("mode"), query, searchType);
   const museum = searchMode === "theme"
     ? ""
     : museumParam && isValidMuseumFilter(museumParam)

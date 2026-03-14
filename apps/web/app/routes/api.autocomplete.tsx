@@ -1,6 +1,7 @@
 import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
+import { searchArtworksText } from "../lib/text-search.server";
 import type { Route } from "./+types/api.autocomplete";
 
 // CLIP-inspired suggestions — things that work great with semantic search
@@ -53,19 +54,6 @@ function firstArtistName(rawArtists: string | null): string | null {
   }
 }
 
-function buildTitleFtsQuery(query: string): string {
-  const terms = query
-    .split(/\s+/)
-    .map((word) => word.replace(/["'()]/g, "").trim())
-    .filter(Boolean);
-
-  if (terms.length === 0) return "";
-
-  return terms
-    .map((word) => `(title_sv : "${word}"* OR title_en : "${word}"*)`)
-    .join(" AND ");
-}
-
 function artistsTableExists(): boolean {
   if (hasArtistsTable !== null) return hasArtistsTable;
   const db = getDb();
@@ -89,41 +77,32 @@ export async function loader({ request }: Route.LoaderArgs) {
   const sourceA = sourceFilter("a");
   const payload = emptyPayload();
 
-  const ftsQuery = buildTitleFtsQuery(q);
-  if (ftsQuery) {
-    try {
-      const artworks = db.prepare(
-        `SELECT a.id,
-                COALESCE(NULLIF(a.title_sv, ''), NULLIF(a.title_en, ''), 'Utan titel') as title,
-                a.iiif_url,
-                a.dominant_color,
-                a.artists
-         FROM artworks_fts
-         JOIN artworks a ON a.id = artworks_fts.rowid
-         WHERE artworks_fts MATCH ?
-           AND a.iiif_url IS NOT NULL
-           AND LENGTH(a.iiif_url) > 40
-           AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-           AND ${sourceA.sql}
-         ORDER BY rank
-         LIMIT 3`
-      ).all(ftsQuery, ...sourceA.params) as Array<{
-        id: number;
-        title: string;
-        iiif_url: string | null;
-        dominant_color: string | null;
-        artists: string | null;
-      }>;
+  try {
+    const artworks = searchArtworksText({
+      db,
+      query: q,
+      source: sourceA,
+      limit: 3,
+      scope: "title",
+    }) as Array<{
+      id: number;
+      title_sv: string | null;
+      title_en: string | null;
+      iiif_url: string | null;
+      dominant_color: string | null;
+      artists: string | null;
+    }>;
 
-      payload.artworks = artworks.map((artwork) => ({
-        id: artwork.id,
-        title: artwork.title,
-        iiif_url: artwork.iiif_url,
-        dominant_color: artwork.dominant_color,
-        artist_name: firstArtistName(artwork.artists),
-        imageUrl: buildImageUrl(artwork.iiif_url, 200),
-      }));
-    } catch {
+    payload.artworks = artworks.map((artwork) => ({
+      id: artwork.id,
+      title: artwork.title_sv || artwork.title_en || "Utan titel",
+      iiif_url: artwork.iiif_url,
+      dominant_color: artwork.dominant_color,
+      artist_name: firstArtistName(artwork.artists),
+      imageUrl: buildImageUrl(artwork.iiif_url, 200),
+    }));
+  } catch {
+    try {
       const like = `%${q}%`;
       const fallback = db.prepare(
         `SELECT a.id,
@@ -155,6 +134,8 @@ export async function loader({ request }: Route.LoaderArgs) {
         artist_name: firstArtistName(artwork.artists),
         imageUrl: buildImageUrl(artwork.iiif_url, 200),
       }));
+    } catch {
+      payload.artworks = [];
     }
   }
 

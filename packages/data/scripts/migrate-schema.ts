@@ -117,6 +117,7 @@ function ensureTables(db: Database.Database) {
 
 function ensureFts(db: Database.Database) {
   let recreatedFts = false;
+  let shouldRebuildFts = false;
   const expectedColumns = [
     "title_sv",
     "title_en",
@@ -215,29 +216,30 @@ function ensureFts(db: Database.Database) {
     END;
   `);
 
-  if (recreatedFts) {
+  const artworkCount = (db.prepare(
+    "SELECT COUNT(*) as count FROM artworks"
+  ).get() as { count: number }).count;
+
+  const docsizeExists = db
+    .prepare("SELECT 1 as ok FROM sqlite_master WHERE type = 'table' AND name = 'artworks_fts_docsize' LIMIT 1")
+    .get() as { ok?: number } | undefined;
+
+  const indexedCount = docsizeExists?.ok === 1
+    ? (db.prepare("SELECT COUNT(*) as count FROM artworks_fts_docsize").get() as { count: number }).count
+    : 0;
+
+  if (!recreatedFts && artworkCount !== indexedCount) {
+    console.log(`⚠️ artworks_fts index out of sync (${indexedCount}/${artworkCount} indexed) — forcing rebuild`);
+    shouldRebuildFts = true;
+  }
+
+  if (recreatedFts || shouldRebuildFts) {
     db.exec(`INSERT INTO artworks_fts(artworks_fts) VALUES ('rebuild');`);
     console.log("✅ Rebuilt artworks_fts index");
     return;
   }
 
-  const missing = (db.prepare(
-    `SELECT COUNT(*) as count
-     FROM artworks
-     WHERE id NOT IN (SELECT rowid FROM artworks_fts)`
-  ).get() as { count: number }).count;
-
-  if (missing > 0) {
-    db.exec(`
-      INSERT INTO artworks_fts(rowid, title_sv, title_en, artists, category, technique_material, dating_text)
-      SELECT id, title_sv, title_en, artists, category, technique_material, dating_text
-      FROM artworks
-      WHERE id NOT IN (SELECT rowid FROM artworks_fts);
-    `);
-    console.log(`✅ Backfilled artworks_fts with ${missing} rows`);
-  } else {
-    console.log("ℹ️ artworks_fts already indexed");
-  }
+  console.log("ℹ️ artworks_fts already indexed");
 }
 
 function ensureIndexes(db: Database.Database) {

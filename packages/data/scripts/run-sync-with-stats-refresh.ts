@@ -30,6 +30,12 @@ async function main() {
     process.exit(1);
   }
 
+  console.log("Ensuring schema and FTS index are healthy…");
+  const migrateExitCode = await runPnpmScript("migrate:schema");
+  if (migrateExitCode !== 0) {
+    process.exit(migrateExitCode);
+  }
+
   const syncExitCode = await runPnpmScript(targetScript, forwardArgs);
   if (syncExitCode !== 0) {
     process.exit(syncExitCode);
