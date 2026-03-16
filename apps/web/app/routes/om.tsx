@@ -1,4 +1,5 @@
 import type { Route } from "./+types/om";
+import type { CampaignId } from "../lib/campaign.server";
 import { getDb } from "../lib/db.server";
 import { sourceFilter } from "../lib/museums.server";
 import { getCachedSiteStats as getSiteStats } from "../lib/stats.server";
@@ -48,7 +49,7 @@ export async function loader() {
   `).all(...sourceA.params) as Array<{ name: string; id: string; cnt: number }>;
   const museums = collections.map((row: any) => ({ id: row.id, name: row.coll_name }));
 
-  return { stats, museums, museumName: campaign.museumName };
+  return { stats, museums, museumName: campaign.museumName, campaignId: campaign.id };
 }
 
 function formatRange(minYear: number | null, maxYear: number | null): string {
@@ -58,7 +59,7 @@ function formatRange(minYear: number | null, maxYear: number | null): string {
 }
 
 export default function About({ loaderData }: Route.ComponentProps) {
-  const { stats, museums, museumName } = loaderData;
+  const { stats, museums, museumName, campaignId } = loaderData;
 
   const museumList = museums.length > 1
     ? `${museums.map(m => m.name).slice(0, -1).join(", ")} och ${museums[museums.length - 1]?.name}`
@@ -116,9 +117,7 @@ export default function About({ loaderData }: Route.ComponentProps) {
             <a href="https://creativecommons.org/publicdomain/zero/1.0/" target="_blank" rel="noopener noreferrer" className="text-dark-text underline decoration-dark-text-muted underline-offset-2 hover:decoration-dark-text transition-colors">CC0</a>,{" "}
             <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer" className="text-dark-text underline decoration-dark-text-muted underline-offset-2 hover:decoration-dark-text transition-colors">CC BY</a> eller{" "}
             <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener noreferrer" className="text-dark-text underline decoration-dark-text-muted underline-offset-2 hover:decoration-dark-text transition-colors">CC BY-NC-ND</a>.
-            Licensinformation visas på varje verks sida. Data hämtas via{" "}
-            <a href="https://www.raa.se/hitta-information/k-samsok/" target="_blank" rel="noopener noreferrer" className="text-dark-text underline decoration-dark-text-muted underline-offset-2 hover:decoration-dark-text transition-colors">K-samsök</a>{" "}
-            (Riksantikvarieämbetets aggregator) och Nationalmuseums API.
+            Licensinformation visas på varje verks sida. {renderDataSourceCopy(campaignId)}
           </p>
         </section>
 
@@ -150,5 +149,43 @@ export default function About({ loaderData }: Route.ComponentProps) {
 
       </div>
     </div>
+  );
+}
+
+function renderDataSourceCopy(campaignId: CampaignId) {
+  if (campaignId === "nationalmuseum") {
+    return <>Data hämtas via Nationalmuseums API.</>;
+  }
+
+  if (campaignId === "nordiska" || campaignId === "shm") {
+    return (
+      <>
+        Data hämtas via{" "}
+        <a
+          href="https://www.raa.se/hitta-information/k-samsok/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-dark-text underline decoration-dark-text-muted underline-offset-2 hover:decoration-dark-text transition-colors"
+        >
+          K-samsök
+        </a>{" "}
+        (Riksantikvarieämbetets aggregator).
+      </>
+    );
+  }
+
+  return (
+    <>
+      Data hämtas via{" "}
+      <a
+        href="https://www.raa.se/hitta-information/k-samsok/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-dark-text underline decoration-dark-text-muted underline-offset-2 hover:decoration-dark-text transition-colors"
+      >
+        K-samsök
+      </a>{" "}
+      (Riksantikvarieämbetets aggregator) och Nationalmuseums API.
+    </>
   );
 }
