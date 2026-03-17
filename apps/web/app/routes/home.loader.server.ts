@@ -88,9 +88,18 @@ export async function homeLoader(request: Request): Promise<HomeLoaderData> {
     }
   }
 
-  const ogImageUrl = initialItems[0]?.iiif_url
-    ? buildDirectImageUrl(initialItems[0].iiif_url, 800)
-    : null;
+  const OG_IMAGES: Record<CampaignId, string> = {
+    nationalmuseum: "/og-nm.jpg",
+    nordiska: "/og-nordiska.jpg",
+    shm: "/og-shm.jpg",
+    default: "/og-default.jpg",
+  };
+  const ogPath = OG_IMAGES[campaign.id];
+  const ogImageUrl = ogPath
+    ? `${url.origin}${ogPath}`
+    : initialItems[0]?.iiif_url
+      ? buildDirectImageUrl(initialItems[0].iiif_url, 800)
+      : null;
 
   // 2. Stats (already cached in-memory by stats.server)
   const siteStats = getCachedSiteStats(db);
