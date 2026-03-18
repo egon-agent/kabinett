@@ -27,9 +27,12 @@
     "sync:shm:artists": "tsx scripts/run-sync-with-stats-refresh.ts sync:shm:fast:raw --artists-only",
     "backfill:collection": "tsx scripts/backfill-collection.ts",
     "migrate:vec": "tsx scripts/migrate-vec.ts",
-    "stats:refresh": "tsx scripts/refresh-site-stats.ts",
-    "related:refresh": "tsx scripts/refresh-artwork-related.ts",
-    "related:artists:refresh": "tsx scripts/refresh-artwork-related.ts --artists-only --all-artists",
+    "stats:refresh": "python3 scripts/refresh-site-stats.py",
+    "stats:refresh:py": "python3 scripts/refresh-site-stats.py",
+    "related:refresh": "python3 scripts/refresh-artwork-related.py",
+    "related:refresh:py": "python3 scripts/refresh-artwork-related.py",
+    "related:artists:refresh": "python3 scripts/refresh-artwork-related.py --artists-only --all-artists",
+    "related:artists:refresh:py": "python3 scripts/refresh-artwork-related.py --artists-only --all-artists",
     "focal:backfill": "tsx scripts/backfill-focal-points.ts"
   },
   "dependencies": {
