@@ -158,6 +158,7 @@ type EuropeanaItem = {
   title?: unknown;
   dcCreator?: unknown;
   edmIsShownBy?: unknown;
+  edmPreview?: unknown;
   type?: unknown;
   year?: unknown;
   dataProvider?: unknown;
@@ -182,9 +183,17 @@ type EuropeanaSearchResponse = {
   totalResults?: number;
 };
 
+function buildThumbnailUrl(originalUrl: string): string {
+  return `https://api.europeana.eu/thumbnail/v2/url.json?uri=${encodeURIComponent(originalUrl)}&type=IMAGE`;
+}
+
 function parseItem(item: EuropeanaItem): ParsedItem | null {
   const recordId = getFirstString(item.id);
-  const imageUrl = getFirstString(item.edmIsShownBy);
+  const originalImageUrl = getFirstString(item.edmIsShownBy);
+  const previewUrl = getFirstString(item.edmPreview);
+
+  // Prefer edmPreview (Europeana-hosted thumbnail), fall back to building one from edmIsShownBy
+  const imageUrl = previewUrl || (originalImageUrl ? buildThumbnailUrl(originalImageUrl) : null);
 
   if (!recordId || !imageUrl) return null;
 
