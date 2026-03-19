@@ -1,6 +1,7 @@
 import { getDb } from "./db.server";
 import { buildImageUrl } from "./images";
 import { sourceFilter } from "./museums.server";
+import { searchArtworksText } from "./text-search.server";
 
 type FeedItemRow = {
   id: number;
@@ -15,6 +16,7 @@ type FeedItemRow = {
   museum_name: string | null;
   focal_x: number | null;
   focal_y: number | null;
+  descriptions_sv?: string | null;
 };
 
 export type FeedItem = {
@@ -47,18 +49,27 @@ const CATEGORY_FILTERS = new Set(["Målningar", "Skulptur", "Porträtt", "Landsk
 
 const MOOD_QUERIES: Record<string, { fts: string }> = {
   Djur: {
-    fts: "djur OR hund OR katt OR fågel OR häst",
+    fts: 'title_sv:"djur"* OR title_en:"animal"* OR title_sv:"hund"* OR title_en:"dog"* OR title_sv:"katt"* OR title_en:"cat"* OR title_sv:"fågel"* OR title_en:"bird"* OR title_sv:"häst"* OR title_en:"horse"*',
   },
   Havet: {
-    fts: "hav OR sjö OR vatten OR kust OR strand OR flod",
+    fts: 'title_sv:"hav"* OR title_en:"sea"* OR title_sv:"sjö"* OR title_en:"lake"* OR title_sv:"vatten"* OR title_en:"water"* OR title_sv:"kust"* OR title_en:"coast"* OR title_sv:"strand"* OR title_en:"shore"* OR title_sv:"skepp"* OR title_en:"ship"* OR title_sv:"båt"* OR title_en:"boat"*',
   },
   Blommor: {
-    fts: "blom* OR ros OR tulpan OR växt",
+    fts: 'title_sv:"blomma"* OR title_sv:"blommor"* OR title_sv:"blomster"* OR title_en:"flower"* OR title_en:"flowers"* OR title_sv:"ros"* OR title_en:"rose"* OR title_sv:"tulpan"* OR title_en:"tulip"* OR title_sv:"bukett"* OR title_en:"bouquet"*',
   },
   Natt: {
-    fts: "natt OR måne OR kväll OR skymning",
+    fts: 'title_sv:"natt"* OR title_en:"night"* OR title_sv:"kväll"* OR title_en:"evening"* OR title_sv:"skymning"* OR title_en:"dusk"* OR title_sv:"måne"* OR title_en:"moon"*',
   },
 };
+
+function isKnownFeedFilter(filter: string): boolean {
+  return filter === "Alla"
+    || CATEGORY_FILTERS.has(filter)
+    || filter === "Rött"
+    || filter === "Blått"
+    || Boolean(CENTURIES[filter])
+    || Boolean(MOOD_QUERIES[filter]);
+}
 
 function mapRows(rows: FeedItemRow[]): FeedItem[] {
   return rows.map((row) => ({
@@ -107,6 +118,7 @@ export async function fetchFeed(options: {
          WHERE artworks_fts MATCH ?
            AND a.iiif_url IS NOT NULL
            AND LENGTH(a.iiif_url) > 40
+           AND LENGTH(COALESCE(a.title_sv, a.title_en, '')) <= 140
            AND a.id NOT IN (SELECT artwork_id FROM broken_images)
            AND ${sourceA.sql}
          ORDER BY artworks_fts.rank ASC, a.id DESC
@@ -134,11 +146,30 @@ export async function fetchFeed(options: {
     };
   }
 
+  if (!isKnownFeedFilter(filter)) {
+    const offset = Math.max(0, cursor || 0);
+    const rows = searchArtworksText({
+      db,
+      query: filter,
+      source: sourceA,
+      limit,
+      offset,
+      scope: "broad",
+    }) as FeedItemRow[];
+
+    return {
+      items: mapRows(rows),
+      nextCursor: offset + rows.length,
+      hasMore: rows.length === limit,
+      mode: "offset" as const,
+    };
+  }
+
   const baseConditions: string[] = [
     "a.iiif_url IS NOT NULL",
     "LENGTH(a.iiif_url) > 40",
     "a.id NOT IN (SELECT artwork_id FROM broken_images)",
-    "LENGTH(a.title_sv) < 60",
+    "LENGTH(COALESCE(a.title_sv, a.title_en, '')) < 60",
     sourceA.sql,
   ];
   const baseParams: Array<string | number> = [...sourceA.params];
@@ -162,7 +193,7 @@ export async function fetchFeed(options: {
          WHERE a.iiif_url IS NOT NULL
            AND LENGTH(a.iiif_url) > 40
            AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-           AND LENGTH(a.title_sv) < 60
+           AND LENGTH(COALESCE(a.title_sv, a.title_en, '')) < 60
            AND ${sourceA.sql}
            ${cursorSql}
        )
@@ -201,7 +232,12 @@ export async function fetchFeed(options: {
     const colorKey = filter === "Rött" ? "red" : "blue";
     const color = COLOR_TARGETS[colorKey];
     const colorDistance = `ABS(a.color_r - ${color.r}) + ABS(a.color_g - ${color.g}) + ABS(a.color_b - ${color.b})`;
-    baseConditions.push("a.color_r IS NOT NULL");
+    baseConditions.push("a.color_r IS NOT NULL", "a.color_g IS NOT NULL", "a.color_b IS NOT NULL");
+    if (filter === "Rött") {
+      baseConditions.push("a.color_r >= a.color_g + 18", "a.color_r >= a.color_b + 18");
+    } else {
+      baseConditions.push("a.color_b >= a.color_r + 16", "a.color_b >= a.color_g + 8");
+    }
     dedupeOrderBy = `${colorDistance} ASC, a.id DESC`;
   }
 

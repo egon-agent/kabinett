@@ -1,5 +1,6 @@
 import { getDb } from "./db.server";
 import { sourceFilter } from "./museums.server";
+import { parseArtists } from "./parsing";
 
 type RelatedArtworkRow = {
   id: number;
@@ -32,16 +33,6 @@ const RELATED_SAME_ARTIST_CANDIDATES = Number(process.env.KABINETT_RELATED_SAME_
 const RELATED_SAME_ARTIST_LIMIT = Number(process.env.KABINETT_RELATED_SAME_ARTIST_LIMIT ?? "6");
 
 const relatedCache = new Map<string, CacheEntry>();
-
-function parseArtists(raw: string | null): Array<{ name?: string | null }> {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw) as Array<{ name?: string | null }>;
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
 
 function roundMs(ms: number): number {
   return Math.round(ms * 100) / 100;

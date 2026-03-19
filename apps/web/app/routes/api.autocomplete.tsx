@@ -2,6 +2,7 @@ import { searchArtistsByScope } from "../lib/artist-search.server";
 import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
 import { museumFilterSql, sourceFilter } from "../lib/museums.server";
+import { parseArtists } from "../lib/parsing";
 import { searchArtworksAutocomplete } from "../lib/text-search.server";
 import type { Route } from "./+types/api.autocomplete";
 
@@ -52,15 +53,7 @@ function emptyPayload(): AutocompletePayload {
 }
 
 function firstArtistName(rawArtists: string | null): string | null {
-  if (!rawArtists) return null;
-  try {
-    const parsed = JSON.parse(rawArtists) as Array<{ name?: string | null }> | { name?: string | null };
-    const first = Array.isArray(parsed) ? parsed[0] : parsed;
-    const name = first?.name?.trim();
-    return name || null;
-  } catch {
-    return null;
-  }
+  return parseArtists(rawArtists)[0]?.name || null;
 }
 
 function responseHeaders(): HeadersInit {

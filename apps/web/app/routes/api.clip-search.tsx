@@ -230,6 +230,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
       // Visual-only: return pure CLIP results sorted by similarity
       if (type === "visual") {
+        if (clipResults.length === 0) {
+          const fallback = ftsResults
+            .slice(0, limit)
+            .map((row: any) => ({
+              ...row,
+              matchType: "fts",
+              snippet: buildArtworkSnippet(row, q),
+            }));
+          return Response.json(fallback);
+        }
         const sorted = [...clipResults].sort(
           (a, b) => Number(b.similarity ?? 0) - Number(a.similarity ?? 0)
         );

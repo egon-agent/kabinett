@@ -93,22 +93,22 @@ type ToolItem = {
 };
 
 const COLLECTIONS: Collection[] = [
-  { title: "Mörkt & dramatiskt", subtitle: "Skuggor och spänning", query: "mörker natt", imageIds: [24664, 20450, 15634] },
-  { title: "Stormigt hav", subtitle: "Vågor och vind", query: "storm hav", imageIds: [18217, 20356, 17939] },
-  { title: "Blommor", subtitle: "Natur i närbild", query: "blommor", imageIds: [-166319052559119, -179937114869368, 17457] },
-  { title: "Hästar", subtitle: "Ädla djur genom tiderna", query: "häst", imageIds: [14802, -247833644771404, -69141112380166] },
-  { title: "Porträtt", subtitle: "Ansikten genom tiderna", query: "porträtt ansikte", imageIds: [216852, 16308, 17096] },
-  { title: "Landskap", subtitle: "Skog, berg och dal", query: "landskap skog", imageIds: [-202485135028962, -62777224500383, 17076] },
-  { title: "Hattar", subtitle: "Huvudbonader genom historien", query: "hatt", imageIds: [-253468788019903, -256891764421414, -61674516346084] },
-  { title: "Mytologi", subtitle: "Gudar och hjältar", query: "gud gudinna", imageIds: [71395, 177136, 17313] },
-  { title: "Telefoner", subtitle: "Från vev till knappar", query: "telefon", imageIds: [-278306166813061, -62193254264396, -223649635814047] },
-  { title: "Skepp & båtar", subtitle: "Till havs", query: "skepp båt fartyg", imageIds: [-139485473585279, -448520122533, -103198960131251] },
-  { title: "Kaniner", subtitle: "Lurviga vänner", query: "kanin hare", imageIds: [-62346619720310, -132331838014998, -101957079536391] },
-  { title: "Musik", subtitle: "Instrument och melodier", query: "musik instrument gitarr", imageIds: [-230629938287298, -87109461851263, -86518388012200] },
-  { title: "Katter", subtitle: "Mjuka tassar", query: "katt", imageIds: [-189194491314296, 35597, -239926311302559] },
-  { title: "Mat & frukt", subtitle: "Gastronomi i konsten", query: "mat frukt", imageIds: [-253717850327201, -5907047110556, -111000855806884] },
-  { title: "Arkitektur", subtitle: "Slott och kyrkor", query: "slott kyrka", imageIds: [-129853437095252, -98579182221784, -45980371825152] },
-  { title: "Barn", subtitle: "Barndomens porträtt", query: "barn", imageIds: [17996, 16051, 17093] },
+  { title: "Mörkt & dramatiskt", subtitle: "Skuggor och spänning", query: "natt skymning skugga storm", imageIds: [24664, 20450, 15634] },
+  { title: "Stormigt hav", subtitle: "Vågor och vind", query: "storm hav vågor skepp", imageIds: [18217, 20356, 17939] },
+  { title: "Blommor", subtitle: "Natur i närbild", query: "blomma blommor blomster ros tulpan bukett flower bouquet", imageIds: [-166319052559119, -179937114869368, 17457] },
+  { title: "Hästar", subtitle: "Ädla djur genom tiderna", query: "häst horse", imageIds: [14802, -247833644771404, -69141112380166] },
+  { title: "Porträtt", subtitle: "Ansikten genom tiderna", query: "porträtt portrait ansikte", imageIds: [216852, 16308, 17096] },
+  { title: "Landskap", subtitle: "Skog, berg och dal", query: "landskap skog forest berg", imageIds: [-202485135028962, -62777224500383, 17076] },
+  { title: "Hattar", subtitle: "Huvudbonader genom historien", query: "hatt hattar mössa huvudbonad hat bonnet", imageIds: [-253468788019903, -256891764421414, -61674516346084] },
+  { title: "Mytologi", subtitle: "Gudar och hjältar", query: "mytologi gud gudinna myth god goddess", imageIds: [71395, 177136, 17313] },
+  { title: "Telefoner", subtitle: "Från vev till knappar", query: "telefon telefoner telephone", imageIds: [-278306166813061, -62193254264396, -223649635814047] },
+  { title: "Skepp & båtar", subtitle: "Till havs", query: "skepp båt fartyg ship boat", imageIds: [-139485473585279, -448520122533, -103198960131251] },
+  { title: "Kaniner", subtitle: "Lurviga vänner", query: "kanin hare rabbit", imageIds: [-62346619720310, -132331838014998, -101957079536391] },
+  { title: "Musik", subtitle: "Instrument och melodier", query: "musik instrument violin gitarr piano", imageIds: [-230629938287298, -87109461851263, -86518388012200] },
+  { title: "Katter", subtitle: "Mjuka tassar", query: "katt cats cat", imageIds: [-189194491314296, 35597, -239926311302559] },
+  { title: "Mat & frukt", subtitle: "Gastronomi i konsten", query: "frukt äpple päron mat stillleben fruit", imageIds: [-253717850327201, -5907047110556, -111000855806884] },
+  { title: "Arkitektur", subtitle: "Slott och kyrkor", query: "slott kyrka palace church architecture", imageIds: [-129853437095252, -98579182221784, -45980371825152] },
+  { title: "Barn", subtitle: "Barndomens porträtt", query: "barn child children", imageIds: [17996, 16051, 17093] },
 ];
 
 const discoverCacheMap = new Map<string, { expiresAt: number; data: any }>();
@@ -126,6 +126,14 @@ function tokenizeSearch(text: string): string[] {
     .split(/\s+/)
     .map((term) => term.trim())
     .filter(Boolean);
+}
+
+function buildDiscoverTitleFtsQuery(text: string): string {
+  const terms = tokenizeSearch(text).map((term) => term.replaceAll("\"", ""));
+  if (terms.length === 0) return "";
+  return terms
+    .map((term) => `(title_sv:"${term}"* OR title_en:"${term}"*)`)
+    .join(" OR ");
 }
 
 export async function loader() {
@@ -159,6 +167,7 @@ export async function loader() {
      WHERE artworks_fts MATCH ?
        AND a.iiif_url IS NOT NULL
        AND LENGTH(a.iiif_url) > 40
+       AND LENGTH(COALESCE(a.title_sv, a.title_en, '')) BETWEEN 2 AND 140
        AND a.id NOT IN (SELECT artwork_id FROM broken_images)
        AND ${sourceA.sql}
      ORDER BY artworks_fts.rank ASC
@@ -197,8 +206,7 @@ export async function loader() {
       }
 
       if (!row) {
-        const terms = tokenizeSearch(c.query || c.title);
-        const ftsQuery = terms.map((term) => `${term.replaceAll("\"", "")}*`).join(" OR ");
+        const ftsQuery = buildDiscoverTitleFtsQuery(c.query || c.title);
         if (ftsQuery) {
           try {
             const rows = themeFtsStmt.all(ftsQuery, ...sourceA.params) as ThemeImageRow[];
@@ -215,17 +223,18 @@ export async function loader() {
         if (terms.length > 0) {
           const likeClauses = terms.map(
             () =>
-              "(LOWER(a.title_sv) LIKE ? OR LOWER(COALESCE(a.category, '')) LIKE ? OR LOWER(COALESCE(a.technique_material, '')) LIKE ?)"
+              "(LOWER(COALESCE(a.title_sv, '')) LIKE ? OR LOWER(COALESCE(a.title_en, '')) LIKE ? OR LOWER(COALESCE(a.category, '')) LIKE ? OR LOWER(COALESCE(a.technique_material, '')) LIKE ?)"
           );
           const likeParams = terms.flatMap((term) => {
             const pattern = `%${term}%`;
-            return [pattern, pattern, pattern];
+            return [pattern, pattern, pattern, pattern];
           });
           const rows = db.prepare(
             `SELECT a.iiif_url, a.dominant_color, a.title_sv, a.title_en, a.artists, a.focal_x, a.focal_y
              FROM artworks a
              WHERE a.iiif_url IS NOT NULL
                AND LENGTH(a.iiif_url) > 40
+               AND LENGTH(COALESCE(a.title_sv, a.title_en, '')) BETWEEN 2 AND 140
                AND a.id NOT IN (SELECT artwork_id FROM broken_images)
                AND ${sourceA.sql}
                AND (${likeClauses.join(" OR ")})
@@ -269,6 +278,10 @@ export async function loader() {
         AND json_extract(artists, '$[0].name') IS NOT NULL
         AND json_extract(artists, '$[0].name') NOT LIKE '%känd%'
         AND json_extract(artists, '$[0].name') NOT LIKE '%nonym%'
+        AND json_extract(artists, '$[0].name') NOT LIKE 'http://%'
+        AND json_extract(artists, '$[0].name') NOT LIKE 'https://%'
+        AND json_extract(artists, '$[0].name') NOT LIKE 'www.%'
+        AND json_extract(artists, '$[0].name') NOT GLOB '[0-9]*_*'
         AND json_extract(artists, '$[0].name') NOT IN ('Gustavsberg')
         AND COALESCE(category, '') NOT LIKE '%Keramik%'
         AND COALESCE(category, '') NOT LIKE '%Porslin%'

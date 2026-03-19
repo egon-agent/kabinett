@@ -56,6 +56,10 @@ export function searchArtistsByScope(args: {
      WHERE aa.artist_name_norm LIKE ? ESCAPE '\\'
        AND aa.artist_name NOT LIKE '%känd%'
        AND aa.artist_name NOT LIKE '%nonym%'
+       AND aa.artist_name NOT LIKE 'http://%'
+       AND aa.artist_name NOT LIKE 'https://%'
+       AND aa.artist_name NOT LIKE 'www.%'
+       AND aa.artist_name NOT GLOB '[0-9]*_*'
        AND a.iiif_url IS NOT NULL
        AND LENGTH(a.iiif_url) > 40
        AND a.id NOT IN (SELECT artwork_id FROM broken_images)

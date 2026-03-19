@@ -2,7 +2,7 @@
 import { searchArtistsByScope } from "../lib/artist-search.server";
 import { getDb } from "../lib/db.server";
 import { fetchFeed } from "../lib/feed.server";
-import { getEnabledMuseums, isValidMuseumFilter, museumFilterSql, getCollectionOptions, sourceFilter } from "../lib/museums.server";
+import { getEnabledMuseums, isValidMuseumFilter, museumFilterSql, getCollectionOptions, shouldShowCollectionLabels, sourceFilter } from "../lib/museums.server";
 import { buildArtworkSnippet, searchArtworksText } from "../lib/text-search.server";
 
 export type SearchMode = "fts" | "clip" | "color" | "theme";
@@ -345,6 +345,32 @@ async function loadSearchResults(args: {
     const filteredClip = filterClipByConfidence(clipResults, { visual: true, limit: PAGE_SIZE })
       .slice(0, PAGE_SIZE);
 
+    if (filteredClip.length === 0) {
+      try {
+        const fallbackRows = searchArtworksText({
+          db,
+          query,
+          source: sourceA,
+          museum: mf,
+          limit: PAGE_SIZE,
+          scope: "broad",
+        }) as SearchResult[];
+
+        fallbackRows.forEach((row) => {
+          row.matchType = "fts" as MatchType;
+          row.snippet = buildArtworkSnippet(row, query);
+        });
+
+        return {
+          results: toArtworkSearchResults(fallbackRows),
+          total: fallbackRows.length,
+          cursor: null,
+        };
+      } catch (fallbackErr) {
+        console.error("[Visual FTS fallback error]", fallbackErr);
+      }
+    }
+
     const idsToHydrate = filteredClip
       .filter((r) => !r.technique_material)
       .map((r) => r.id);
@@ -656,7 +682,7 @@ export function searchLoader(request: Request): SearchLoaderData {
   const museumParam = url.searchParams.get("museum")?.trim() || "";
   const enabledMuseums = getEnabledMuseums();
   const museumOptions: MuseumOption[] = getCollectionOptions();
-  const showMuseumBadge = enabledMuseums.length > 1;
+  const showMuseumBadge = shouldShowCollectionLabels(enabledMuseums);
   const searchType = parseSearchType(url.searchParams.get("type"));
   const searchMode = resolveSearchMode(url.searchParams.get("mode"), query, searchType);
   const museum = searchMode === "theme"

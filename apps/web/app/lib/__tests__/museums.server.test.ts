@@ -15,7 +15,7 @@ vi.mock("../request-context.server", () => ({
   getRequestContext: () => getRequestContextMock(),
 }));
 
-import { getEnabledMuseums, sourceFilter } from "../museums.server";
+import { getEnabledMuseums, shouldShowCollectionLabels, sourceFilter } from "../museums.server";
 
 describe("museums.server", () => {
   beforeEach(() => {
@@ -64,5 +64,11 @@ describe("museums.server", () => {
     getRequestContextMock.mockReturnValue({ campaignId: "europeana", museums: ["shm"] });
 
     expect(getEnabledMuseums()).toEqual(["shm"]);
+  });
+
+  it("shows collection labels for single-source Europeana and SHM campaigns", () => {
+    expect(shouldShowCollectionLabels(["europeana"])).toBe(true);
+    expect(shouldShowCollectionLabels(["shm"])).toBe(true);
+    expect(shouldShowCollectionLabels(["nationalmuseum"])).toBe(false);
   });
 });

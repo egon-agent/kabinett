@@ -97,6 +97,10 @@ export function isMuseumEnabled(source: string): boolean {
   return getEnabledMuseums().includes(source);
 }
 
+export function shouldShowCollectionLabels(enabledMuseums = getEnabledMuseums()): boolean {
+  return enabledMuseums.length > 1 || enabledMuseums.some((museumId) => museumId === "shm" || museumId === "europeana");
+}
+
 export function getMuseumInfo(source: string): MuseumRow | null {
   const db = getDb();
   const row = db

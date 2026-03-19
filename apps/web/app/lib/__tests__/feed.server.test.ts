@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const allMock = vi.fn();
+const searchArtworksTextMock = vi.fn();
 
 vi.mock("../db.server", () => ({
   getDb: () => ({
@@ -18,9 +19,18 @@ vi.mock("../museums.server", () => ({
   }),
 }));
 
+vi.mock("../text-search.server", () => ({
+  searchArtworksText: (...args: unknown[]) => searchArtworksTextMock(...args),
+}));
+
 import { fetchFeed } from "../feed.server";
 
 describe("fetchFeed", () => {
+  beforeEach(() => {
+    allMock.mockReset();
+    searchArtworksTextMock.mockReset();
+  });
+
   it("returns items with expected shape for filter Alla", async () => {
     allMock.mockReturnValue([
       {
@@ -53,5 +63,40 @@ describe("fetchFeed", () => {
     expect(result.items[0].imageUrl).toContain("img.norrava.com");
     expect(decodeURIComponent(result.items[0].imageUrl)).toContain("/full/400,/0/default.jpg");
     expect(result.mode).toBe("cursor");
+  });
+
+  it("falls back to text search for unsupported theme filters", async () => {
+    searchArtworksTextMock.mockReturnValue([
+      {
+        id: 7,
+        title_sv: "Samiskt bälte",
+        title_en: null,
+        artists: null,
+        dating_text: "1900-tal",
+        iiif_url: "https://example.com/iiif/samiskt-balte-12345678901234567890",
+        dominant_color: "#222222",
+        category: "Dräkt",
+        technique_material: "Textil",
+        museum_name: "Nordiska museet",
+        focal_x: null,
+        focal_y: null,
+      },
+    ]);
+
+    const result = await fetchFeed({ limit: 8, filter: "samisk" });
+
+    expect(searchArtworksTextMock).toHaveBeenCalledWith(expect.objectContaining({
+      query: "samisk",
+      limit: 8,
+      offset: 0,
+      scope: "broad",
+    }));
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
+      id: 7,
+      title_sv: "Samiskt bälte",
+      museum_name: "Nordiska museet",
+    });
+    expect(result.mode).toBe("offset");
   });
 });

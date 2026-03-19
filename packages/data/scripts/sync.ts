@@ -14,6 +14,7 @@
 import Database from "better-sqlite3";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
+import * as sqliteVec from "sqlite-vec";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = resolve(__dirname, "../kabinett.db");
@@ -24,6 +25,11 @@ const CHECK_REMOVED = process.argv.includes("--check-removed");
 
 const db = new Database(DB_PATH);
 db.pragma("journal_mode = WAL");
+try {
+  sqliteVec.load(db);
+} catch {
+  // Sync can still proceed without sqlite-vec.
+}
 
 // Ensure last_updated column exists
 try {
@@ -226,6 +232,15 @@ async function main() {
         try {
           const res = await fetch(`${API_BASE}/${id}`);
           if (res.status === 404) {
+            try {
+              const vecRow = db.prepare("SELECT vec_rowid FROM vec_artwork_map WHERE artwork_id = ?").get(id) as { vec_rowid?: number } | undefined;
+              if (typeof vecRow?.vec_rowid === "number") {
+                db.prepare("DELETE FROM vec_artworks WHERE rowid = ?").run(vecRow.vec_rowid);
+              }
+              db.prepare("DELETE FROM vec_artwork_map WHERE artwork_id = ?").run(id);
+            } catch {
+              // vec tables may be unavailable if sqlite-vec could not load
+            }
             db.prepare("DELETE FROM artworks WHERE id = ?").run(id);
             db.prepare("DELETE FROM clip_embeddings WHERE artwork_id = ?").run(id);
             removed++;

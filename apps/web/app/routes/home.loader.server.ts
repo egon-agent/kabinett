@@ -8,7 +8,7 @@ import type { ArtworkDisplayItem } from "../components/artwork-meta";
 import { getCampaignConfig, type CampaignId } from "../lib/campaign.server";
 import { getDb } from "../lib/db.server";
 import { buildDirectImageUrl, buildImageUrl } from "../lib/images";
-import { getEnabledMuseums, sourceFilter } from "../lib/museums.server";
+import { getEnabledMuseums, shouldShowCollectionLabels, sourceFilter } from "../lib/museums.server";
 import { getCachedSiteStats } from "../lib/stats.server";
 
 export type HomeLoaderData = {
@@ -137,7 +137,7 @@ export async function homeLoader(request: Request): Promise<HomeLoaderData> {
     initialCursor: null,
     initialHasMore: true,
     preloadedThemes,
-    showMuseumBadge: enabledMuseums.length > 1,
+    showMuseumBadge: shouldShowCollectionLabels(enabledMuseums),
     heroHeadline,
     heroSubline: campaign.heroSubline,
     heroIntro: campaign.heroIntro,

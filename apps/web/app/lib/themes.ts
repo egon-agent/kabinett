@@ -36,15 +36,21 @@ const SHM_THEMES: ThemeCardSection[] = [
   { title: "Medeltid", subtitle: "Tro, makt och hantverk", filter: "Medeltid kyrka", color: "#1E1E20", searchType: "all", items: [] },
 ];
 
+const SAFE_TEXT_THEMES: ThemeCardSection[] = [
+  UNIVERSAL_THEMES[0],
+  UNIVERSAL_THEMES[2],
+  UNIVERSAL_THEMES[3],
+];
+
 // Max 5 themes per campaign — universal first, then highlights to fill
 const MAX_THEMES = 5;
 
 const CAMPAIGN_THEMES: Record<CampaignId, ThemeCardSection[]> = {
   default: [...UNIVERSAL_THEMES.slice(0, 2), ...NM_THEMES.slice(0, 3)],
-  europeana: [...UNIVERSAL_THEMES.slice(0, 2), ...NM_THEMES.slice(0, 3)],
+  europeana: [...SAFE_TEXT_THEMES, NM_THEMES[0], NM_THEMES[3]].slice(0, MAX_THEMES),
   nationalmuseum: [...UNIVERSAL_THEMES.slice(0, 2), ...NM_THEMES.slice(0, 3)],
-  nordiska: [...UNIVERSAL_THEMES.slice(0, 2), ...NORDISKA_THEMES.slice(0, 3)],
-  shm: [...UNIVERSAL_THEMES.slice(0, 2), ...SHM_THEMES.slice(0, 3)],
+  nordiska: [...SAFE_TEXT_THEMES, NM_THEMES[1], NM_THEMES[3]].slice(0, MAX_THEMES),
+  shm: [...SAFE_TEXT_THEMES, NM_THEMES[4], NM_THEMES[3]].slice(0, MAX_THEMES),
 };
 
 /** @deprecated Use getThemes(campaignId) instead */

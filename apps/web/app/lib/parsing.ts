@@ -1,7 +1,10 @@
 const UNKNOWN_ARTIST = "Okänd konstnär";
+const GENERIC_CATEGORIES = new Set(["IMAGE", "TEXT", "SOUND", "VIDEO", "3D"]);
 
 type ArtistCandidate = {
   name?: string;
+  nationality?: string;
+  role?: string;
 };
 
 type DimensionCandidate = {
@@ -16,15 +19,82 @@ type DimensionCandidate = {
   H?: number | string;
 };
 
-export function parseArtist(json: string | null): string {
-  if (!json) return UNKNOWN_ARTIST;
+export type ParsedArtist = {
+  name: string;
+  nationality: string;
+  role: string;
+};
+
+function normalizeWhitespace(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function isUrlLikeValue(value: string): boolean {
+  return /^https?:\/\//i.test(value) || /^www\./i.test(value);
+}
+
+function isAuthorityLabel(value: string): boolean {
+  return /^[0-9]+_[a-z][a-z0-9_-]*$/i.test(value);
+}
+
+function sanitizeArtistName(value: string | null | undefined): string | null {
+  if (!value) return null;
+
+  const normalized = normalizeWhitespace(value);
+  if (!normalized) return null;
+  if (isUrlLikeValue(normalized)) return null;
+  if (isAuthorityLabel(normalized)) return null;
+
+  return normalized;
+}
+
+function sanitizeMetaValue(value: string | null | undefined): string {
+  if (!value) return "";
+  const normalized = normalizeWhitespace(value);
+  return isUrlLikeValue(normalized) ? "" : normalized;
+}
+
+export function parseArtists(json: string | null): ParsedArtist[] {
+  if (!json) return [];
+
   try {
     const parsed = JSON.parse(json) as ArtistCandidate[] | ArtistCandidate;
-    const first = Array.isArray(parsed) ? parsed[0] : parsed;
-    return first?.name || UNKNOWN_ARTIST;
+    const candidates = Array.isArray(parsed) ? parsed : [parsed];
+    const artists: ParsedArtist[] = [];
+    const seen = new Set<string>();
+
+    for (const candidate of candidates) {
+      if (!candidate || typeof candidate !== "object") continue;
+
+      const name = sanitizeArtistName(candidate.name);
+      if (!name) continue;
+
+      const dedupeKey = name.toLowerCase();
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+
+      artists.push({
+        name,
+        nationality: sanitizeMetaValue(candidate.nationality),
+        role: sanitizeMetaValue(candidate.role),
+      });
+    }
+
+    return artists;
   } catch {
-    return UNKNOWN_ARTIST;
+    return [];
   }
+}
+
+export function parseArtist(json: string | null): string {
+  return parseArtists(json)[0]?.name || UNKNOWN_ARTIST;
+}
+
+export function normalizeArtworkCategory(value: string | null | undefined): string {
+  const normalized = normalizeWhitespace(value?.split(" (")?.[0] || "");
+  if (!normalized) return "";
+  if (GENERIC_CATEGORIES.has(normalized.toUpperCase())) return "";
+  return normalized;
 }
 
 export function formatDimensions(json: string | null): string {

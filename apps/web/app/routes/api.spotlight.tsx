@@ -19,6 +19,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
        WHERE artists IS NOT NULL AND artists != '' AND artists != '[]'
          AND json_extract(artists, '$[0].name') NOT LIKE '%känd%'
          AND json_extract(artists, '$[0].name') NOT LIKE '%nonym%'
+         AND json_extract(artists, '$[0].name') NOT LIKE 'http://%'
+         AND json_extract(artists, '$[0].name') NOT LIKE 'https://%'
+         AND json_extract(artists, '$[0].name') NOT LIKE 'www.%'
+         AND json_extract(artists, '$[0].name') NOT GLOB '[0-9]*_*'
          AND ${source.sql}
        GROUP BY name ORDER BY cnt DESC LIMIT 20`
     ).all(...source.params) as { name: string }[];

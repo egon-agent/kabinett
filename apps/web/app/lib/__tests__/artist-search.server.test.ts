@@ -120,4 +120,38 @@ describe("searchArtistsByScope", () => {
       artwork_count: 1,
     });
   });
+
+  it("filters out url-like and machine artist labels", () => {
+    db.prepare(
+      `INSERT INTO artworks (id, source, iiif_url, title_sv) VALUES (?, ?, ?, ?)`
+    ).run(1, "nordiska", "https://example.org/iiif/nordiska-artist-1-abcdefghijklmnopqrstuvwxyz", "Verk 1");
+    db.prepare(
+      `INSERT INTO artworks (id, source, iiif_url, title_sv) VALUES (?, ?, ?, ?)`
+    ).run(2, "nordiska", "https://example.org/iiif/nordiska-artist-2-abcdefghijklmnopqrstuvwxyz", "Verk 2");
+    db.prepare(
+      `INSERT INTO artworks (id, source, iiif_url, title_sv) VALUES (?, ?, ?, ?)`
+    ).run(3, "nordiska", "https://example.org/iiif/nordiska-artist-3-abcdefghijklmnopqrstuvwxyz", "Verk 3");
+
+    db.prepare(
+      `INSERT INTO artwork_artists (artwork_id, artist_name, artist_name_norm, position)
+       VALUES (?, ?, ?, ?)`
+    ).run(1, "http://viaf.org/viaf/35255759", "http viaf org viaf 35255759", 0);
+    db.prepare(
+      `INSERT INTO artwork_artists (artwork_id, artist_name, artist_name_norm, position)
+       VALUES (?, ?, ?, ?)`
+    ).run(2, "180_person", "180 person", 0);
+    db.prepare(
+      `INSERT INTO artwork_artists (artwork_id, artist_name, artist_name_norm, position)
+       VALUES (?, ?, ?, ?)`
+    ).run(3, "Petre Bulgăraș", "petre bulgaras", 0);
+
+    const results = searchArtistsByScope({
+      db,
+      query: "petre",
+      source: nordiskaSource,
+      limit: 10,
+    });
+
+    expect(results).toEqual([{ name: "Petre Bulgăraș", artwork_count: 1 }]);
+  });
 });

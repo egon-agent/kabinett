@@ -4,7 +4,7 @@ import { useFavorites } from "../lib/favorites";
 import { getDb, type ArtworkRow } from "../lib/db.server";
 import { buildImageUrl, buildDirectImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
-import { parseArtist } from "../lib/parsing";
+import { normalizeArtworkCategory, parseArtist, parseArtists } from "../lib/parsing";
 
 export function headers() {
   return { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" };
@@ -229,12 +229,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 
   if (!row) throw new Response("Inte hittat", { status: 404 });
 
-  let artists: Array<{ name: string; nationality: string; role: string }> = [];
-  try {
-    artists = JSON.parse(row.artists || "[]");
-  } catch (_) {
-    // ignore malformed artist payloads from source records
-  }
+  const artists = parseArtists(row.artists || null);
 
   const collectionName = row.sub_museum || row.museum_name || null;
   const museumName = row.museum_name || "Museum";
@@ -258,7 +253,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     id: row.id,
     title: row.title_sv || row.title_en || "Utan titel",
     titleEn: row.title_en,
-    category: row.category?.split(" (")?.[0] || "",
+    category: normalizeArtworkCategory(row.category),
     techniqueMaterial: row.technique_material,
     artists,
     datingText: row.dating_text,

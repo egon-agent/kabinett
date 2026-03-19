@@ -22,6 +22,7 @@ const REQUEST_TIMEOUT_MS = 15000;
 const MAX_PAGE_RETRIES = 5;
 const PAGE_DELAY_MS = 200;
 const PROGRESS_INTERVAL = 1000;
+const GENERIC_EUROPEANA_CATEGORIES = new Set(["IMAGE", "TEXT", "SOUND", "VIDEO", "3D"]);
 
 function readFlagValue(flagName: string): string | null {
   const prefix = `--${flagName}=`;
@@ -132,6 +133,39 @@ function normalizeProviderName(value: string | null): string {
   return value?.trim().toLowerCase() || "";
 }
 
+function normalizeWhitespace(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function isUrlLikeValue(value: string): boolean {
+  return /^https?:\/\//i.test(value) || /^www\./i.test(value);
+}
+
+function isAuthorityLabel(value: string): boolean {
+  return /^[0-9]+_[a-z][a-z0-9_-]*$/i.test(value);
+}
+
+function sanitizeArtistName(value: string | null): string | null {
+  if (!value) return null;
+
+  const normalized = normalizeWhitespace(value);
+  if (!normalized) return null;
+  if (isUrlLikeValue(normalized)) return null;
+  if (isAuthorityLabel(normalized)) return null;
+
+  return normalized;
+}
+
+function normalizeCategory(value: string | null): string | null {
+  if (!value) return null;
+
+  const normalized = normalizeWhitespace(value.split(" (")[0] || "");
+  if (!normalized) return null;
+  if (GENERIC_EUROPEANA_CATEGORIES.has(normalized.toUpperCase())) return null;
+
+  return normalized;
+}
+
 function buildArtistsJson(value: unknown): string | null {
   if (!Array.isArray(value)) return null;
 
@@ -139,7 +173,7 @@ function buildArtistsJson(value: unknown): string | null {
   const seen = new Set<string>();
 
   for (const candidate of value) {
-    const name = getFirstString(candidate);
+    const name = sanitizeArtistName(getFirstString(candidate));
     if (!name) continue;
 
     const dedupeKey = name.toLowerCase();
@@ -207,7 +241,7 @@ function parseItem(item: EuropeanaItem): ParsedItem | null {
     inventory_number: recordId,
     title_sv: titleSv,
     title_en: titleEn,
-    category: getFirstString(item.type),
+    category: normalizeCategory(getFirstString(item.type)),
     year_start: years.start,
     year_end: years.end,
     iiif_url: imageUrl,

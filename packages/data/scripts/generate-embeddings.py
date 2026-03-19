@@ -508,6 +508,60 @@ def write_pending_changes(
             upsert_vec_rows(connection, writes)
 
 
+def rebuild_vec_index_from_clip_embeddings(
+    connection: sqlite3.Connection,
+    batch_size: int = 1_000,
+) -> None:
+    if not table_exists(connection, "vec_artworks") or not table_exists(connection, "vec_artwork_map"):
+        return
+
+    total = scalar_count(connection, "SELECT COUNT(*) FROM clip_embeddings")
+    print("\n   Rebuilding sqlite-vec index from clip_embeddings...")
+    print(f"   Embeddings to index: {total}")
+
+    with connection:
+        connection.execute("DELETE FROM vec_artwork_map")
+        connection.execute("DELETE FROM vec_artworks")
+
+    last_artwork_id = -9223372036854775808
+    processed = 0
+
+    while True:
+        rows = connection.execute(
+            """
+            SELECT artwork_id, embedding
+            FROM clip_embeddings
+            WHERE artwork_id > ?
+            ORDER BY artwork_id
+            LIMIT ?
+            """,
+            (last_artwork_id, batch_size),
+        ).fetchall()
+        if not rows:
+            break
+
+        writes = [
+            EmbeddingWrite(
+                artwork_id=int(row[0]),
+                embedding_bytes=bytes(row[1]),
+                focal_x=0.5,
+                focal_y=0.5,
+            )
+            for row in rows
+        ]
+        with connection:
+            upsert_vec_rows(connection, writes)
+
+        last_artwork_id = int(rows[-1][0])
+        processed += len(writes)
+
+        if processed % 10_000 < batch_size or processed == total:
+            pct = "100.0" if total <= 0 else f"{(processed / total) * 100:.1f}"
+            print(f"   {processed}/{total} ({pct}%)")
+
+    print("   sqlite-vec index rebuilt.\n")
+
+
 def format_eta(seconds_remaining: float) -> str:
     if not math.isfinite(seconds_remaining) or seconds_remaining <= 0:
         return "0m"
@@ -833,6 +887,12 @@ async def run() -> None:
         print(f"   Already embedded: {already_embedded}")
         print(f"   Remaining: {total_remaining}\n")
 
+        vec_state = prepare_vec_state(connection, args.clean)
+        if vec_state.tables_ready and not vec_index_matches_clip_embeddings(connection):
+            rebuild_vec_index_from_clip_embeddings(connection)
+        elif not vec_state.tables_ready:
+            print("   ⚠️ sqlite-vec index unavailable; visual search index was not verified.")
+
         if total_remaining == 0:
             print("✅ All artworks already have embeddings.")
             return
@@ -847,8 +907,6 @@ async def run() -> None:
         model.eval()
         model.to(device)
         print("   Model loaded!\n")
-
-        vec_state = prepare_vec_state(connection, args.clean)
 
         print("   Collecting artwork IDs to embed...")
         rows = load_rows_to_embed(connection)
