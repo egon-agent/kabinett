@@ -9,6 +9,7 @@ const ALLOWED_HOSTS = new Set([
   "nationalmuseum.iiifhosting.com",
   "media.samlingar.shm.se",
   "ems.dimu.org",
+  "api.europeana.eu",
 ]);
 
 function corsHeaders(origin: string | null, env: Env): Record<string, string> {

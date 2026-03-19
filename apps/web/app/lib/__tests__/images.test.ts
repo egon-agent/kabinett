@@ -32,6 +32,19 @@ describe("images", () => {
     );
   });
 
+  it("buildImageUrl leaves Europeana thumbnail URLs unchanged", () => {
+    const result = buildImageUrl(
+      "https://api.europeana.eu/thumbnail/v2/url.json?uri=https%3A%2F%2Fexample.org%2Fimage.jpg&type=IMAGE",
+      400
+    );
+
+    expect(result).toBe(
+      `https://img.norrava.com/?url=${encodeURIComponent(
+        "https://api.europeana.eu/thumbnail/v2/url.json?uri=https%3A%2F%2Fexample.org%2Fimage.jpg&type=IMAGE"
+      )}`
+    );
+  });
+
   it("buildImageUrl returns empty string for null or empty input", () => {
     expect(buildImageUrl(null, 400)).toBe("");
     expect(buildImageUrl("", 400)).toBe("");

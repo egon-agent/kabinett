@@ -35,6 +35,10 @@ export function externalImageUrl(iiifOrDirect: string, width: number): string {
     return normalized.replace(/dimension=\d+x\d+/, `dimension=${width}x${width}`);
   }
 
+  if (normalized.includes("api.europeana.eu/thumbnail")) {
+    return normalized;
+  }
+
   const iiifBase = normalized.endsWith("/") ? normalized : `${normalized}/`;
   return `${iiifBase}full/${width},/0/default.jpg`;
 }
