@@ -7,7 +7,7 @@ import { uiText, useUiLocale } from "../lib/ui-language";
 
 const HERO_SUGGESTION_CHIPS: Record<CampaignId, readonly string[]> = {
   default: ["äpple", "röd klänning", "solnedgång", "guld", "barn som leker", "hav"],
-  europeana: ["renaissance", "impressionism", "portrait", "sculpture", "print", "photography"],
+  europeana: ["apple", "children playing", "stormy sea", "portrait", "1950s dress"],
   nationalmuseum: ["stilleben", "porträtt", "landskap", "guld", "blommor", "storm"],
   nordiska: ["allmogemöbler", "samiska föremål", "folkdräkt", "Stockholm", "leksaker", "Skansen"],
   shm: ["vikingasvärd", "krona", "runsten", "rustning", "silver", "medeltid"],
@@ -35,6 +35,9 @@ export default function HeroSearch({
   const resolvedHeadline = headline || `${totalWorks.toLocaleString("sv-SE")} konstverk.`;
   const resolvedSubline = subline || uiText(uiLocale, "Sök på vad som helst.", "Search for anything.");
   const suggestionChips = HERO_SUGGESTION_CHIPS[campaignId] || HERO_SUGGESTION_CHIPS.default;
+  const placeholder = campaignId === "europeana"
+    ? "portrait, blue sky, rabbit"
+    : uiText(uiLocale, "porträtt, blå himmel, stilleben…", "portrait, blue sky, still life…");
 
   const handleFocus = useCallback(() => {
     const el = inputRef.current;
@@ -153,7 +156,7 @@ export default function HeroSearch({
                 id="hero-search"
                 name="q"
                 type="text" enterKeyHint="search" autoCorrect="off"
-                placeholder={uiText(uiLocale, "porträtt, blå himmel, stilleben…", "portrait, blue sky, still life…")}
+                placeholder={placeholder}
                 className="flex-1 bg-transparent text-dark-text placeholder:text-[rgba(201,176,142,0.35)] text-[0.95rem] md:text-[1rem] px-0 py-0 border-none outline-none [&::-webkit-search-cancel-button]:hidden"
               />
             </div>
