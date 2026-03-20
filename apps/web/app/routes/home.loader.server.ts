@@ -10,6 +10,7 @@ import { getDb } from "../lib/db.server";
 import { buildDirectImageUrl, buildImageUrl } from "../lib/images";
 import { getEnabledMuseums, shouldShowCollectionLabels, sourceFilter } from "../lib/museums.server";
 import { getCachedSiteStats } from "../lib/stats.server";
+import { formatUiNumber, resolveUiLocale } from "../lib/ui-language";
 
 export type HomeLoaderData = {
   initialItems: ArtworkDisplayItem[];
@@ -104,6 +105,7 @@ export async function homeLoader(request: Request): Promise<HomeLoaderData> {
 
   // 2. Stats (already cached in-memory by stats.server)
   const siteStats = getCachedSiteStats(db);
+  const uiLocale = resolveUiLocale(campaign.id);
   const stats: StatsCardData = {
     total: siteStats.totalWorks,
     museums: siteStats.museums,
@@ -111,14 +113,20 @@ export async function homeLoader(request: Request): Promise<HomeLoaderData> {
     yearsSpan: siteStats.yearsSpan,
   };
   const roundedTotal = stats.total >= 1000 ? Math.floor(stats.total / 1000) * 1000 : stats.total;
-  const defaultMetaDescription = `Upptäck över ${roundedTotal} verk från ${stats.museums} svenska samlingar.`;
+  const defaultMetaDescription = uiLocale === "en"
+    ? `Discover more than ${formatUiNumber(roundedTotal, uiLocale)} works from ${formatUiNumber(stats.museums, uiLocale)} Swedish collections.`
+    : `Upptäck över ${roundedTotal} verk från ${stats.museums} svenska samlingar.`;
   const heroHeadline = campaign.museumName
     ? campaign.museumName
-    : `${stats.total.toLocaleString("sv-SE")} konstverk.`;
-  const metaTitle = campaign.metaTitle || "Kabinett — Utforska Sveriges kulturarv";
+    : uiLocale === "en"
+      ? `${formatUiNumber(stats.total, uiLocale)} artworks.`
+      : `${stats.total.toLocaleString("sv-SE")} konstverk.`;
+  const metaTitle = campaign.metaTitle || (uiLocale === "en" ? "Kabinett — Explore Sweden's cultural heritage" : "Kabinett — Utforska Sveriges kulturarv");
   const metaDescription = campaign.metaDescription
     || (campaign.museumName
-      ? `Upptäck verk från ${campaign.museumName} i Kabinett.`
+      ? uiLocale === "en"
+        ? `Discover works from ${campaign.museumName} in Kabinett.`
+        : `Upptäck verk från ${campaign.museumName} i Kabinett.`
       : defaultMetaDescription);
 
   // 3. Preload first theme (lightweight — single FTS query)

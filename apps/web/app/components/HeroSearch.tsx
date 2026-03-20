@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import Autocomplete from "./Autocomplete";
 import type { AutocompleteSuggestion } from "./Autocomplete";
 import type { CampaignId } from "../lib/campaign.server";
+import { uiText, useUiLocale } from "../lib/ui-language";
 
 const HERO_SUGGESTION_CHIPS: Record<CampaignId, readonly string[]> = {
   default: ["äpple", "röd klänning", "solnedgång", "guld", "barn som leker", "hav"],
@@ -30,8 +31,9 @@ export default function HeroSearch({
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
+  const uiLocale = useUiLocale();
   const resolvedHeadline = headline || `${totalWorks.toLocaleString("sv-SE")} konstverk.`;
-  const resolvedSubline = subline || "Sök på vad som helst.";
+  const resolvedSubline = subline || uiText(uiLocale, "Sök på vad som helst.", "Search for anything.");
   const suggestionChips = HERO_SUGGESTION_CHIPS[campaignId] || HERO_SUGGESTION_CHIPS.default;
 
   const handleFocus = useCallback(() => {
@@ -128,7 +130,7 @@ export default function HeroSearch({
         {({ inputProps }) => (
           <form action="/search" method="get" onSubmit={handleSubmit} className="mt-7 md:mt-9 max-w-[34rem] mx-auto">
             <label htmlFor="hero-search" className="sr-only">
-              Sök bland konstverk
+              {uiText(uiLocale, "Sök bland konstverk", "Search artworks")}
             </label>
             <div className="flex items-center gap-3.5 rounded-full bg-[rgba(245,240,232,0.08)] border border-[rgba(245,240,232,0.10)] px-6 py-[0.95rem] transition-all duration-300 focus-within:border-[rgba(212,168,83,0.35)] focus-within:bg-[rgba(245,240,232,0.10)] focus-within:shadow-[0_0_48px_rgba(212,168,83,0.08)]" style={{ transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)" }}>
               <svg
@@ -151,7 +153,7 @@ export default function HeroSearch({
                 id="hero-search"
                 name="q"
                 type="text" enterKeyHint="search" autoCorrect="off"
-                placeholder="porträtt, blå himmel, stilleben…"
+                placeholder={uiText(uiLocale, "porträtt, blå himmel, stilleben…", "portrait, blue sky, still life…")}
                 className="flex-1 bg-transparent text-dark-text placeholder:text-[rgba(201,176,142,0.35)] text-[0.95rem] md:text-[1rem] px-0 py-0 border-none outline-none [&::-webkit-search-cancel-button]:hidden"
               />
             </div>

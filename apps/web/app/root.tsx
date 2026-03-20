@@ -14,6 +14,7 @@ import "./fonts.css";
 import "./app.css";
 import { useFavorites } from "./lib/favorites";
 import { ensureRequestContext } from "./lib/request-context.server";
+import { getOgLocale, resolveUiLocale, uiText, useUiLocale } from "./lib/ui-language";
 
 export function headers() {
   return {
@@ -26,8 +27,12 @@ export function headers() {
 export function loader({ request }: Route.LoaderArgs) {
   // Set campaign context (via AsyncLocalStorage.enterWith) so all child
   // loaders see the correct museum filter based on the request hostname.
-  ensureRequestContext(request);
-  return null;
+  const campaign = ensureRequestContext(request);
+  const uiLocale = resolveUiLocale(campaign.id);
+  return {
+    campaignId: campaign.id,
+    uiLocale,
+  };
 }
 
 export const links: Route.LinksFunction = () => [
@@ -38,13 +43,15 @@ export const links: Route.LinksFunction = () => [
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  const uiLocale = useUiLocale();
+
   return (
-    <html lang="sv">
+    <html lang={uiLocale}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#FAF7F2" />
-        <meta property="og:locale" content="sv_SE" />
+        <meta property="og:locale" content={getOgLocale(uiLocale)} />
         <meta property="og:site_name" content="Kabinett" />
         <meta name="robots" content="index,follow" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -81,7 +88,7 @@ window.addEventListener('error',function(event){
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:bg-cream focus:text-ink focus:px-4 focus:py-2 focus:rounded-full focus:shadow-lg focus-ring"
         >
-          Hoppa till innehåll
+          {uiText(uiLocale, "Hoppa till innehåll", "Skip to content")}
         </a>
         <Header />
         <main id="main-content" className="app-main pb-[7rem] lg:pb-0">{children}</main>
@@ -161,6 +168,15 @@ function Header() {
   const path = location.pathname;
   const isLight = useIsLightPage();
   const isDark = !isLight;
+  const uiLocale = useUiLocale();
+  const showSchool = uiLocale !== "en";
+  const navItems = [
+    { href: "/discover", label: uiText(uiLocale, "Upptäck", "Discover") },
+    { href: "/search?type=visual&focus=1", label: uiText(uiLocale, "Sök", "Search") },
+    ...(showSchool ? [{ href: "/skola", label: uiText(uiLocale, "Skola", "School") }] : []),
+    { href: "/favorites", label: uiText(uiLocale, "Sparade", "Saved") },
+    { href: "/om", label: uiText(uiLocale, "Om", "About") },
+  ];
 
   return (
     <header
@@ -172,7 +188,7 @@ function Header() {
       ].join(" ")}
     >
       <nav
-        aria-label="Huvudnavigering"
+        aria-label={uiText(uiLocale, "Huvudnavigering", "Main navigation")}
         className="flex items-center justify-between px-5 md:px-6 lg:px-8 h-[3.5rem] max-w-7xl mx-auto"
       >
         <a
@@ -191,11 +207,9 @@ function Header() {
             isDark ? "text-dark-text/70" : "text-warm-gray",
           ].join(" ")}
         >
-          <NavLink href="/discover" label="Upptäck" path={path} isDark={isDark} />
-          <NavLink href="/search?type=visual&focus=1" label="Sök" path={path} isDark={isDark} />
-          <NavLink href="/skola" label="Skola" path={path} isDark={isDark} />
-          <NavLink href="/favorites" label="Sparade" path={path} isDark={isDark} />
-          <NavLink href="/om" label="Om" path={path} isDark={isDark} />
+          {navItems.map((item) => (
+            <NavLink key={item.href} href={item.href} label={item.label} path={path} isDark={isDark} />
+          ))}
         </div>
       </nav>
     </header>
@@ -208,11 +222,18 @@ function BottomNav() {
 
   const isLight = useIsLightPage();
   const isDark = !isLight;
+  const uiLocale = useUiLocale();
 
-  const tabs = [
+  const tabs: Array<{
+    href: string;
+    label: string;
+    active: boolean;
+    badge?: number;
+    icon: (color: string) => React.ReactNode;
+  }> = [
     {
       href: "/",
-      label: "Hem",
+      label: uiText(uiLocale, "Hem", "Home"),
       active: path === "/",
       icon: (color: string) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
@@ -223,7 +244,7 @@ function BottomNav() {
     },
     {
       href: "/discover",
-      label: "Upptäck",
+      label: uiText(uiLocale, "Upptäck", "Discover"),
       active: path === "/discover",
       icon: (color: string) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
@@ -234,7 +255,7 @@ function BottomNav() {
     },
     {
       href: "/search?type=visual&focus=1",
-      label: "Sök",
+      label: uiText(uiLocale, "Sök", "Search"),
       active: path === "/search",
       icon: (color: string) => (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
@@ -243,22 +264,24 @@ function BottomNav() {
         </svg>
       ),
     },
-    {
-      href: "/skola",
-      label: "Skola",
-      active: path === "/skola" || path.startsWith("/skola/"),
-      icon: (color: string) => (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
-          <path d="M3 6.5a1.5 1.5 0 0 1 1.5-1.5h12A1.5 1.5 0 0 1 18 6.5v11A1.5 1.5 0 0 1 16.5 19h-12A1.5 1.5 0 0 1 3 17.5v-11z" />
-          <path d="M18 7.5h2a1 1 0 0 1 1 1v9.5a1 1 0 0 1-1 1h-11" />
-          <path d="M6.5 9.5h8" />
-          <path d="M6.5 12.5h8" />
-        </svg>
-      ),
-    },
+    ...(uiLocale === "en"
+      ? []
+      : [{
+        href: "/skola",
+        label: uiText(uiLocale, "Skola", "School"),
+        active: path === "/skola" || path.startsWith("/skola/"),
+        icon: (color: string) => (
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
+            <path d="M3 6.5a1.5 1.5 0 0 1 1.5-1.5h12A1.5 1.5 0 0 1 18 6.5v11A1.5 1.5 0 0 1 16.5 19h-12A1.5 1.5 0 0 1 3 17.5v-11z" />
+            <path d="M18 7.5h2a1 1 0 0 1 1 1v9.5a1 1 0 0 1-1 1h-11" />
+            <path d="M6.5 9.5h8" />
+            <path d="M6.5 12.5h8" />
+          </svg>
+        ),
+      }]),
     {
       href: "/favorites",
-      label: "Sparade",
+      label: uiText(uiLocale, "Sparade", "Saved"),
       active: path === "/favorites",
       badge: count,
       icon: (color: string) => (
@@ -271,7 +294,7 @@ function BottomNav() {
 
   return (
     <nav
-      aria-label="Snabbnavigering"
+      aria-label={uiText(uiLocale, "Snabbnavigering", "Quick navigation")}
       className={[
         "fixed bottom-0 left-0 right-0 z-[60] backdrop-blur-[16px] pb-[env(safe-area-inset-bottom)] border-t lg:hidden",
         isDark

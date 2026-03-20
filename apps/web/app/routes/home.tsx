@@ -7,6 +7,7 @@ import ThemeCard, { type ThemeCardSection } from "../components/ThemeCard";
 import WalkPromoCard from "../components/WalkPromoCard";
 import type { ArtworkDisplayItem } from "../components/artwork-meta";
 import { useScrollReveal } from "../hooks/useScrollReveal";
+import { uiText, useUiLocale } from "../lib/ui-language";
 import { homeLoader, type HomeLoaderData } from "./home.loader.server";
 import { getThemes } from "../lib/themes";
 import type { Route } from "./+types/home";
@@ -74,6 +75,7 @@ function getCardVariant(positionInFeed: number, item?: { iiif_url?: string | nul
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
+  const uiLocale = useUiLocale();
   const websiteJsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -224,12 +226,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       cursorRef.current = data.nextCursor ?? null;
       setHasMore(Boolean(data.hasMore));
     } catch {
-      setLoadError("Kunde inte ladda fler verk just nu.");
+      setLoadError(uiText(uiLocale, "Kunde inte ladda fler verk just nu.", "Could not load more artworks right now."));
     } finally {
       inFlightRef.current = false;
       setLoading(false);
     }
-  }, [hasMore, loaderData.campaignId]);
+  }, [hasMore, loaderData.campaignId, uiLocale]);
 
   useEffect(() => {
     const target = sentinelRef.current;
@@ -319,7 +321,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         {<div ref={sentinelRef} className="h-px" />}
         {loading && (
           <div aria-live="polite" className="text-center p-8 text-dark-text-muted text-[0.8rem]">
-            Laddar mer konst…
+            {uiText(uiLocale, "Laddar mer konst…", "Loading more artworks…")}
           </div>
         )}
         {loadError && !loading && (
@@ -330,7 +332,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               onClick={() => { setLoadError(""); void loadMore(); }}
               className="px-4 py-2 rounded-full bg-dark-raised text-dark-text-secondary text-sm font-medium hover:bg-dark-hover hover:text-dark-text transition-colors focus-ring"
             >
-              Försök igen
+              {uiText(uiLocale, "Försök igen", "Try again")}
             </button>
           </div>
         )}
