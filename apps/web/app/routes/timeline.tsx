@@ -5,13 +5,16 @@ import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
 import { parseArtist } from "../lib/parsing";
 import GridCard from "../components/GridCard";
+import { formatUiNumber, resolveUiLocale, uiText, useUiLocale } from "../lib/ui-language";
+import { getCampaignConfig } from "../lib/campaign.server";
 
-export function meta({}: Route.MetaArgs) {
+export function meta({ data }: Route.MetaArgs) {
+  const isEnglish = data?.uiLocale === "en";
   return [
-    { title: "Tidslinje — Kabinett" },
+    { title: isEnglish ? "Timeline — Kabinett" : "Tidslinje — Kabinett" },
     {
       name: "description",
-      content: "800 år av konst, decennium för decennium.",
+      content: isEnglish ? "800 years of art, decade by decade." : "800 år av konst, decennium för decennium.",
     },
   ];
 }
@@ -20,6 +23,8 @@ export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const parsedDecade = Number.parseInt(url.searchParams.get("decade") || "0", 10);
   const selectedDecade = Number.isFinite(parsedDecade) ? parsedDecade : 0;
+  const campaign = getCampaignConfig();
+  const uiLocale = resolveUiLocale(campaign.id);
 
   const db = getDb();
   const source = sourceFilter();
@@ -169,7 +174,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     }));
   }
 
-  return { decades, selectedDecade, selectedLabel, selectedWorks, selectedTotal, selectedHasMore };
+  return { decades, selectedDecade, selectedLabel, selectedWorks, selectedTotal, selectedHasMore, uiLocale };
 }
 
 type DecadeWork = {
@@ -182,6 +187,7 @@ type DecadeWork = {
 };
 
 export default function Timeline({ loaderData }: Route.ComponentProps) {
+  const uiLocale = useUiLocale();
   const { decades, selectedDecade, selectedLabel, selectedWorks: initialWorks, selectedTotal, selectedHasMore: initialHasMore } = loaderData;
 
   const [works, setWorks] = useState<DecadeWork[]>(initialWorks);
@@ -201,10 +207,10 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
     if (loading || !canLoadMore || !selectedDecade) return;
     setLoading(true);
     setLoadError(false);
-    try {
-      const res = await fetch(`/api/decade-works?decade=${selectedDecade}&offset=${offsetRef.current}`);
-      if (!res.ok) throw new Error("Kunde inte ladda fler verk");
-      const data = await res.json() as { works: DecadeWork[]; hasMore: boolean };
+      try {
+        const res = await fetch(`/api/decade-works?decade=${selectedDecade}&offset=${offsetRef.current}`);
+      if (!res.ok) throw new Error("Could not load more artworks");
+        const data = await res.json() as { works: DecadeWork[]; hasMore: boolean };
       if (data.works.length === 0) {
         setCanLoadMore(false);
       } else {
@@ -233,14 +239,14 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
   return (
     <div className="min-h-screen pt-[3.5rem] bg-dark-base text-dark-text">
       <div id="top" className="md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-        <h1 className="font-serif text-[2rem] text-dark-text px-5 md:px-0 pt-6 md:pt-8 pb-1.5">Tidslinje</h1>
+        <h1 className="font-serif text-[2rem] text-dark-text px-5 md:px-0 pt-6 md:pt-8 pb-1.5">{uiText(uiLocale, "Tidslinje", "Timeline")}</h1>
         <p className="px-5 md:px-0 pb-5 text-[0.88rem] text-dark-text-secondary">
-          800 år av konst — från medeltid till modernism
+          {uiText(uiLocale, "800 år av konst — från medeltid till modernism", "800 years of art, from the Middle Ages to modernism")}
         </p>
       </div>
 
       <div className="md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-        <div className="timeline-scroll no-scrollbar" aria-label="Tidslinje decennier">
+        <div className="timeline-scroll no-scrollbar" aria-label={uiText(uiLocale, "Tidslinje decennier", "Timeline decades")}>
           {decades.map((decade) => (
             <div key={decade.decade} className="timeline-column">
               <div className="timeline-label font-serif">{decade.decade}</div>
@@ -267,7 +273,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
                 </a>
               ))}
               <a className="timeline-expand focus-ring" href={`/timeline?decade=${decade.decade}#decade-${decade.decade}`}>
-                Visa {decade.count} verk
+                {uiText(uiLocale, `Visa ${decade.count} verk`, `View ${formatUiNumber(decade.count, uiLocale)} works`)}
               </a>
             </div>
           ))}
@@ -282,14 +288,14 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
                 {selectedLabel}
               </h2>
               <p className="text-sm text-dark-text-secondary">
-                {selectedTotal.toLocaleString("sv")} verk
+                {uiText(uiLocale, `${selectedTotal.toLocaleString("sv")} verk`, `${formatUiNumber(selectedTotal, uiLocale)} works`)}
               </p>
             </div>
             <a
               href="#top"
               className="text-sm text-dark-text-secondary no-underline focus-ring"
             >
-              Tillbaka upp
+              {uiText(uiLocale, "Tillbaka upp", "Back to top")}
             </a>
           </div>
 
@@ -305,25 +311,25 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
             </div>
           ) : (
             <p className="py-8 text-dark-text-secondary">
-              Inga verk från denna period.
+              {uiText(uiLocale, "Inga verk från denna period.", "No works from this period.")}
             </p>
           )}
           {loadError && (
             <div className="text-center py-6" aria-live="polite">
-              <p className="text-sm text-dark-text-secondary mb-3">Kunde inte ladda fler verk.</p>
+              <p className="text-sm text-dark-text-secondary mb-3">{uiText(uiLocale, "Kunde inte ladda fler verk.", "Could not load more artworks.")}</p>
               <button
                 type="button"
                 onClick={() => { setLoadError(false); loadMore(); }}
                 className="px-4 py-2 rounded-full bg-dark-raised text-dark-text-secondary text-sm font-medium hover:bg-dark-hover hover:text-dark-text transition-colors focus-ring"
               >
-                Försök igen
+                {uiText(uiLocale, "Försök igen", "Try again")}
               </button>
             </div>
           )}
           {canLoadMore && !loadError && <div ref={sentinelRef} className="h-4" />}
           {loading && (
             <p className="text-center text-sm text-dark-text-secondary py-4">
-              Laddar fler verk…
+              {uiText(uiLocale, "Laddar fler verk…", "Loading more artworks…")}
             </p>
           )}
         </section>

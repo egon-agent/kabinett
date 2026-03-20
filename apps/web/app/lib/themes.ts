@@ -3,20 +3,20 @@ import type { CampaignId } from "./campaign.server";
 
 // Universal themes that work well across all collections
 const UNIVERSAL_THEMES: ThemeCardSection[] = [
-  { title: "Porträtt", subtitle: "Ansikten genom tiderna", filter: "Porträtt", color: "#2E2620", searchType: "visual", items: [] },
-  { title: "I rött", subtitle: "Passion och drama", filter: "Rött", color: "#3A1A1A", searchType: "visual", items: [] },
-  { title: "Djur i konsten", subtitle: "Från hästar till hundar", filter: "Djur", color: "#2D3A2D", searchType: "visual", items: [] },
-  { title: "Blommor", subtitle: "Natur i närbild", filter: "Blommor", color: "#2A2D1A", searchType: "visual", items: [] },
-  { title: "I blått", subtitle: "Melankoli och hav", filter: "Blått", color: "#1A1A2E", searchType: "visual", items: [] },
+  { title: "Porträtt", titleEn: "Portraits", subtitle: "Ansikten genom tiderna", subtitleEn: "Faces through time", filter: "Porträtt", queryEn: "portrait", color: "#2E2620", searchType: "visual", items: [] },
+  { title: "I rött", titleEn: "In red", subtitle: "Passion och drama", subtitleEn: "Passion and drama", filter: "Rött", queryEn: "red", color: "#3A1A1A", searchType: "visual", items: [] },
+  { title: "Djur i konsten", titleEn: "Animals in art", subtitle: "Från hästar till hundar", subtitleEn: "From horses to hounds", filter: "Djur", queryEn: "animals", color: "#2D3A2D", searchType: "visual", items: [] },
+  { title: "Blommor", titleEn: "Flowers", subtitle: "Natur i närbild", subtitleEn: "Nature up close", filter: "Blommor", queryEn: "flowers", color: "#2A2D1A", searchType: "visual", items: [] },
+  { title: "I blått", titleEn: "In blue", subtitle: "Melankoli och hav", subtitleEn: "Melancholy and sea", filter: "Blått", queryEn: "blue", color: "#1A1A2E", searchType: "visual", items: [] },
 ];
 
 // Campaign-specific highlight themes (strong visual results per collection)
 const NM_THEMES: ThemeCardSection[] = [
-  { title: "Havslandskap", subtitle: "Vatten, kust och hav", filter: "Havet", color: "#1A2A3A", searchType: "visual", items: [] },
-  { title: "Nattscener", subtitle: "Mörker och mystik", filter: "Natt", color: "#0F0F1A", searchType: "visual", items: [] },
-  { title: "Skulptur", subtitle: "Form i tre dimensioner", filter: "Skulptur", color: "#222222", searchType: "visual", items: [] },
-  { title: "1800-talet", subtitle: "Romantik och realism", filter: "1800-tal", color: "#2A2520", searchType: "all", items: [] },
-  { title: "1700-talet", subtitle: "Rokoko och upplysning", filter: "1700-tal", color: "#28261E", searchType: "all", items: [] },
+  { title: "Havslandskap", titleEn: "Seascapes", subtitle: "Vatten, kust och hav", subtitleEn: "Water, coast and sea", filter: "Havet", queryEn: "sea", color: "#1A2A3A", searchType: "visual", items: [] },
+  { title: "Nattscener", titleEn: "Night scenes", subtitle: "Mörker och mystik", subtitleEn: "Darkness and mystery", filter: "Natt", queryEn: "night", color: "#0F0F1A", searchType: "visual", items: [] },
+  { title: "Skulptur", titleEn: "Sculpture", subtitle: "Form i tre dimensioner", subtitleEn: "Form in three dimensions", filter: "Skulptur", queryEn: "sculpture", color: "#222222", searchType: "visual", items: [] },
+  { title: "1800-talet", titleEn: "The 19th century", subtitle: "Romantik och realism", subtitleEn: "Romanticism and realism", filter: "1800-tal", queryEn: "19th century", color: "#2A2520", searchType: "all", items: [] },
+  { title: "1700-talet", titleEn: "The 18th century", subtitle: "Rokoko och upplysning", subtitleEn: "Rococo and enlightenment", filter: "1700-tal", queryEn: "18th century", color: "#28261E", searchType: "all", items: [] },
 ];
 
 const NORDISKA_THEMES: ThemeCardSection[] = [

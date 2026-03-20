@@ -4,11 +4,13 @@ import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
 import { parseArtist } from "../lib/parsing";
+import { formatUiNumber, resolveUiLocale, uiText, useUiLocale } from "../lib/ui-language";
 
-export function meta({}: Route.MetaArgs) {
+export function meta({ data }: Route.MetaArgs) {
+  const isEnglish = data?.uiLocale === "en";
   return [
-    { title: "Vandringar — Kabinett" },
-    { name: "description", content: "Utvalda vandringar genom Sveriges kulturarv." },
+    { title: isEnglish ? "Walks — Kabinett" : "Vandringar — Kabinett" },
+    { name: "description", content: isEnglish ? "Curated walks through cultural heritage collections." : "Utvalda vandringar genom Sveriges kulturarv." },
   ];
 }
 
@@ -44,8 +46,21 @@ export async function loader({ request }: Route.LoaderArgs) {
   const selected = url.searchParams.get("walk") || "";
   const db = getDb();
   const campaign = getCampaignConfig();
+  const uiLocale = resolveUiLocale(campaign.id);
   const sourceA = sourceFilter("a");
   const randomSeed = Math.floor(Date.now() / 60_000);
+
+  if (campaign.id === "europeana") {
+    return {
+      walkPreviews: [],
+      artworks: [],
+      selected: "",
+      walkInfo: null,
+      hasWalks: false,
+      uiLocale,
+      campaignId: campaign.id,
+    };
+  }
 
   // Show walks matching the current campaign, or "default" walks on the main site
   const campaignFilter = campaign.id === "default"
@@ -124,11 +139,41 @@ export async function loader({ request }: Route.LoaderArgs) {
   }
 
   const hasWalks = walkPreviews.some((w) => w.previewUrl);
-  return { walkPreviews, artworks, selected, walkInfo, hasWalks };
+  return { walkPreviews, artworks, selected, walkInfo, hasWalks, uiLocale, campaignId: campaign.id };
 }
 
 export default function Walks({ loaderData }: Route.ComponentProps) {
-  const { walkPreviews, artworks, selected, walkInfo } = loaderData;
+  const uiLocale = useUiLocale();
+  const { walkPreviews, artworks, selected, walkInfo, hasWalks } = loaderData;
+
+  if (!hasWalks) {
+    return (
+      <div className="min-h-screen pt-[3.5rem] bg-dark-base text-dark-text">
+        <div className="max-w-3xl mx-auto px-5 pt-12 pb-16 text-center">
+          <h1 className="font-serif text-[2rem] text-dark-text">
+            {uiText(uiLocale, "Vandringar", "Walks")}
+          </h1>
+          <p className="mt-4 text-[0.95rem] text-dark-text-secondary leading-[1.7]">
+            {uiText(uiLocale, "Det finns inga publicerade vandringar här just nu.", "There are no published walks for Europeana right now.")}
+          </p>
+          <div className="mt-8 flex items-center justify-center gap-3">
+            <a
+              href="/discover"
+              className="px-5 py-2.5 rounded-full bg-dark-raised text-dark-text text-sm font-medium no-underline hover:bg-dark-hover transition-colors focus-ring"
+            >
+              {uiText(uiLocale, "Upptäck", "Discover")}
+            </a>
+            <a
+              href="/search?type=visual&focus=1"
+              className="px-5 py-2.5 rounded-full border border-[rgba(255,255,255,0.12)] text-dark-text-secondary text-sm font-medium no-underline hover:bg-dark-hover hover:text-dark-text transition-colors focus-ring"
+            >
+              {uiText(uiLocale, "Sök", "Search")}
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen pt-[3.5rem] bg-dark-base text-dark-text">
@@ -136,10 +181,10 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
       {!selected && (
         <div className="pt-10 px-5 pb-6 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
           <h1 className="font-serif text-[2rem] text-dark-text">
-            Vandringar
+            {uiText(uiLocale, "Vandringar", "Walks")}
           </h1>
           <p className="text-dark-text-secondary text-[0.88rem] mt-2.5 leading-[1.6]">
-            Utvalda resor genom samlingen. Varje vandring har ett tema och en berättelse.
+            {uiText(uiLocale, "Utvalda resor genom samlingen. Varje vandring har ett tema och en berättelse.", "Curated journeys through the collection. Each walk has a theme and a story.")}
           </p>
         </div>
       )}
@@ -195,7 +240,7 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
             )}
             <div className="relative md:max-w-6xl md:mx-auto md:px-0 lg:px-0">
               <a href="/vandringar" className="text-[0.8rem] text-[rgba(255,255,255,0.5)] no-underline focus-ring">
-                ← Vandringar
+                ← {uiText(uiLocale, "Vandringar", "Walks")}
               </a>
               <h1 className="font-serif text-[2rem] font-bold text-white mt-3 leading-[1.2]">
                 {walkInfo.title}
@@ -207,7 +252,7 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
                 {walkInfo.description}
               </p>
               <p className="text-[0.75rem] text-[rgba(255,255,255,0.4)] mt-4">
-                {artworks.length} verk
+                {uiText(uiLocale, `${artworks.length} verk`, `${formatUiNumber(artworks.length, uiLocale)} works`)}
               </p>
             </div>
           </div>
@@ -221,7 +266,7 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
                 >
                   <div className="overflow-hidden" style={{ backgroundColor: a.dominant_color || "#D4CDC3" }}>
                     <img src={buildImageUrl(a.iiif_url, 800)}
-                      alt={`${a.title_sv || a.title_en || "Utan titel"} — ${parseArtist(a.artists)}`} width={800} height={600}
+                      alt={`${a.title_sv || a.title_en || uiText(uiLocale, "Utan titel", "Untitled")} — ${parseArtist(a.artists)}`} width={800} height={600}
                       onError={(event) => {
                         event.currentTarget.classList.add("is-broken");
                       }}
@@ -232,7 +277,7 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
                   <div className="p-4">
                     <p className="text-[0.7rem] text-stone mb-1">{i + 1} / {artworks.length}</p>
                     <p className="font-serif text-[1.125rem] font-semibold text-charcoal leading-[1.3]">
-                      {a.title_sv || a.title_en || "Utan titel"}
+                      {a.title_sv || a.title_en || uiText(uiLocale, "Utan titel", "Untitled")}
                     </p>
                     <p className="text-[0.8rem] text-warm-gray mt-[0.375rem]">
                       {parseArtist(a.artists)}

@@ -18,18 +18,30 @@ import {
   type SearchResultItem,
 } from "./search.loader.server";
 import { PAGE_SIZE } from "../lib/search-constants";
+import { formatUiNumber, uiText, useUiLocale } from "../lib/ui-language";
 
 const THEME_FILTERS: Record<string, string> = {
   "djur": "Djur",
+  "animals": "Djur",
   "havet": "Havet",
+  "sea": "Havet",
   "blommor": "Blommor",
+  "flowers": "Blommor",
   "natt": "Natt",
+  "night": "Natt",
   "rött": "Rött",
+  "red": "Rött",
   "blått": "Blått",
+  "blue": "Blått",
   "porträtt": "Porträtt",
+  "portrait": "Porträtt",
+  "portraits": "Porträtt",
   "1700-tal": "1700-tal",
+  "18th century": "1700-tal",
   "1800-tal": "1800-tal",
+  "19th century": "1800-tal",
   "skulptur": "Skulptur",
+  "sculpture": "Skulptur",
 };
 
 function resolveThemeFilter(query: string): string | null {
@@ -42,9 +54,10 @@ export function headers() {
 
 export function meta({ data }: Route.MetaArgs) {
   const q = data?.query || "";
+  const isEnglish = data?.uiLocale === "en";
   return [
-    { title: q ? `"${q}" — Kabinett` : "Sök — Kabinett" },
-    { name: "description", content: "Sök bland hundratusentals verk från Sveriges museer — med AI som förstår vad du letar efter." },
+    { title: q ? `"${q}" — Kabinett` : isEnglish ? "Search — Kabinett" : "Sök — Kabinett" },
+    { name: "description", content: isEnglish ? "Search hundreds of thousands of works from museums with AI that understands what you mean." : "Sök bland hundratusentals verk från Sveriges museer — med AI som förstår vad du letar efter." },
   ];
 }
 
@@ -130,6 +143,7 @@ function SearchAutocompleteForm({
   searchType?: SearchType;
   autoFocus?: boolean;
 }) {
+  const uiLocale = useUiLocale();
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState(defaultValue);
@@ -170,10 +184,10 @@ function SearchAutocompleteForm({
   }, [museum]);
 
   const placeholder = searchType === "visual"
-    ? "porträtt, blå himmel, storm…"
+    ? uiText(uiLocale, "porträtt, blå himmel, storm…", "portrait, blue sky, storm…")
     : searchType === "artist"
       ? "Carl Larsson, Hilma af Klint…"
-      : "Konstnär, titel, teknik…";
+      : uiText(uiLocale, "Konstnär, titel, teknik…", "Artist, title, medium…");
 
   return (
     <div className="relative mt-4">
@@ -192,7 +206,7 @@ function SearchAutocompleteForm({
             }}
           >
             <div className="flex gap-2">
-              <label htmlFor="search-input" className="sr-only">Sök</label>
+              <label htmlFor="search-input" className="sr-only">{uiText(uiLocale, "Sök", "Search")}</label>
               <input
                 {...inputProps}
                 ref={inputRef}
@@ -207,7 +221,7 @@ function SearchAutocompleteForm({
                 type="submit"
                 className="px-5 py-3 bg-charcoal text-cream rounded-card text-sm font-medium hover:bg-ink active:scale-[0.97] transition-[background-color,transform] shrink-0 focus-ring"
               >
-                Sök
+                {uiText(uiLocale, "Sök", "Search")}
               </button>
             </div>
           </form>
@@ -232,6 +246,7 @@ function SearchResultsPanel({
   searchType: SearchType;
   showMuseumBadge: boolean;
 }) {
+  const uiLocale = useUiLocale();
   const { results: initialResults, cursor: initialCursor } = initialPayload;
   const displayQuery = query;
   const [results, setResults] = useState<SearchResultItem[]>(initialResults);
@@ -335,20 +350,26 @@ function SearchResultsPanel({
     <>
       <p aria-live="polite" className="text-sm text-dark-text-secondary mb-6">
         {results.length > 0
-          ? `${results.length}${hasMore ? "+" : ""} träffar${displayQuery ? ` för "${displayQuery}"` : ""}`
-          : `Inga träffar${displayQuery ? ` för "${displayQuery}"` : ""}`}
+          ? uiText(
+            uiLocale,
+            `${results.length}${hasMore ? "+" : ""} träffar${displayQuery ? ` för "${displayQuery}"` : ""}`,
+            `${formatUiNumber(results.length, uiLocale)}${hasMore ? "+" : ""} results${displayQuery ? ` for "${displayQuery}"` : ""}`
+          )
+          : uiText(uiLocale, `Inga träffar${displayQuery ? ` för "${displayQuery}"` : ""}`, `No results${displayQuery ? ` for "${displayQuery}"` : ""}`)}
       </p>
       {results.length === 0 && displayQuery && (
         <div className="py-4">
-          <p className="text-sm text-dark-text-secondary mb-3">Förslag:</p>
+          <p className="text-sm text-dark-text-secondary mb-3">{uiText(uiLocale, "Förslag:", "Suggestions:")}</p>
           <ul className="list-none p-0 m-0 space-y-1 text-sm text-dark-text-muted">
-            <li>• Kontrollera stavningen</li>
-            <li>• Prova ett bredare sökord</li>
-            <li>• Sök på svenska eller engelska</li>
+            <li>• {uiText(uiLocale, "Kontrollera stavningen", "Check the spelling")}</li>
+            <li>• {uiText(uiLocale, "Prova ett bredare sökord", "Try a broader query")}</li>
+            <li>• {uiText(uiLocale, "Sök på svenska eller engelska", "Search in Swedish or English")}</li>
           </ul>
-          <p className="text-sm text-dark-text-secondary mt-5 mb-3">Eller prova:</p>
+          <p className="text-sm text-dark-text-secondary mt-5 mb-3">{uiText(uiLocale, "Eller prova:", "Or try:")}</p>
           <div className="flex flex-wrap gap-2">
-            {["Landskap", "Porträtt", "Stilleben", "Skulptur", "Akvarell"].map((s) => (
+            {(uiLocale === "en"
+              ? ["Landscape", "Portrait", "Still life", "Sculpture", "Watercolor"]
+              : ["Landskap", "Porträtt", "Stilleben", "Skulptur", "Akvarell"]).map((s) => (
               <a key={s} href={`/search?q=${encodeURIComponent(s)}`}
                 className="px-3 py-1.5 rounded-full bg-dark-raised text-dark-text-secondary text-sm font-medium hover:bg-dark-hover hover:text-dark-text transition-colors focus-ring"
               >{s}</a>
@@ -365,7 +386,7 @@ function SearchResultsPanel({
               className="rounded-card border border-stone/20 bg-dark-raised px-4 py-4 hover:bg-dark-hover transition-colors focus-ring"
             >
               <p className="text-base text-dark-text font-medium">{artist.name}</p>
-              <p className="text-sm text-dark-text-secondary mt-1">{artist.artwork_count} verk</p>
+              <p className="text-sm text-dark-text-secondary mt-1">{uiText(uiLocale, `${artist.artwork_count} verk`, `${formatUiNumber(artist.artwork_count, uiLocale)} works`)}</p>
             </a>
           ))}
         </div>
@@ -387,19 +408,19 @@ function SearchResultsPanel({
       )}
       {loadError && (
         <div className="text-center mt-8 py-4" aria-live="polite">
-          <p className="text-sm text-dark-text-secondary mb-3">Kunde inte ladda fler resultat.</p>
+          <p className="text-sm text-dark-text-secondary mb-3">{uiText(uiLocale, "Kunde inte ladda fler resultat.", "Could not load more results.")}</p>
           <button
             type="button"
             onClick={() => { setLoadError(false); loadMore(); }}
             className="px-4 py-2 rounded-full bg-dark-raised text-dark-text-secondary text-sm font-medium hover:bg-dark-hover hover:text-dark-text transition-colors focus-ring"
           >
-            Försök igen
+            {uiText(uiLocale, "Försök igen", "Try again")}
           </button>
         </div>
       )}
       {hasMore && !loadError && (
         <div ref={sentinelRef} className="text-center mt-8 py-4">
-          {loading && <p aria-live="polite" className="text-sm text-dark-text-secondary">Laddar fler…</p>}
+          {loading && <p aria-live="polite" className="text-sm text-dark-text-secondary">{uiText(uiLocale, "Laddar fler…", "Loading more…")}</p>}
         </div>
       )}
     </>
@@ -407,6 +428,7 @@ function SearchResultsPanel({
 }
 
 export default function Search({ loaderData }: Route.ComponentProps) {
+  const uiLocale = useUiLocale();
   const typedLoaderData = loaderData as SearchLoaderData;
   const {
     query,
@@ -422,17 +444,21 @@ export default function Search({ loaderData }: Route.ComponentProps) {
   const showResults = Boolean(query) || Boolean(museum);
   const showMuseumFilters = museumOptions.length > 1 && searchMode !== "theme";
   const searchIntro = searchType === "visual"
-    ? "Bildsök är bäst för motiv och stämningar som porträtt, blå himmel eller storm. För namn, epoker och material fungerar Alla bättre."
+    ? uiText(uiLocale, "Bildsök är bäst för motiv och stämningar som porträtt, blå himmel eller storm. För namn, epoker och material fungerar Alla bättre.", "Visual search works best for motifs and moods like portraits, blue sky or storm. For names, periods and materials, All usually works better.")
     : searchType === "artist"
-      ? "Sök efter konstnärer och formgivare. För motiv och stämningar fungerar Bildsök bättre."
+      ? uiText(uiLocale, "Sök efter konstnärer och formgivare. För motiv och stämningar fungerar Bildsök bättre.", "Search for artists and makers. For motifs and moods, Visual search works better.")
       : searchType === "artwork"
-        ? "Sök efter verk med ord från titel, beskrivning och metadata. För motiv och stämningar fungerar Bildsök bättre."
-        : "Alla passar bäst för namn, epoker och material. För motiv och stämningar som porträtt, natt eller hav är Bildsök oftast starkare.";
+        ? uiText(uiLocale, "Sök efter verk med ord från titel, beskrivning och metadata. För motiv och stämningar fungerar Bildsök bättre.", "Search for artworks using words from title, description and metadata. For motifs and moods, Visual search works better.")
+        : uiText(uiLocale, "Alla passar bäst för namn, epoker och material. För motiv och stämningar som porträtt, natt eller hav är Bildsök oftast starkare.", "All works best for names, periods and materials. For motifs and moods like portrait, night or sea, Visual search is usually stronger.");
   const suggestedQueries = searchType === "visual"
-    ? ["Porträtt", "Landskap", "Blommor", "Storm", "Blå himmel", "Guld", "Häst", "Vinter", "Skog", "Stilleben"]
+    ? (uiLocale === "en"
+      ? ["Portrait", "Landscape", "Flowers", "Storm", "Blue sky", "Gold", "Horse", "Winter", "Forest", "Still life"]
+      : ["Porträtt", "Landskap", "Blommor", "Storm", "Blå himmel", "Guld", "Häst", "Vinter", "Skog", "Stilleben"])
     : searchType === "artist"
       ? ["Carl Larsson", "Rembrandt", "Bruno Liljefors", "Hilma af Klint", "Anders Zorn"]
-      : ["Carl Larsson", "Rembrandt", "Olja på duk", "Akvarell", "Porträtt", "Landskap", "Skulptur", "1700-tal", "Guld", "Vinter"];
+      : (uiLocale === "en"
+        ? ["Carl Larsson", "Rembrandt", "Oil on canvas", "Watercolor", "Portrait", "Landscape", "Sculpture", "18th century", "Gold", "Winter"]
+        : ["Carl Larsson", "Rembrandt", "Olja på duk", "Akvarell", "Porträtt", "Landskap", "Skulptur", "1700-tal", "Guld", "Vinter"]);
 
   const buildSearchUrl = ({
     queryValue = query,
@@ -455,7 +481,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
   return (
     <div className="min-h-screen pt-14 bg-dark-base text-dark-text">
       <div className="px-(--spacing-page) pt-8 pb-4 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-        <h1 className="font-serif text-[2rem] text-dark-text mb-2">Sök</h1>
+        <h1 className="font-serif text-[2rem] text-dark-text mb-2">{uiText(uiLocale, "Sök", "Search")}</h1>
         <SearchAutocompleteForm
           defaultValue={query}
           museum={museum || undefined}
@@ -467,13 +493,13 @@ export default function Search({ loaderData }: Route.ComponentProps) {
         </p>
 
         <div className="mt-5">
-          <p className="text-[0.68rem] uppercase tracking-[0.08em] text-dark-text-muted mb-2.5">Typ</p>
+          <p className="text-[0.68rem] uppercase tracking-[0.08em] text-dark-text-muted mb-2.5">{uiText(uiLocale, "Typ", "Type")}</p>
           <div className="flex flex-wrap gap-2">
             {[
-              { id: "all" as SearchType, label: "Alla" },
-              { id: "artwork" as SearchType, label: "Verk" },
-              { id: "artist" as SearchType, label: "Konstnärer" },
-              { id: "visual" as SearchType, label: "Bildsök" },
+              { id: "all" as SearchType, label: uiText(uiLocale, "Alla", "All") },
+              { id: "artwork" as SearchType, label: uiText(uiLocale, "Verk", "Artworks") },
+              { id: "artist" as SearchType, label: uiText(uiLocale, "Konstnärer", "Artists") },
+              { id: "visual" as SearchType, label: uiText(uiLocale, "Bildsök", "Visual search") },
             ].map((option) => (
               <a
                 key={option.id}
@@ -494,7 +520,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
 
         {showMuseumFilters && (
           <div className="mt-4">
-            <p className="text-[0.68rem] uppercase tracking-[0.08em] text-dark-text-muted mb-2.5">Samlingar</p>
+            <p className="text-[0.68rem] uppercase tracking-[0.08em] text-dark-text-muted mb-2.5">{uiText(uiLocale, "Samlingar", "Collections")}</p>
             <div className="flex flex-wrap gap-2">
               <a
                 href={buildSearchUrl({ type: searchType })}
@@ -506,7 +532,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
                     : "bg-charcoal text-cream",
                 ].join(" ")}
               >
-                Alla
+                {uiText(uiLocale, "Alla", "All")}
               </a>
               {museumOptions.map((option: MuseumOption) => (
                 <a
@@ -529,7 +555,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
 
         {!query && (
           <div className="mt-6">
-            <p className="text-[0.68rem] uppercase tracking-[0.08em] text-dark-text-muted mb-3">Prova</p>
+            <p className="text-[0.68rem] uppercase tracking-[0.08em] text-dark-text-muted mb-3">{uiText(uiLocale, "Prova", "Try")}</p>
             <div className="flex flex-wrap gap-2">
               {suggestedQueries.map(s => (
                 <a key={s} href={buildSearchUrl({ queryValue: s, museumId: museum, type: searchType })}

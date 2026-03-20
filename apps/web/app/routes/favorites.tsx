@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getCampaignConfig } from "../lib/campaign.server";
 import { useFavorites } from "../lib/favorites";
 import { parseArtist } from "../lib/parsing";
+import { formatUiNumber, resolveUiLocale, uiText, useUiLocale } from "../lib/ui-language";
 
-export function meta() {
+export function loader() {
+  const campaign = getCampaignConfig();
+  return { uiLocale: resolveUiLocale(campaign.id) };
+}
+
+export function meta({ data }: { data?: { uiLocale?: "sv" | "en" } }) {
+  const isEnglish = data?.uiLocale === "en";
   return [
-    { title: "Favoriter — Kabinett" },
-    { name: "description", content: "Dina sparade konstverk i Kabinett." },
+    { title: isEnglish ? "Favorites — Kabinett" : "Favoriter — Kabinett" },
+    { name: "description", content: isEnglish ? "Your saved artworks in Kabinett." : "Dina sparade konstverk i Kabinett." },
   ];
 }
 
@@ -20,6 +28,7 @@ type FavoriteItem = {
 };
 
 export default function Favorites() {
+  const uiLocale = useUiLocale();
   const { ids, remove, toggle } = useFavorites();
   const [items, setItems] = useState<FavoriteItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -59,23 +68,23 @@ export default function Favorites() {
   return (
     <div className="min-h-screen pt-[3.5rem] bg-dark-base text-dark-text">
       <div className="max-w-6xl mx-auto px-5 pt-6 pb-6 md:px-6 lg:px-8">
-        <h1 className="font-serif text-[2rem] text-dark-text">Sparade</h1>
+        <h1 className="font-serif text-[2rem] text-dark-text">{uiText(uiLocale, "Sparade", "Favorites")}</h1>
         <p className="mt-1.5 text-dark-text-secondary text-[0.82rem]">
-          {ids.length > 0 ? `${ids.length} verk` : ""}
+          {ids.length > 0 ? uiText(uiLocale, `${ids.length} verk`, `${formatUiNumber(ids.length, uiLocale)} works`) : ""}
         </p>
 
         {loading && items.length === 0 && (
-          <div aria-live="polite" className="py-8 text-dark-text-secondary">Hämtar favoriter…</div>
+          <div aria-live="polite" className="py-8 text-dark-text-secondary">{uiText(uiLocale, "Hämtar favoriter…", "Loading favorites…")}</div>
         )}
 
         {!loading && items.length === 0 && (
           <div aria-live="polite" className="py-12 text-center">
-            <p className="text-dark-text-secondary text-[0.95rem]">Inga sparade verk än.</p>
+            <p className="text-dark-text-secondary text-[0.95rem]">{uiText(uiLocale, "Inga sparade verk än.", "No favorites yet.")}</p>
             <p className="text-dark-text-muted text-sm mt-2">
-              Tryck på hjärtat på ett konstverk för att spara det här.
+              {uiText(uiLocale, "Tryck på hjärtat på ett konstverk för att spara det här.", "Tap the heart on an artwork to save it here.")}
             </p>
             <a href="/discover" className="inline-block mt-5 px-5 py-2.5 rounded-full bg-dark-raised text-dark-text-secondary text-sm font-medium hover:bg-dark-hover hover:text-dark-text transition-colors no-underline focus-ring">
-              Utforska konst
+              {uiText(uiLocale, "Utforska konst", "Explore art")}
             </a>
           </div>
         )}
@@ -92,13 +101,13 @@ export default function Favorites() {
       {/* Undo toast */}
       {undoItem && (
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[80] flex items-center gap-3 bg-[rgba(10,9,8,0.9)] backdrop-blur-[8px] text-dark-text rounded-full px-5 py-3 shadow-lg">
-          <span className="text-sm">Borttagen</span>
+          <span className="text-sm">{uiText(uiLocale, "Borttagen", "Removed")}</span>
           <button
             type="button"
             onClick={handleUndo}
             className="text-sm font-semibold text-accent-light border-none bg-transparent cursor-pointer focus-ring"
           >
-            Ångra
+            {uiText(uiLocale, "Ångra", "Undo")}
           </button>
         </div>
       )}
@@ -107,6 +116,7 @@ export default function Favorites() {
 }
 
 function FavoriteCard({ item, onRemove }: { item: FavoriteItem; onRemove: (id: number, title: string) => void }) {
+  const uiLocale = useUiLocale();
   return (
     <div className="relative group">
       <a
@@ -141,7 +151,7 @@ function FavoriteCard({ item, onRemove }: { item: FavoriteItem; onRemove: (id: n
       </a>
       <button
         type="button"
-        aria-label={`Ta bort ${item.title}`}
+        aria-label={uiText(uiLocale, `Ta bort ${item.title}`, `Remove ${item.title}`)}
         onClick={() => onRemove(item.id, item.title)}
         className="absolute top-2 right-2 w-8 h-8 rounded-full bg-[rgba(10,9,8,0.7)] backdrop-blur-[4px] text-dark-text-secondary hover:text-dark-text inline-flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100 cursor-pointer border-none focus-ring"
       >

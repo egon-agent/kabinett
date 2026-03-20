@@ -1,5 +1,6 @@
 import { buildImageUrl } from "../lib/images";
 import { useScrollReveal } from "../hooks/useScrollReveal";
+import { uiText, useUiLocale } from "../lib/ui-language";
 import {
   artworkArtist,
   buildArtworkAltText,
@@ -14,11 +15,19 @@ export type ThemeCardSection = {
   color: string;
   searchType: "all" | "visual";
   items: ArtworkDisplayItem[];
+  titleEn?: string;
+  subtitleEn?: string;
+  queryEn?: string;
 };
 
 export default function ThemeCard({ section, showMuseumBadge }: { section: ThemeCardSection; showMuseumBadge: boolean }) {
   const ref = useScrollReveal<HTMLDivElement>();
-  const query = section.filter || section.title;
+  const uiLocale = useUiLocale();
+  const query = uiLocale === "en"
+    ? section.queryEn || section.filter || section.title
+    : section.filter || section.title;
+  const title = uiText(uiLocale, section.title, section.titleEn || section.title);
+  const subtitle = uiText(uiLocale, section.subtitle, section.subtitleEn || section.subtitle);
   const searchParams = new URLSearchParams({ q: query });
   if (section.searchType === "visual") searchParams.set("type", "visual");
   const searchHref = `/search?${searchParams.toString()}`;
@@ -30,13 +39,13 @@ export default function ThemeCard({ section, showMuseumBadge }: { section: Theme
       style={{ backgroundColor: section.color }}
     >
       <p className="text-[0.6rem] uppercase tracking-[0.2em] text-[rgba(255,255,255,0.30)] font-medium">
-        Tema
+        {uiText(uiLocale, "Tema", "Theme")}
       </p>
       <h2 className="font-serif text-[1.8rem] md:text-[2rem] font-semibold text-white mt-2.5 leading-[1.1]">
-        {section.title}
+        {title}
       </h2>
       <p className="text-[0.8rem] text-[rgba(255,255,255,0.42)] mt-[0.35rem]">
-        {section.subtitle}
+        {subtitle}
       </p>
 
       <div className="flex gap-3 md:gap-4 lg:grid lg:grid-cols-3 xl:grid-cols-4 lg:gap-3.5 overflow-x-auto lg:overflow-visible pt-7 pb-2 lg:pb-0 snap-x snap-mandatory lg:snap-none no-scrollbar">
@@ -74,7 +83,7 @@ export default function ThemeCard({ section, showMuseumBadge }: { section: Theme
             </div>
             <div className="py-[0.6rem] px-3">
               <p className="text-[0.8rem] font-medium text-white leading-[1.3] overflow-hidden line-clamp-2">
-                {item.title_sv || "Utan titel"}
+                {item.title_sv || uiText(uiLocale, "Utan titel", "Untitled")}
               </p>
               <p className="text-[0.7rem] text-[rgba(255,255,255,0.6)] mt-[0.15rem]">
                 {artworkArtist(item)}
@@ -93,7 +102,7 @@ export default function ThemeCard({ section, showMuseumBadge }: { section: Theme
         href={searchHref}
         className="inline-flex items-center gap-1 mt-5 text-[0.75rem] tracking-[0.03em] text-[rgba(255,255,255,0.4)] hover:text-[rgba(255,255,255,0.75)] transition-[color,gap] duration-300 no-underline focus-ring group/link"
       >
-        Visa fler
+        {uiText(uiLocale, "Visa fler", "View more")}
         <span className="inline-block transition-transform duration-300 group-hover/link:translate-x-1" style={{ transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)" }}>→</span>
       </a>
     </div>

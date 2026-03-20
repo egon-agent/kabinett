@@ -7,7 +7,7 @@ import { uiText, useUiLocale } from "../lib/ui-language";
 
 const HERO_SUGGESTION_CHIPS: Record<CampaignId, readonly string[]> = {
   default: ["äpple", "röd klänning", "solnedgång", "guld", "barn som leker", "hav"],
-  europeana: ["renässans", "impressionism", "porträtt", "skulptur", "tryck", "fotografi"],
+  europeana: ["renaissance", "impressionism", "portrait", "sculpture", "print", "photography"],
   nationalmuseum: ["stilleben", "porträtt", "landskap", "guld", "blommor", "storm"],
   nordiska: ["allmogemöbler", "samiska föremål", "folkdräkt", "Stockholm", "leksaker", "Skansen"],
   shm: ["vikingasvärd", "krona", "runsten", "rustning", "silver", "medeltid"],

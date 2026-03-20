@@ -3,11 +3,19 @@ import type { Route } from "./+types/color-match";
 import { buildImageUrl } from "../lib/images";
 import { parseArtist } from "../lib/parsing";
 import GridCard from "../components/GridCard";
+import { getCampaignConfig } from "../lib/campaign.server";
+import { uiText, useUiLocale, resolveUiLocale } from "../lib/ui-language";
 
-export function meta() {
+export function loader() {
+  const campaign = getCampaignConfig();
+  return { uiLocale: resolveUiLocale(campaign.id) };
+}
+
+export function meta({ data }: { data?: { uiLocale?: "sv" | "en" } }) {
+  const isEnglish = data?.uiLocale === "en";
   return [
-    { title: "Färg-match — Kabinett" },
-    { name: "description", content: "Matcha en färg i kameran med konstverk." },
+    { title: isEnglish ? "Color Match — Kabinett" : "Färg-match — Kabinett" },
+    { name: "description", content: isEnglish ? "Match a camera color with artworks." : "Matcha en färg i kameran med konstverk." },
   ];
 }
 
@@ -39,6 +47,7 @@ function rgbToHex(r: number, g: number, b: number) {
 }
 
 export default function ColorMatch() {
+  const uiLocale = useUiLocale();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -63,7 +72,7 @@ export default function ColorMatch() {
         }
         setStatus("");
       } catch {
-        setStatus("Kameran kunde inte starta. Välj en färg nedan.");
+        setStatus(uiText(uiLocale, "Kameran kunde inte starta. Välj en färg nedan.", "The camera could not start. Choose a color below."));
       }
     }
     initCamera();
@@ -132,10 +141,10 @@ export default function ColorMatch() {
     <div className="min-h-screen pt-[3.5rem] bg-cream">
       <div className="max-w-[60rem] mx-auto px-5 pt-8 pb-6 lg:px-6">
         <h1 className="font-serif text-[2rem] text-charcoal">
-          Färg-match
+          {uiText(uiLocale, "Färg-match", "Color match")}
         </h1>
         <p className="mt-1.5 text-[0.9rem] text-warm-gray">
-          Rikta kameran mot en nyans och hitta konst som matchar.
+          {uiText(uiLocale, "Rikta kameran mot en nyans och hitta konst som matchar.", "Point the camera at a color and find matching art.")}
         </p>
 
         <div className="mt-6 relative rounded-[1.25rem] overflow-hidden bg-ink">
@@ -158,7 +167,7 @@ export default function ColorMatch() {
             onClick={captureColor}
             className="py-3 px-6 rounded-full border-0 bg-charcoal text-cream font-semibold cursor-pointer focus-ring"
           >
-            Matcha färg
+            {uiText(uiLocale, "Matcha färg", "Match color")}
           </button>
           {color && (
             <div className="flex items-center gap-2">
@@ -172,7 +181,7 @@ export default function ColorMatch() {
         </div>
 
         <div className="mt-6">
-          <p className="text-[0.85rem] text-warm-gray">Eller välj en palett:</p>
+          <p className="text-[0.85rem] text-warm-gray">{uiText(uiLocale, "Eller välj en palett:", "Or choose a palette:")}</p>
           <div className="flex gap-[0.6rem] flex-wrap mt-[0.6rem]">
             {palette.map((hex) => (
               <button
@@ -183,14 +192,14 @@ export default function ColorMatch() {
                   setColor({ ...rgb, hex });
                   void fetchMatches(rgb.r, rgb.g, rgb.b);
                 }}
-                aria-label={`Välj ${hex}`}
+                aria-label={uiText(uiLocale, `Välj ${hex}`, `Choose ${hex}`)}
                 className="w-11 h-11 rounded-full border border-[rgba(26,24,21,0.2)] cursor-pointer focus-ring"
                 style={{ background: hex }}
               />
             ))}
             <input
               type="color"
-              aria-label="Välj egen färg"
+              aria-label={uiText(uiLocale, "Välj egen färg", "Choose custom color")}
               onChange={(event) => {
                 const hex = event.target.value;
                 const rgb = hexToRgb(hex);
@@ -203,15 +212,15 @@ export default function ColorMatch() {
         </div>
 
         <div className="mt-8">
-          <h2 className="text-[1.2rem] font-semibold text-charcoal">Matchar</h2>
-          {loading && <p className="text-warm-gray">Letar efter nyanser…</p>}
+          <h2 className="text-[1.2rem] font-semibold text-charcoal">{uiText(uiLocale, "Matchar", "Matches")}</h2>
+          {loading && <p className="text-warm-gray">{uiText(uiLocale, "Letar efter nyanser…", "Searching for matching shades…")}</p>}
           <div className="columns-2 gap-3 md:columns-3 lg:columns-4">
             {matches.map((item) => (
               <GridCard
                 key={item.id}
                 item={{
                   id: item.id,
-                  title: item.title_sv || "Utan titel",
+                  title: item.title_sv || uiText(uiLocale, "Utan titel", "Untitled"),
                   artist: parseArtist(item.artists),
                   imageUrl: buildImageUrl(item.iiif_url, 400),
                   color: item.dominant_color || "#D4CDC3",

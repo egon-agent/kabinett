@@ -1,5 +1,6 @@
 import type React from "react";
 import { startTransition, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { formatUiNumber, uiText, useUiLocale } from "../lib/ui-language";
 
 export type ArtworkAutocompleteSuggestion = {
   type: "artwork";
@@ -172,6 +173,7 @@ export default function Autocomplete({
   dropdownClassName,
   minLength = 2,
 }: AutocompleteProps) {
+  const uiLocale = useUiLocale();
   const [suggestions, setSuggestions] = useState<SuggestionGroups>(EMPTY_SUGGESTIONS);
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -365,7 +367,9 @@ export default function Autocomplete({
                 {hasArtworkSection && (
                   <>
                     <div className="px-4 pt-2.5 pb-1">
-                      <span className="text-[0.65rem] uppercase tracking-[0.15em] text-dark-text-muted/75">Verk</span>
+                      <span className="text-[0.65rem] uppercase tracking-[0.15em] text-dark-text-muted/75">
+                        {uiText(uiLocale, "Verk", "Artworks")}
+                      </span>
                     </div>
                     <div className="pb-2">
                       {artworks.map((suggestion, index) => {
@@ -405,7 +409,7 @@ export default function Autocomplete({
                             <span className="min-w-0">
                               <span className="block text-sm text-dark-text truncate">{suggestion.title}</span>
                               <span className="block text-xs text-dark-text-muted truncate">
-                                {suggestion.artist_name || "Okänd konstnär"}
+                                {suggestion.artist_name || uiText(uiLocale, "Okänd konstnär", "Unknown artist")}
                               </span>
                             </span>
                           </button>
@@ -418,7 +422,9 @@ export default function Autocomplete({
                 {hasArtistSection && (
                   <>
                     <div className={`px-4 pt-2.5 pb-1 ${hasArtworkSection ? "border-t border-[rgba(245,240,232,0.08)]" : ""}`}>
-                      <span className="text-[0.65rem] uppercase tracking-[0.15em] text-dark-text-muted/75">Konstnärer</span>
+                      <span className="text-[0.65rem] uppercase tracking-[0.15em] text-dark-text-muted/75">
+                        {uiText(uiLocale, "Konstnärer", "Artists")}
+                      </span>
                     </div>
                     <div className="pb-2">
                       {artists.map((suggestion, index) => {
@@ -444,7 +450,9 @@ export default function Autocomplete({
                           >
                             <span className="text-dark-text truncate">{suggestion.value}</span>
                             <span className="text-xs text-dark-text-muted ml-2 shrink-0">
-                              {suggestion.count ? `${suggestion.count} verk` : "Konstnär"}
+                              {suggestion.count
+                                ? uiText(uiLocale, `${suggestion.count} verk`, `${formatUiNumber(suggestion.count, uiLocale)} works`)
+                                : uiText(uiLocale, "Konstnär", "Artist")}
                             </span>
                           </button>
                         );
@@ -456,7 +464,9 @@ export default function Autocomplete({
                 {clips.length > 0 && (
                   <>
                     <div className={`px-4 pt-2.5 pb-1 ${(hasArtworkSection || hasArtistSection) ? "border-t border-[rgba(245,240,232,0.08)]" : ""}`}>
-                      <span className="text-[0.65rem] uppercase tracking-[0.15em] text-dark-text-muted/75">Sök visuellt</span>
+                      <span className="text-[0.65rem] uppercase tracking-[0.15em] text-dark-text-muted/75">
+                        {uiText(uiLocale, "Sök visuellt", "Visual search")}
+                      </span>
                     </div>
                     <div className="flex flex-wrap gap-1.5 px-4 pb-3 pt-1">
                       {clips.map((suggestion) => {

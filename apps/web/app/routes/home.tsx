@@ -76,6 +76,7 @@ function getCardVariant(positionInFeed: number, item?: { iiif_url?: string | nul
 
 export default function Home({ loaderData }: Route.ComponentProps) {
   const uiLocale = useUiLocale();
+  const hasWalks = loaderData.campaignId !== "europeana";
   const websiteJsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -99,7 +100,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       // without leaving a gap before a col-span-3 section.
       if (i === 4 && themes[0]) {
         entries.push({ type: "theme", ...themes[0] });
-        entries.push({ type: "walkPromo" });
+        if (hasWalks) entries.push({ type: "walkPromo" });
       }
       if (i === 9 && loaderData.spotlight) {
         entries.push({ type: "spotlight", ...loaderData.spotlight });
@@ -121,7 +122,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
     if (themes.length > 0 && !entries.some((entry) => entry.type === "theme")) {
       entries.push({ type: "theme", ...themes[0] });
-      entries.push({ type: "walkPromo" });
+      if (hasWalks) entries.push({ type: "walkPromo" });
     }
 
     if (initial.length <= 10 && loaderData.spotlight && !entries.some((entry) => entry.type === "spotlight")) {

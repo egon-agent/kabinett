@@ -6,6 +6,7 @@ import { sourceFilter } from "../lib/museums.server";
 import { parseArtist } from "../lib/parsing";
 import { getCachedSiteStats as getSiteStats } from "../lib/stats.server";
 import { getCampaignConfig } from "../lib/campaign.server";
+import { formatUiNumber, resolveUiLocale, uiText, useUiLocale } from "../lib/ui-language";
 
 function useScrollRevealDiscover() {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -38,10 +39,11 @@ export function headers() {
   return { "Cache-Control": "public, max-age=300, stale-while-revalidate=600" };
 }
 
-export function meta() {
+export function meta({ data }: Route.MetaArgs) {
+  const isEnglish = data?.uiLocale === "en";
   return [
-    { title: "Upptäck — Kabinett" },
-    { name: "description", content: "Utforska hundratusentals verk från Sveriges museer." },
+    { title: isEnglish ? "Discover — Kabinett" : "Upptäck — Kabinett" },
+    { name: "description", content: isEnglish ? "Explore hundreds of thousands of works from museum collections." : "Utforska hundratusentals verk från Sveriges museer." },
   ];
 }
 
@@ -49,6 +51,9 @@ type Collection = {
   title: string;
   subtitle: string;
   query?: string;
+  titleEn?: string;
+  subtitleEn?: string;
+  queryEn?: string;
   imageIds?: number[];
   imageUrl?: string;
   imageTitle?: string;
@@ -93,22 +98,22 @@ type ToolItem = {
 };
 
 const COLLECTIONS: Collection[] = [
-  { title: "Mörkt & dramatiskt", subtitle: "Skuggor och spänning", query: "natt skymning skugga storm", imageIds: [24664, 20450, 15634] },
-  { title: "Stormigt hav", subtitle: "Vågor och vind", query: "storm hav vågor skepp", imageIds: [18217, 20356, 17939] },
-  { title: "Blommor", subtitle: "Natur i närbild", query: "blomma blommor blomster ros tulpan bukett flower bouquet", imageIds: [-166319052559119, -179937114869368, 17457] },
-  { title: "Hästar", subtitle: "Ädla djur genom tiderna", query: "häst horse", imageIds: [14802, -247833644771404, -69141112380166] },
-  { title: "Porträtt", subtitle: "Ansikten genom tiderna", query: "porträtt portrait ansikte", imageIds: [216852, 16308, 17096] },
-  { title: "Landskap", subtitle: "Skog, berg och dal", query: "landskap skog forest berg", imageIds: [-202485135028962, -62777224500383, 17076] },
-  { title: "Hattar", subtitle: "Huvudbonader genom historien", query: "hatt hattar mössa huvudbonad hat bonnet", imageIds: [-253468788019903, -256891764421414, -61674516346084] },
-  { title: "Mytologi", subtitle: "Gudar och hjältar", query: "mytologi gud gudinna myth god goddess", imageIds: [71395, 177136, 17313] },
-  { title: "Telefoner", subtitle: "Från vev till knappar", query: "telefon telefoner telephone", imageIds: [-278306166813061, -62193254264396, -223649635814047] },
-  { title: "Skepp & båtar", subtitle: "Till havs", query: "skepp båt fartyg ship boat", imageIds: [-139485473585279, -448520122533, -103198960131251] },
-  { title: "Kaniner", subtitle: "Lurviga vänner", query: "kanin hare rabbit", imageIds: [-62346619720310, -132331838014998, -101957079536391] },
-  { title: "Musik", subtitle: "Instrument och melodier", query: "musik instrument violin gitarr piano", imageIds: [-230629938287298, -87109461851263, -86518388012200] },
-  { title: "Katter", subtitle: "Mjuka tassar", query: "katt cats cat", imageIds: [-189194491314296, 35597, -239926311302559] },
-  { title: "Mat & frukt", subtitle: "Gastronomi i konsten", query: "frukt äpple päron mat stillleben fruit", imageIds: [-253717850327201, -5907047110556, -111000855806884] },
-  { title: "Arkitektur", subtitle: "Slott och kyrkor", query: "slott kyrka palace church architecture", imageIds: [-129853437095252, -98579182221784, -45980371825152] },
-  { title: "Barn", subtitle: "Barndomens porträtt", query: "barn child children", imageIds: [17996, 16051, 17093] },
+  { title: "Mörkt & dramatiskt", titleEn: "Dark & dramatic", subtitle: "Skuggor och spänning", subtitleEn: "Shadows and tension", query: "natt skymning skugga storm", queryEn: "night dusk shadow storm", imageIds: [24664, 20450, 15634] },
+  { title: "Stormigt hav", titleEn: "Stormy sea", subtitle: "Vågor och vind", subtitleEn: "Waves and wind", query: "storm hav vågor skepp", queryEn: "storm sea waves ship", imageIds: [18217, 20356, 17939] },
+  { title: "Blommor", titleEn: "Flowers", subtitle: "Natur i närbild", subtitleEn: "Nature up close", query: "blomma blommor blomster ros tulpan bukett flower bouquet", queryEn: "flower flowers rose tulip bouquet", imageIds: [-166319052559119, -179937114869368, 17457] },
+  { title: "Hästar", titleEn: "Horses", subtitle: "Ädla djur genom tiderna", subtitleEn: "Noble animals through time", query: "häst horse", queryEn: "horse", imageIds: [14802, -247833644771404, -69141112380166] },
+  { title: "Porträtt", titleEn: "Portraits", subtitle: "Ansikten genom tiderna", subtitleEn: "Faces through time", query: "porträtt portrait ansikte", queryEn: "portrait face", imageIds: [216852, 16308, 17096] },
+  { title: "Landskap", titleEn: "Landscapes", subtitle: "Skog, berg och dal", subtitleEn: "Forest, mountain and valley", query: "landskap skog forest berg", queryEn: "landscape forest mountain", imageIds: [-202485135028962, -62777224500383, 17076] },
+  { title: "Hattar", titleEn: "Hats", subtitle: "Huvudbonader genom historien", subtitleEn: "Headwear through history", query: "hatt hattar mössa huvudbonad hat bonnet", queryEn: "hat hats bonnet headwear", imageIds: [-253468788019903, -256891764421414, -61674516346084] },
+  { title: "Mytologi", titleEn: "Mythology", subtitle: "Gudar och hjältar", subtitleEn: "Gods and heroes", query: "mytologi gud gudinna myth god goddess", queryEn: "mythology god goddess hero", imageIds: [71395, 177136, 17313] },
+  { title: "Telefoner", titleEn: "Telephones", subtitle: "Från vev till knappar", subtitleEn: "From crank to keypad", query: "telefon telefoner telephone", queryEn: "telephone telephones", imageIds: [-278306166813061, -62193254264396, -223649635814047] },
+  { title: "Skepp & båtar", titleEn: "Ships & boats", subtitle: "Till havs", subtitleEn: "At sea", query: "skepp båt fartyg ship boat", queryEn: "ship boat vessel", imageIds: [-139485473585279, -448520122533, -103198960131251] },
+  { title: "Kaniner", titleEn: "Rabbits", subtitle: "Lurviga vänner", subtitleEn: "Furry friends", query: "kanin hare rabbit", queryEn: "rabbit hare", imageIds: [-62346619720310, -132331838014998, -101957079536391] },
+  { title: "Musik", titleEn: "Music", subtitle: "Instrument och melodier", subtitleEn: "Instruments and melodies", query: "musik instrument violin gitarr piano", queryEn: "music instrument violin guitar piano", imageIds: [-230629938287298, -87109461851263, -86518388012200] },
+  { title: "Katter", titleEn: "Cats", subtitle: "Mjuka tassar", subtitleEn: "Soft paws", query: "katt cats cat", queryEn: "cat cats", imageIds: [-189194491314296, 35597, -239926311302559] },
+  { title: "Mat & frukt", titleEn: "Food & fruit", subtitle: "Gastronomi i konsten", subtitleEn: "Gastronomy in art", query: "frukt äpple päron mat stillleben fruit", queryEn: "fruit apple pear food still life", imageIds: [-253717850327201, -5907047110556, -111000855806884] },
+  { title: "Arkitektur", titleEn: "Architecture", subtitle: "Slott och kyrkor", subtitleEn: "Palaces and churches", query: "slott kyrka palace church architecture", queryEn: "palace church architecture", imageIds: [-129853437095252, -98579182221784, -45980371825152] },
+  { title: "Barn", titleEn: "Children", subtitle: "Barndomens porträtt", subtitleEn: "Portraits of childhood", query: "barn child children", queryEn: "child children", imageIds: [17996, 16051, 17093] },
 ];
 
 const discoverCacheMap = new Map<string, { expiresAt: number; data: any }>();
@@ -380,6 +385,7 @@ export async function loader() {
     museums: museumList,
     isCampaign: campaign.id !== "default",
     museumName: campaign.museumName,
+    uiLocale: resolveUiLocale(campaign.id),
   };
 
   discoverCacheMap.set(cacheKey, {
@@ -392,13 +398,17 @@ export async function loader() {
 
 export default function Discover({ loaderData }: Route.ComponentProps) {
   const { collections, topArtists, stats, museums } = loaderData;
+  const uiLocale = useUiLocale();
+  const hasWalks = uiLocale !== "en";
   /* scroll-reveal: the .reveal-on-scroll children are observed automatically */
   const scrollRef = useScrollRevealDiscover();
 
   const tools: ToolItem[] = [
-    { title: "Tidslinje", desc: "800 år av konst, decennium för decennium", href: "/timeline" },
-    { title: "Färgmatch", desc: "Matcha en färg med konstverk", href: "/color-match", mobileOnly: true },
-    { title: "Vandringar", desc: "Tematiska resor genom samlingen", href: "/vandringar" },
+    { title: uiText(uiLocale, "Tidslinje", "Timeline"), desc: uiText(uiLocale, "800 år av konst, decennium för decennium", "800 years of art, decade by decade"), href: "/timeline" },
+    { title: uiText(uiLocale, "Färgmatch", "Color match"), desc: uiText(uiLocale, "Matcha en färg med konstverk", "Match a color with artworks"), href: "/color-match", mobileOnly: true },
+    ...(hasWalks
+      ? [{ title: uiText(uiLocale, "Vandringar", "Walks"), desc: uiText(uiLocale, "Tematiska resor genom samlingen", "Thematic journeys through the collection"), href: "/vandringar" }]
+      : []),
   ];
   const mobileToolCount = tools.length;
   const desktopToolCount = tools.filter((tool) => !tool.mobileOnly).length;
@@ -417,16 +427,16 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
   return (
     <div className="min-h-screen pt-16 bg-dark-base text-dark-text">
       <div ref={scrollRef} className="md:max-w-6xl md:mx-auto md:px-4 lg:px-6">
-        <h1 className="font-serif text-[2rem] text-dark-text px-5 pt-6 pb-2">Upptäck</h1>
+        <h1 className="font-serif text-[2rem] text-dark-text px-5 pt-6 pb-2">{uiText(uiLocale, "Upptäck", "Discover")}</h1>
         {/* Teman — 2-column grid */}
         <section className="reveal-on-scroll pt-6 px-5">
-          <h2 className="font-serif text-[1.3rem] text-dark-text mb-4">Teman</h2>
+          <h2 className="font-serif text-[1.3rem] text-dark-text mb-4">{uiText(uiLocale, "Teman", "Themes")}</h2>
 
           <div className="grid grid-cols-2 gap-2 md:gap-3 lg:grid-cols-4 lg:gap-3.5">
             {collections.map((c: Collection) => (
               <a
                 key={c.title}
-                href={`/search?q=${encodeURIComponent(c.query || c.title)}&type=visual`}
+                href={`/search?q=${encodeURIComponent(uiLocale === "en" ? (c.queryEn || c.query || c.title) : (c.query || c.title))}&type=visual`}
                 className={[
                   "relative rounded-card overflow-hidden no-underline group/coll focus-ring",
                   "aspect-square",
@@ -436,7 +446,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
                 {c.imageUrl && (
                   <img
                     src={c.imageUrl}
-                    alt={`${c.imageTitle || "Utan titel"} — ${c.imageArtist || "Okänd konstnär"}`}
+                    alt={`${c.imageTitle || uiText(uiLocale, "Utan titel", "Untitled")} — ${c.imageArtist || uiText(uiLocale, "Okänd konstnär", "Unknown artist")}`}
                     loading="lazy"
                     width={400}
                     height={400}
@@ -449,8 +459,8 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
                 )}
                 <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(10,9,8,0.75)_0%,rgba(10,9,8,0.1)_60%,transparent_100%)]" />
                 <div className="absolute bottom-0 left-0 right-0 py-3 px-3.5">
-                  <p className="font-serif text-[0.95rem] text-white m-0 leading-[1.2]">{c.title}</p>
-                  <p className="text-[0.62rem] text-[rgba(255,255,255,0.50)] mt-[0.15rem]">{c.subtitle}</p>
+                  <p className="font-serif text-[0.95rem] text-white m-0 leading-[1.2]">{uiText(uiLocale, c.title, c.titleEn || c.title)}</p>
+                  <p className="text-[0.62rem] text-[rgba(255,255,255,0.50)] mt-[0.15rem]">{uiText(uiLocale, c.subtitle, c.subtitleEn || c.subtitle)}</p>
                 </div>
               </a>
             ))}
@@ -460,7 +470,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
         {/* Top artists */}
         {topArtists.length > 0 && (
           <section className="reveal-on-scroll pt-10">
-            <h2 className="font-serif text-[1.3rem] text-dark-text px-5 mb-4">Formgivare & konstnärer</h2>
+            <h2 className="font-serif text-[1.3rem] text-dark-text px-5 mb-4">{uiText(uiLocale, "Formgivare & konstnärer", "Artists & makers")}</h2>
 
             <div className="flex gap-3 overflow-x-auto px-5 pb-2 no-scrollbar lg:grid lg:grid-cols-4 xl:grid-cols-6 lg:gap-4 lg:overflow-visible lg:pb-0">
               {topArtists.map((a: TopArtist) => (
@@ -473,7 +483,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
                     {a.imageUrl && (
                       <img
                         src={a.imageUrl}
-                        alt={`${a.imageTitle || "Utan titel"} — ${a.imageArtist || a.name}`}
+                        alt={`${a.imageTitle || uiText(uiLocale, "Utan titel", "Untitled")} — ${a.imageArtist || a.name}`}
                         loading="lazy"
                         width={300}
                         height={300}
@@ -489,7 +499,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
                     {a.name}
                   </p>
                   <p className="text-[0.6rem] text-dark-text-secondary mt-[0.1rem]">
-                    {a.count.toLocaleString("sv")} verk
+                    {uiText(uiLocale, `${a.count.toLocaleString("sv")} verk`, `${formatUiNumber(a.count, uiLocale)} works`)}
                   </p>
                 </a>
               ))}
@@ -500,7 +510,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
         {/* Verktyg */}
         {tools.length > 0 && (
           <section className="pt-10 px-5">
-            {showToolHeading && <h2 className={toolHeadingClass}>Verktyg</h2>}
+            {showToolHeading && <h2 className={toolHeadingClass}>{uiText(uiLocale, "Verktyg", "Tools")}</h2>}
             <div className="flex flex-col gap-2">
               {tools.map((tool) => (
                 <div key={tool.title} className={tool.mobileOnly ? "md:hidden" : ""}>
@@ -514,7 +524,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
         {/* Samlingar */}
         {museums.length > 0 && (
           <section className="pt-10 px-5">
-            <h2 className="font-serif text-[1.3rem] text-dark-text mb-4">Samlingar</h2>
+            <h2 className="font-serif text-[1.3rem] text-dark-text mb-4">{uiText(uiLocale, "Samlingar", "Collections")}</h2>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
               {museums.map((museum: MuseumSummary) => (
                 <a
@@ -524,7 +534,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
                 >
                   <p className="text-[0.9rem] font-medium text-dark-text">{museum.name}</p>
                   <p className="text-[0.7rem] text-dark-text-secondary mt-1">
-                    {museum.count.toLocaleString("sv")} verk
+                    {uiText(uiLocale, `${museum.count.toLocaleString("sv")} verk`, `${formatUiNumber(museum.count, uiLocale)} works`)}
                   </p>
                 </a>
               ))}
@@ -534,13 +544,13 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
 
         {/* Samlingen i siffror */}
         <section className="reveal-on-scroll pt-10 px-5 pb-16">
-          <h2 className="font-serif text-[1.3rem] text-dark-text mb-4">Samlingen i siffror</h2>
+          <h2 className="font-serif text-[1.3rem] text-dark-text mb-4">{uiText(uiLocale, "Samlingen i siffror", "Collection in numbers")}</h2>
 
           <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4 lg:gap-4">
-            <StatCard number={stats.totalWorks.toLocaleString("sv")} label="verk" />
-            <StatCard number={stats.museums.toLocaleString("sv")} label="samlingar" />
-            <StatCard number={`${stats.yearsSpan} år`} label="av historia" />
-            <StatCard number={stats.paintings.toLocaleString("sv")} label="målningar" />
+            <StatCard number={formatUiNumber(stats.totalWorks, uiLocale)} label={uiText(uiLocale, "verk", "artworks")} />
+            <StatCard number={formatUiNumber(stats.museums, uiLocale)} label={uiText(uiLocale, "samlingar", "collections")} />
+            <StatCard number={uiText(uiLocale, `${stats.yearsSpan} år`, `${formatUiNumber(stats.yearsSpan, uiLocale)} years`)} label={uiText(uiLocale, "av historia", "of history")} />
+            <StatCard number={formatUiNumber(stats.paintings, uiLocale)} label={uiText(uiLocale, "målningar", "paintings")} />
           </div>
         </section>
       </div>

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useFavorites } from "../lib/favorites";
 import { buildImageUrl } from "../lib/images";
+import { uiText, useUiLocale } from "../lib/ui-language";
 import type { MatchType } from "../lib/search-types";
 import {
   artworkArtist,
@@ -39,6 +40,7 @@ const FeedArtworkCard = React.memo(function FeedArtworkCard({
 }: FeedLayoutProps) {
   const eager = index < 3;
   const { isFavorite, toggle } = useFavorites();
+  const uiLocale = useUiLocale();
   const saved = isFavorite(item.id);
   const [pulsing, setPulsing] = useState(false);
   const variantClass = variant === "large"
@@ -98,7 +100,7 @@ const FeedArtworkCard = React.memo(function FeedArtworkCard({
         }}
       >
         <p className="font-serif text-[1.3rem] md:text-[1.4rem] lg:text-[1.55rem] font-semibold text-white leading-[1.15] mb-[0.3rem] line-clamp-2">
-          {item.title_sv || "Utan titel"}
+          {item.title_sv || uiText(uiLocale, "Utan titel", "Untitled")}
         </p>
         <p className="text-[0.8rem] lg:text-[0.85rem] text-[rgba(255,255,255,0.7)]">
           {artworkArtist(item)}
@@ -111,7 +113,9 @@ const FeedArtworkCard = React.memo(function FeedArtworkCard({
       </div>
       <button
         type="button"
-        aria-label={saved ? "Ta bort favorit" : "Spara som favorit"}
+        aria-label={saved
+          ? uiText(uiLocale, "Ta bort favorit", "Remove favorite")
+          : uiText(uiLocale, "Spara som favorit", "Save as favorite")}
         onClick={(event) => {
           event.preventDefault();
           event.stopPropagation();
@@ -144,6 +148,7 @@ const SearchArtworkCard = React.memo(function SearchArtworkCard({
   snippet,
   matchType,
 }: SearchLayoutProps) {
+  const uiLocale = useUiLocale();
   return (
     <a
       href={`/artwork/${item.id}`}
@@ -173,7 +178,7 @@ const SearchArtworkCard = React.memo(function SearchArtworkCard({
       </div>
       <div className="p-3">
         <p className="text-sm font-medium text-dark-text leading-snug line-clamp-2">
-          {item.title_sv || "Utan titel"}
+          {item.title_sv || uiText(uiLocale, "Utan titel", "Untitled")}
         </p>
         <p className="text-xs text-dark-text-secondary mt-1">{artworkArtist(item)}</p>
         {showMuseumBadge && item.museum_name && (

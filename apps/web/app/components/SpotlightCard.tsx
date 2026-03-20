@@ -4,6 +4,7 @@ import {
   type ArtworkDisplayItem,
 } from "./artwork-meta";
 import { useScrollReveal } from "../hooks/useScrollReveal";
+import { uiText, useUiLocale } from "../lib/ui-language";
 
 export type SpotlightCardData = {
   artistName: string;
@@ -12,6 +13,7 @@ export type SpotlightCardData = {
 
 export default function SpotlightCard({ spotlight }: { spotlight: SpotlightCardData }) {
   const ref = useScrollReveal<HTMLElement>();
+  const uiLocale = useUiLocale();
 
   return (
     <section
@@ -19,7 +21,9 @@ export default function SpotlightCard({ spotlight }: { spotlight: SpotlightCardD
       className="reveal-on-scroll bg-dark-base rounded-none lg:rounded-section px-5 py-9 md:px-7 md:py-10 lg:px-10 lg:py-12 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-7"
     >
       <div className="lg:max-w-[22rem]">
-        <p className="text-[0.6rem] uppercase tracking-[0.2em] text-dark-text-muted font-medium">Konstnär i fokus</p>
+        <p className="text-[0.6rem] uppercase tracking-[0.2em] text-dark-text-muted font-medium">
+          {uiText(uiLocale, "Konstnär i fokus", "Artist spotlight")}
+        </p>
         <h2 className="font-serif text-[1.8rem] md:text-[2rem] text-dark-text leading-[1.05] mt-2.5">
           {spotlight.artistName}
         </h2>
@@ -27,7 +31,7 @@ export default function SpotlightCard({ spotlight }: { spotlight: SpotlightCardD
           href={`/artist/${encodeURIComponent(spotlight.artistName)}`}
           className="inline-block mt-5 text-[0.78rem] tracking-[0.03em] text-dark-text-secondary hover:text-dark-text transition-colors no-underline focus-ring"
         >
-          Utforska konstnären →
+          {uiText(uiLocale, "Utforska konstnären", "Explore artist")} →
         </a>
       </div>
       <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">

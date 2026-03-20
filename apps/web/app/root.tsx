@@ -174,7 +174,7 @@ function Header() {
     { href: "/discover", label: uiText(uiLocale, "Upptäck", "Discover") },
     { href: "/search?type=visual&focus=1", label: uiText(uiLocale, "Sök", "Search") },
     ...(showSchool ? [{ href: "/skola", label: uiText(uiLocale, "Skola", "School") }] : []),
-    { href: "/favorites", label: uiText(uiLocale, "Sparade", "Saved") },
+    { href: "/favorites", label: uiText(uiLocale, "Sparade", "Favorites") },
     { href: "/om", label: uiText(uiLocale, "Om", "About") },
   ];
 
@@ -281,7 +281,7 @@ function BottomNav() {
       }]),
     {
       href: "/favorites",
-      label: uiText(uiLocale, "Sparade", "Saved"),
+      label: uiText(uiLocale, "Sparade", "Favorites"),
       active: path === "/favorites",
       badge: count,
       icon: (color: string) => (
@@ -374,17 +374,18 @@ export default function App() {
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  let message = "Något gick fel";
-  let details = "Ett oväntat fel uppstod. Ladda om sidan och försök igen.";
+  const uiLocale = useUiLocale();
+  let message = uiText(uiLocale, "Något gick fel", "Something went wrong");
+  let details = uiText(uiLocale, "Ett oväntat fel uppstod. Ladda om sidan och försök igen.", "An unexpected error occurred. Reload the page and try again.");
   let stack = "";
 
   if (isRouteErrorResponse(error)) {
     if (error.status === 404) {
-      message = "Sidan hittades inte";
-      details = "Sidan du söker finns inte eller har flyttats.";
+      message = uiText(uiLocale, "Sidan hittades inte", "Page not found");
+      details = uiText(uiLocale, "Sidan du söker finns inte eller har flyttats.", "The page you're looking for doesn't exist or has moved.");
     } else {
-      message = "Sidan kunde inte visas";
-      details = import.meta.env.DEV ? (error.statusText || details) : "Vi kunde inte visa sidan just nu.";
+      message = uiText(uiLocale, "Sidan kunde inte visas", "This page could not be shown");
+      details = import.meta.env.DEV ? (error.statusText || details) : uiText(uiLocale, "Vi kunde inte visa sidan just nu.", "We could not show this page right now.");
     }
   } else if (error instanceof Error) {
     if (import.meta.env.DEV) {
@@ -406,13 +407,13 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
             onClick={() => window.location.reload()}
             className="px-5 py-2.5 rounded-full bg-charcoal text-cream text-[0.82rem] font-medium border-none cursor-pointer hover:bg-ink active:scale-[0.97] transition-[background-color,transform] focus-ring"
           >
-            Försök igen
+            {uiText(uiLocale, "Försök igen", "Try again")}
           </button>
           <a
             href="/"
             className="px-5 py-2.5 rounded-full border border-stone/25 text-charcoal text-[0.82rem] font-medium no-underline hover:bg-linen active:scale-[0.97] transition-[background-color,transform] focus-ring"
           >
-            Till startsidan
+            {uiText(uiLocale, "Till startsidan", "Go to homepage")}
           </a>
         </div>
       </div>

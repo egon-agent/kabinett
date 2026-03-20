@@ -4,6 +4,8 @@ import { getDb } from "../lib/db.server";
 import { fetchFeed } from "../lib/feed.server";
 import { getEnabledMuseums, isValidMuseumFilter, museumFilterSql, getCollectionOptions, shouldShowCollectionLabels, sourceFilter } from "../lib/museums.server";
 import { buildArtworkSnippet, searchArtworksText } from "../lib/text-search.server";
+import { getCampaignConfig } from "../lib/campaign.server";
+import { resolveUiLocale, type UiLocale } from "../lib/ui-language";
 
 export type SearchMode = "fts" | "clip" | "color" | "theme";
 import type { MatchType } from "../lib/search-types";
@@ -52,15 +54,26 @@ const COLOR_TERMS: Record<string, { r: number; g: number; b: number }> = {
 
 const THEME_FILTERS = new Map<string, string>([
   ["djur", "Djur"],
+  ["animals", "Djur"],
   ["havet", "Havet"],
+  ["sea", "Havet"],
   ["blommor", "Blommor"],
+  ["flowers", "Blommor"],
   ["natt", "Natt"],
+  ["night", "Natt"],
   ["rött", "Rött"],
+  ["red", "Rött"],
   ["blått", "Blått"],
+  ["blue", "Blått"],
   ["porträtt", "Porträtt"],
+  ["portrait", "Porträtt"],
+  ["portraits", "Porträtt"],
   ["1700-tal", "1700-tal"],
+  ["18th century", "1700-tal"],
   ["1800-tal", "1800-tal"],
+  ["19th century", "1800-tal"],
   ["skulptur", "Skulptur"],
+  ["sculpture", "Skulptur"],
 ]);
 
 const CLIP_DEBUG = process.env.KABINETT_CLIP_DEBUG === "1";
@@ -169,6 +182,7 @@ export type SearchLoaderData = {
   searchMode: SearchMode;
   searchType: SearchType;
   shouldAutoFocus: boolean;
+  uiLocale: UiLocale;
 };
 
 function parseMode(rawMode: string | null): SearchMode | null {
@@ -674,6 +688,8 @@ async function loadSearchResults(args: {
 
 export function searchLoader(request: Request): SearchLoaderData {
   const url = new URL(request.url);
+  const campaign = getCampaignConfig();
+  const uiLocale = resolveUiLocale(campaign.id);
   const shouldAutoFocus = url.searchParams.get("focus") === "1";
   const query = (url.searchParams.get("q") || "")
     .replace(/[\u0000-\u001F\u007F]/g, "")
@@ -700,5 +716,6 @@ export function searchLoader(request: Request): SearchLoaderData {
     searchMode,
     searchType,
     shouldAutoFocus,
+    uiLocale,
   };
 }
