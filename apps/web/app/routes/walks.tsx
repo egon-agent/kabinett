@@ -191,27 +191,30 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
 
       {/* Walk cards */}
       {!selected && (
-        <div className="px-4 md:px-6 lg:px-10 pb-16 flex flex-col gap-3.5 lg:grid lg:grid-cols-2 lg:gap-4">
+        <div className="px-4 md:px-6 lg:px-10 pb-16 grid gap-4 md:grid-cols-2 lg:grid-cols-3 lg:gap-5">
           {walkPreviews.map((w) => (
             <a key={w.slug} href={"/vandringar?walk=" + w.slug}
-              className="block relative overflow-hidden h-44 no-underline group/walk focus-ring"
-              style={{ backgroundColor: w.color }}
+              className="block no-underline group/walk focus-ring hover:opacity-80 transition-opacity"
             >
-              {w.previewUrl && (
-                <img src={w.previewUrl} alt="" role="presentation"
-                  loading="lazy"
-                  decoding="async"
-                  onError={(event) => {
-                    event.currentTarget.classList.add("is-broken");
-                  }}
-                  className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover/walk:scale-[1.04] group-hover/walk:opacity-70 transition-[transform,opacity] duration-500" />
-              )}
-              <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.7)_0%,rgba(0,0,0,0.1)_60%)]" />
-              <div className="absolute bottom-0 left-0 right-0 p-5">
-                <h2 className="text-[1.375rem] font-bold text-white">
+              <div
+                className="aspect-[3/2] overflow-hidden rounded-card"
+                style={{ backgroundColor: w.color || "#E0DEDA" }}
+              >
+                {w.previewUrl && (
+                  <img src={w.previewUrl} alt="" role="presentation"
+                    loading="lazy"
+                    decoding="async"
+                    onError={(event) => {
+                      event.currentTarget.classList.add("is-broken");
+                    }}
+                    className="w-full h-full object-cover group-hover/walk:scale-[1.03] transition-transform duration-500" />
+                )}
+              </div>
+              <div className="p-4">
+                <h2 className="text-[15px] text-primary leading-[1.3]">
                   {w.title}
                 </h2>
-                <p className="text-[0.8rem] text-[rgba(255,255,255,0.7)] mt-1">
+                <p className="text-[13px] text-secondary mt-1 line-clamp-1">
                   {w.subtitle}
                 </p>
               </div>
