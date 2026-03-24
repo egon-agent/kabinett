@@ -1,11 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../museums.server", () => ({
-  getCollectionOptions: () => Array.from({ length: 8 }, (_, index) => ({
-    id: `museum-${index}`,
-    name: `Museum ${index}`,
-    count: 100,
-  })),
   sourceFilter: (prefix?: string) => ({
     sql: prefix ? `${prefix}.source IN (?)` : "source IN (?)",
     params: ["nm"],

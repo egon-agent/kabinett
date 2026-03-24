@@ -1,4 +1,4 @@
-import { Suspense, useState, useEffect, useRef, useCallback } from "react";
+import { Suspense, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Await, data, useNavigate } from "react-router";
 import type { Route } from "./+types/search";
 import Autocomplete, { type AutocompleteSuggestion } from "../components/Autocomplete";
@@ -186,11 +186,7 @@ function SearchAutocompleteForm({
     return `/api/autocomplete?${params.toString()}`;
   }, [museum]);
 
-  const placeholder = searchType === "visual"
-    ? uiText(uiLocale, "porträtt, blå himmel, storm…", "portrait, blue sky, storm…")
-    : searchType === "artist"
-      ? "Carl Larsson, Hilma af Klint…"
-      : uiText(uiLocale, "Konstnär, titel, teknik…", "Artist, title, medium…");
+  const placeholder = uiText(uiLocale, "Beskriv vad du letar efter…", "Describe what you're looking for…");
 
   return (
     <div className="relative">
@@ -237,6 +233,161 @@ function SearchAutocompleteForm({
           </form>
         )}
       </Autocomplete>
+    </div>
+  );
+}
+
+function CollectionFilter({
+  value,
+  options,
+  onSelect,
+}: {
+  value: string;
+  options: MuseumOption[];
+  onSelect: (museumId?: string) => void;
+}) {
+  const uiLocale = useUiLocale();
+  const [isOpen, setIsOpen] = useState(false);
+  const [filterQuery, setFilterQuery] = useState("");
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const selectedOption = options.find((option) => option.id === value) || null;
+
+  const filteredOptions = useMemo(() => {
+    const normalized = filterQuery.trim().toLowerCase();
+    if (!normalized) return options;
+    return options.filter((option) => option.name.toLowerCase().includes(normalized));
+  }, [filterQuery, options]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setFilterQuery("");
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (!containerRef.current?.contains(target)) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+    window.requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    });
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isOpen]);
+
+  const currentLabel = selectedOption?.name || uiText(uiLocale, "Alla samlingar", "All collections");
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        id="collection-filter"
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((open) => !open)}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setIsOpen(true);
+          }
+        }}
+        className="flex w-full items-center justify-between rounded-card border border-rule bg-white px-4 py-3 text-left text-[14px] text-primary transition-colors hover:border-secondary focus-ring"
+      >
+        <span className="truncate pr-4">{currentLabel}</span>
+        <svg
+          aria-hidden="true"
+          width="14"
+          height="14"
+          viewBox="0 0 14 14"
+          fill="none"
+          className={`shrink-0 text-secondary transition-transform ${isOpen ? "rotate-180" : ""}`}
+        >
+          <path d="M3 5.5 7 9l4-3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-card border border-rule bg-white shadow-[0_18px_48px_rgba(26,25,23,0.12)]">
+          <div className="border-b border-rule px-3 py-3">
+            <label htmlFor="collection-filter-search" className="sr-only">
+              {uiText(uiLocale, "Filtrera samlingar", "Filter collections")}
+            </label>
+            <input
+              id="collection-filter-search"
+              ref={searchInputRef}
+              type="search"
+              value={filterQuery}
+              onChange={(event) => setFilterQuery(event.currentTarget.value)}
+              placeholder={uiText(uiLocale, "Filtrera samlingar…", "Filter collections…")}
+              className="w-full border border-rule bg-white px-3 py-2 text-[14px] text-primary outline-none transition-colors focus:border-secondary"
+            />
+          </div>
+
+          <div role="listbox" aria-labelledby="collection-filter" className="max-h-80 overflow-y-auto py-1">
+            <button
+              type="button"
+              role="option"
+              aria-selected={value === ""}
+              onClick={() => {
+                setIsOpen(false);
+                onSelect(undefined);
+              }}
+              className={[
+                "flex w-full items-center px-4 py-2.5 text-left text-[14px] transition-colors",
+                value === ""
+                  ? "bg-paper text-primary"
+                  : "text-primary hover:bg-paper",
+              ].join(" ")}
+            >
+              {uiText(uiLocale, "Alla samlingar", "All collections")}
+            </button>
+
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  role="option"
+                  aria-selected={value === option.id}
+                  onClick={() => {
+                    setIsOpen(false);
+                    onSelect(option.id);
+                  }}
+                  className={[
+                    "flex w-full items-center px-4 py-2.5 text-left text-[14px] transition-colors",
+                    value === option.id
+                      ? "bg-paper text-primary"
+                      : "text-primary hover:bg-paper",
+                  ].join(" ")}
+                >
+                  {option.name}
+                </button>
+              ))
+            ) : (
+              <p className="px-4 py-3 text-[13px] text-secondary">
+                {uiText(uiLocale, "Inga samlingar matchar.", "No collections match.")}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -503,6 +654,21 @@ export default function Search({ loaderData }: Route.ComponentProps) {
           autoFocus={shouldAutoFocus}
         />
 
+        {!query && (
+          <div className="mt-4">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-2">{uiText(uiLocale, "Prova", "Try")}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {suggestedQueries.map((s) => (
+                <a
+                  key={s}
+                  href={buildSearchUrl({ queryValue: s, museumId: museum, type: searchType })}
+                  className="px-3 py-1 bg-paper text-[13px] text-secondary hover:text-primary transition-colors focus-ring rounded-card no-underline"
+                >{s}</a>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className={showMuseumFilters ? "mt-5 grid gap-4 lg:grid-cols-[max-content_minmax(20rem,1fr)] lg:items-end" : "mt-5"}>
           <div>
             <p className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-2">{uiText(uiLocale, "Typ", "Type")}</p>
@@ -534,50 +700,17 @@ export default function Search({ loaderData }: Route.ComponentProps) {
               <label htmlFor="collection-filter" className="block text-[11px] uppercase tracking-[0.08em] text-secondary mb-2">
                 {uiText(uiLocale, "Samling", "Collection")}
               </label>
-              <div className="relative rounded-card border border-rule bg-white transition-colors has-[:focus-visible]:border-secondary">
-                <select
-                  id="collection-filter"
-                  value={museum}
-                  onChange={(event) => {
-                    const nextValue = event.currentTarget.value || undefined;
-                    navigate(buildSearchUrl({ museumId: nextValue, type: searchType }));
-                  }}
-                  className="w-full appearance-none border-0 bg-transparent px-4 py-3 pr-11 text-[14px] text-primary outline-none ring-0 shadow-none focus:outline-none focus:ring-0"
-                >
-                  <option value="">{uiText(uiLocale, "Alla samlingar", "All collections")}</option>
-                  {museumOptions.map((option: MuseumOption) => (
-                  <option key={option.id} value={option.id}>
-                      {option.name}
-                  </option>
-                ))}
-              </select>
-                <span
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-secondary"
-                >
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="block">
-                    <path d="M3 5.5 7 9l4-3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
-              </div>
+              <CollectionFilter
+                value={museum}
+                options={museumOptions}
+                onSelect={(nextValue) => {
+                  navigate(buildSearchUrl({ museumId: nextValue, type: searchType }));
+                }}
+              />
             </div>
           )}
         </div>
 
-        {!query && (
-          <div className="mt-6">
-            <p className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-2">{uiText(uiLocale, "Prova", "Try")}</p>
-            <div className="flex flex-wrap gap-1.5">
-              {suggestedQueries.map((s) => (
-                <a
-                  key={s}
-                  href={buildSearchUrl({ queryValue: s, museumId: museum, type: searchType })}
-                  className="px-3 py-1 bg-paper text-[13px] text-secondary hover:text-primary transition-colors focus-ring rounded-card no-underline"
-                >{s}</a>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {showResults && (

@@ -182,22 +182,22 @@ export function getCollectionOptions(): Array<{ id: string; name: string; count:
   const sourceA = sourceFilter("a");
   const options = db.prepare(
     `SELECT
-       COALESCE(a.sub_museum, m.name) as name,
+       COALESCE(a.sub_museum, m.name) as collection_name,
        COUNT(*) as count
      FROM artworks a
      LEFT JOIN museums m ON m.id = a.source
      WHERE ${sourceA.sql}
-       AND COALESCE(a.sub_museum, m.name) IS NOT NULL
-       AND TRIM(COALESCE(a.sub_museum, m.name)) != ''
-       AND COALESCE(a.sub_museum, m.name) != 'Statens historiska museer'
+       AND COALESCE(NULLIF(a.sub_museum, ''), m.name) IS NOT NULL
+       AND TRIM(COALESCE(NULLIF(a.sub_museum, ''), m.name)) != ''
+       AND COALESCE(NULLIF(a.sub_museum, ''), m.name) != 'Statens historiska museer'
        AND a.iiif_url IS NOT NULL
        AND LENGTH(a.iiif_url) > 40
        AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-     GROUP BY name
-     ORDER BY count DESC, name ASC`
+     GROUP BY collection_name
+     ORDER BY collection_name COLLATE NOCASE ASC`
   ).all(...sourceA.params).map((row: any) => ({
-    id: encodeCollectionFilterId(row.name),
-    name: row.name as string,
+    id: encodeCollectionFilterId(row.collection_name),
+    name: row.collection_name as string,
     count: row.count as number,
   }));
 
