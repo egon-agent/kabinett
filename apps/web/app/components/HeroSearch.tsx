@@ -133,7 +133,7 @@ export default function HeroSearch({
             <label htmlFor="hero-search" className="sr-only">
               {uiText(uiLocale, "Sök bland konstverk", "Search artworks")}
             </label>
-            <div className="flex items-center border border-rule rounded-card bg-white px-5 py-3.5">
+            <div className="flex items-center border border-[#C8C3BC] rounded-card bg-white px-5 py-3.5 shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
               <svg
                 aria-hidden="true"
                 width="20"
@@ -172,7 +172,7 @@ export default function HeroSearch({
             key={`${campaignId}-${chip}`}
             type="button"
             onClick={() => goToSearch(chip, "visual")}
-            className="cursor-pointer px-3 py-1 bg-paper text-[13px] text-secondary hover:text-primary transition-colors focus-ring rounded-card"
+            className="cursor-pointer px-4 py-2 bg-paper text-[13px] text-secondary hover:text-primary transition-colors focus-ring rounded-card"
           >
             {chip}
           </button>

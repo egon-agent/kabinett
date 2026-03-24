@@ -205,7 +205,7 @@ function SearchAutocompleteForm({
             }}
           >
             <label htmlFor="search-input" className="sr-only">{uiText(uiLocale, "Sök", "Search")}</label>
-            <div className="flex items-center border border-rule rounded-card bg-white px-5 py-3.5 has-[:focus-visible]:border-secondary transition-colors">
+            <div className="flex items-center border border-[#C8C3BC] rounded-card bg-white px-5 py-3.5 shadow-[0_1px_4px_rgba(0,0,0,0.06)] has-[:focus-visible]:border-secondary transition-colors">
               <svg
                 aria-hidden="true"
                 width="20"
@@ -308,7 +308,7 @@ function CollectionFilter({
             setIsOpen(true);
           }
         }}
-        className="flex w-full items-center justify-between rounded-card border border-rule bg-white px-4 py-3 text-left text-[14px] text-primary transition-colors hover:border-secondary focus-ring"
+        className="flex w-full items-center justify-between rounded-card border border-[#C8C3BC] bg-white px-4 py-2 text-left text-[14px] text-primary transition-colors shadow-[0_1px_4px_rgba(0,0,0,0.06)] hover:border-secondary focus-ring"
       >
         <span className="truncate pr-4">{currentLabel}</span>
         <svg
@@ -336,7 +336,7 @@ function CollectionFilter({
               value={filterQuery}
               onChange={(event) => setFilterQuery(event.currentTarget.value)}
               placeholder={uiText(uiLocale, "Filtrera samlingar…", "Filter collections…")}
-              className="w-full border border-rule bg-white px-3 py-2 text-[14px] text-primary outline-none transition-colors focus:border-secondary"
+              className="w-full border border-[#C8C3BC] bg-white px-3 py-2 text-[14px] text-primary outline-none transition-colors focus:border-secondary"
             />
           </div>
 
@@ -662,14 +662,14 @@ export default function Search({ loaderData }: Route.ComponentProps) {
                 <a
                   key={s}
                   href={buildSearchUrl({ queryValue: s, museumId: museum, type: searchType })}
-                  className="px-3 py-1 bg-paper text-[13px] text-secondary hover:text-primary transition-colors focus-ring rounded-card no-underline"
+                  className="px-4 py-2 bg-paper text-[13px] text-secondary hover:text-primary transition-colors focus-ring rounded-card no-underline"
                 >{s}</a>
               ))}
             </div>
           </div>
         )}
 
-        <div className={showMuseumFilters ? "mt-5 grid gap-4 lg:grid-cols-[max-content_minmax(20rem,1fr)] lg:items-end" : "mt-5"}>
+        <div className={showMuseumFilters ? "mt-5 grid gap-4 lg:grid-cols-[max-content_minmax(20rem,1fr)] lg:items-start" : "mt-5"}>
           <div>
             <p className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-2">{uiText(uiLocale, "Typ", "Type")}</p>
             <div className="flex flex-wrap gap-2">
@@ -683,10 +683,10 @@ export default function Search({ loaderData }: Route.ComponentProps) {
                   key={option.id}
                   href={buildSearchUrl({ type: option.id, museumId: museum })}
                   className={[
-                    "shrink-0 px-3.5 py-1.5 text-[13px] border rounded-card transition-colors focus-ring no-underline",
+                    "shrink-0 px-4 py-2 text-[13px] border rounded-card transition-colors focus-ring no-underline",
                     searchType === option.id
                       ? "border-primary bg-primary text-white"
-                      : "border-rule text-secondary hover:text-primary hover:border-secondary",
+                      : "border-[#C8C3BC] text-secondary hover:text-primary hover:border-secondary",
                   ].join(" ")}
                 >
                   {option.label}
