@@ -98,12 +98,13 @@ export default function HeroSearch({
     <div className="pt-[5rem] pb-10 px-4 md:px-6 lg:px-10 lg:pt-[6rem] lg:pb-14 flex flex-col items-center text-center">
       {isCampaign ? (
         <div>
-          <p className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-4">
-            Kabinett ×
-          </p>
           <h1 className="text-[clamp(3rem,10vw,9rem)] font-medium text-primary leading-[0.95] tracking-[-0.03em] uppercase">
-            {headline || defaultHeadline}
+            KABINETT
           </h1>
+          <div className="mt-4 mb-1 mx-auto w-8 border-t border-secondary/25" />
+          <p className="text-[clamp(1.25rem,3vw,1.75rem)] text-secondary/70 leading-[1.2] tracking-[0.04em]">
+            {headline || defaultHeadline}
+          </p>
           {introText && (
             <p className="mt-4 max-w-[32rem] mx-auto text-[15px] text-secondary leading-[1.55]">
               {introText}

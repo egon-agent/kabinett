@@ -118,6 +118,8 @@ function toCampaignConfig(id: CampaignId): CampaignConfig {
 }
 
 export function resolveCampaignFromHost(host: string | null): CampaignConfig {
+  const envOverride = parseCampaignId(process.env.KABINETT_CAMPAIGN);
+  if (envOverride !== "default") return toCampaignConfig(envOverride);
   const normalizedHost = normalizeHost(host);
   const id = normalizedHost ? HOSTNAME_MAP[normalizedHost] || "default" : "default";
   return toCampaignConfig(id);
