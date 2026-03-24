@@ -5,17 +5,21 @@ import { getDb, type ArtworkRow } from "../lib/db.server";
 import { buildImageUrl, buildDirectImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
 import { normalizeArtworkCategory, parseArtist, parseArtists } from "../lib/parsing";
+import { getCampaignConfig } from "../lib/campaign.server";
+import { resolveUiLocale, uiText, useUiLocale } from "../lib/ui-language";
 
 export function headers() {
   return { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" };
 }
 
 export function meta({ data }: Route.MetaArgs) {
-  if (!data?.artwork) return [{ title: "Konstverk — Kabinett" }];
+  const isEnglish = data?.uiLocale === "en";
+  if (!data?.artwork) return [{ title: isEnglish ? "Artwork — Kabinett" : "Konstverk — Kabinett" }];
   const { artwork } = data;
-  const artist = artwork.artists?.[0]?.name || "Okänd konstnär";
-  const genitive = artwork.museumName ? `${artwork.museumName}${artwork.museumName.endsWith("s") ? "" : "s"}` : "Kabinett";
-  const desc = `${artwork.title} av ${artist}${artwork.datingText ? `, ${artwork.datingText}` : ""}. Ur ${genitive} samling.`;
+  const artist = artwork.artists?.[0]?.name || (isEnglish ? "Unknown artist" : "Okänd konstnär");
+  const desc = isEnglish
+    ? `${artwork.title} by ${artist}${artwork.datingText ? `, ${artwork.datingText}` : ""}. From ${artwork.museumName || "Kabinett"} collection.`
+    : `${artwork.title} av ${artist}${artwork.datingText ? `, ${artwork.datingText}` : ""}. Ur ${artwork.museumName ? `${artwork.museumName}${artwork.museumName.endsWith("s") ? "" : "s"}` : "Kabinett"} samling.`;
   return [
     { title: `${artwork.title} — Kabinett` },
     { name: "description", content: desc },
@@ -103,7 +107,8 @@ function RelatedArtworkCard({
   secondaryText: string;
   fallbackArtist: string;
 }) {
-  const title = item.title_sv || item.title_en || "Utan titel";
+  const uiLocale = useUiLocale();
+  const title = item.title_sv || item.title_en || uiText(uiLocale, "Utan titel", "Untitled");
   const parsedArtist = parseArtist(item.artists || null).trim();
   const altArtist = parsedArtist || fallbackArtist;
 
@@ -209,6 +214,7 @@ function parseDescriptionSections(raw: string | null): DescriptionSection[] {
 }
 
 export async function loader({ params, request }: Route.LoaderArgs) {
+  const uiLocale = resolveUiLocale(getCampaignConfig().id);
   const url = new URL(request.url);
   const artworkId = Number.parseInt(params.id || "", 10);
   if (!Number.isFinite(artworkId) || artworkId === 0) {
@@ -242,14 +248,14 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     ? (row.source === "nationalmuseum" ? buildDirectImageUrl(row.iiif_url, 800) : row.iiif_url)
     : null;
   const ogDescriptionParts = [
-    artists[0]?.name || "Okänd konstnär",
+    artists[0]?.name || uiText(uiLocale, "Okänd konstnär", "Unknown artist"),
     row.dating_text || "",
     museumName || "",
   ].filter(Boolean);
 
   const artwork = {
     id: row.id,
-    title: row.title_sv || row.title_en || "Utan titel",
+    title: row.title_sv || row.title_en || uiText(uiLocale, "Utan titel", "Untitled"),
     titleEn: row.title_en,
     category: normalizeArtworkCategory(row.category),
     techniqueMaterial: row.technique_material,
@@ -286,12 +292,13 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   };
 
   const artistName = artists[0]?.name;
-  return { artwork, artistName, canonicalUrl: `${url.origin}${url.pathname}` };
+  return { artwork, artistName, canonicalUrl: `${url.origin}${url.pathname}`, uiLocale };
 }
 
 export default function Artwork({ loaderData }: Route.ComponentProps) {
+  const uiLocale = useUiLocale();
   const { artwork, artistName } = loaderData;
-  const artist = artwork.artists?.[0]?.name || "Okänd konstnär";
+  const artist = artwork.artists?.[0]?.name || uiText(uiLocale, "Okänd konstnär", "Unknown artist");
   const { isFavorite, toggle } = useFavorites();
   const saved = isFavorite(artwork.id);
   const [relatedLoading, setRelatedLoading] = useState(true);
@@ -374,7 +381,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M15 18l-6-6 6-6" />
           </svg>
-          Tillbaka
+          {uiText(uiLocale, "Tillbaka", "Back")}
         </button>
       </div>
 
@@ -422,7 +429,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
         )}
         {(artwork.collectionName || artwork.museumName) && (
           <p className="mt-2 text-[13px] text-secondary">
-            Samling:{" "}
+            {uiText(uiLocale, "Samling", "Collection")}:{" "}
             {artwork.collectionName ? (
               <a
                 href={`/samling/${encodeURIComponent(artwork.collectionName)}`}
@@ -439,14 +446,14 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
         {/* Details — single column definition list */}
         {(artwork.datingText || artwork.category || artwork.techniqueMaterial || artwork.dimensions || artwork.acquisitionYear || artwork.objectType || artwork.style || artwork.motiveCategory) && (
           <dl className="mt-8 pt-8 border-t border-rule space-y-4">
-            {artwork.datingText && <Detail label={artwork.datingType || "Datering"} value={artwork.datingText} />}
-            {artwork.category && <Detail label="Kategori" value={artwork.category} />}
-            {artwork.techniqueMaterial && <Detail label="Teknik" value={artwork.techniqueMaterial} />}
-            {artwork.dimensions && <Detail label="Mått" value={artwork.dimensions} />}
-            {artwork.acquisitionYear && <Detail label="Förvärvad" value={String(artwork.acquisitionYear)} />}
-            {artwork.objectType && <Detail label="Objekttyp" value={artwork.objectType} />}
-            {artwork.style && <Detail label="Stil" value={artwork.style} />}
-            {artwork.motiveCategory && <Detail label="Motiv" value={artwork.motiveCategory} />}
+            {artwork.datingText && <Detail label={artwork.datingType || uiText(uiLocale, "Datering", "Date")} value={artwork.datingText} />}
+            {artwork.category && <Detail label={uiText(uiLocale, "Kategori", "Category")} value={artwork.category} />}
+            {artwork.techniqueMaterial && <Detail label={uiText(uiLocale, "Teknik", "Technique")} value={artwork.techniqueMaterial} />}
+            {artwork.dimensions && <Detail label={uiText(uiLocale, "Mått", "Dimensions")} value={artwork.dimensions} />}
+            {artwork.acquisitionYear && <Detail label={uiText(uiLocale, "Förvärvad", "Acquired")} value={String(artwork.acquisitionYear)} />}
+            {artwork.objectType && <Detail label={uiText(uiLocale, "Objekttyp", "Object type")} value={artwork.objectType} />}
+            {artwork.style && <Detail label={uiText(uiLocale, "Stil", "Style")} value={artwork.style} />}
+            {artwork.motiveCategory && <Detail label={uiText(uiLocale, "Motiv", "Motif")} value={artwork.motiveCategory} />}
           </dl>
         )}
 
@@ -461,7 +468,17 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                 {descriptionSections.map((section, index) => (
                   <section key={`${section.heading}-${index}`}>
                     <h3 className="text-[11px] text-secondary uppercase tracking-[0.08em] mb-1">
-                      {section.heading}
+                      {uiText(
+                        uiLocale,
+                        section.heading,
+                        section.heading === "Beskrivning"
+                          ? "Description"
+                          : section.heading === "Proveniens"
+                            ? "Provenance"
+                            : section.heading === "Utställningar"
+                              ? "Exhibitions"
+                              : "Literature"
+                      )}
                     </h3>
                     <p className="text-[15px] text-primary leading-[1.55] whitespace-pre-line">
                       {section.content}
@@ -476,13 +493,13 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
             {canExpandDescription && (
               <button
                 type="button"
-                title={isDescriptionExpanded ? "Visa mindre" : "Visa mer"}
-                aria-label={isDescriptionExpanded ? "Visa mindre" : "Visa mer"}
+                title={isDescriptionExpanded ? uiText(uiLocale, "Visa mindre", "Show less") : uiText(uiLocale, "Visa mer", "Show more")}
+                aria-label={isDescriptionExpanded ? uiText(uiLocale, "Visa mindre", "Show less") : uiText(uiLocale, "Visa mer", "Show more")}
                 aria-expanded={isDescriptionExpanded}
                 onClick={() => setIsDescriptionExpanded((prev) => !prev)}
                 className="mt-3 text-[13px] text-secondary hover:text-primary transition-colors cursor-pointer bg-transparent border-none focus-ring"
               >
-                {isDescriptionExpanded ? "Visa mindre" : "Visa mer"}
+                {isDescriptionExpanded ? uiText(uiLocale, "Visa mindre", "Show less") : uiText(uiLocale, "Visa mer", "Show more")}
               </button>
             )}
           </div>
@@ -493,13 +510,13 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
           <div className="mt-8 pt-8 border-t border-rule space-y-3">
             {artwork.signature && (
               <div>
-                <p className="text-[11px] text-secondary uppercase tracking-[0.08em]">Signatur</p>
+                <p className="text-[11px] text-secondary uppercase tracking-[0.08em]">{uiText(uiLocale, "Signatur", "Signature")}</p>
                 <p className="text-[13px] text-primary mt-0.5">{artwork.signature}</p>
               </div>
             )}
             {artwork.inscription && (
               <div>
-                <p className="text-[11px] text-secondary uppercase tracking-[0.08em]">Inskription</p>
+                <p className="text-[11px] text-secondary uppercase tracking-[0.08em]">{uiText(uiLocale, "Inskription", "Inscription")}</p>
                 <p className="text-[13px] text-primary mt-0.5">{artwork.inscription}</p>
               </div>
             )}
@@ -510,7 +527,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
         {artwork.exhibitions.length > 0 && (
           <div className="mt-8 pt-8 border-t border-rule">
             <p className="text-[11px] text-secondary uppercase tracking-[0.08em] mb-2">
-              Utställningar ({artwork.exhibitions.length})
+              {uiText(uiLocale, "Utställningar", "Exhibitions")} ({artwork.exhibitions.length})
             </p>
             <div className="flex flex-col gap-1">
               {artwork.exhibitions.slice(0, 5).map((ex, i: number) => (
@@ -522,7 +539,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
               ))}
               {artwork.exhibitions.length > 5 && (
                 <p className="text-[11px] text-secondary">
-                  +{artwork.exhibitions.length - 5} till
+                  +{artwork.exhibitions.length - 5} {uiText(uiLocale, "till", "more")}
                 </p>
               )}
             </div>
@@ -533,7 +550,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
         {(artwork.mediaLicense || artwork.mediaCopyright) && (
           <div className="mt-8 pt-8 border-t border-rule">
             <p className="text-[11px] text-secondary uppercase tracking-[0.08em] mb-1.5">
-              Bildlicens
+              {uiText(uiLocale, "Bildlicens", "Image license")}
             </p>
             <div className="flex flex-col gap-1">
               {artwork.mediaLicense && (
@@ -567,37 +584,37 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
             type="button"
             onClick={() => {
               if (!saved) {
-                window.__toast?.("Sparad");
+                window.__toast?.(uiText(uiLocale, "Sparad", "Saved"));
               } else {
-                window.__toast?.("Borttagen från sparade");
+                window.__toast?.(uiText(uiLocale, "Borttagen från sparade", "Removed from saved"));
               }
               toggle(artwork.id);
             }}
             className="px-3.5 py-1.5 text-[13px] border border-rule rounded-card bg-white text-secondary hover:text-primary hover:border-secondary transition-colors cursor-pointer focus-ring"
           >
-            {saved ? "♥ Sparad" : "Spara"}
+            {saved ? `♥ ${uiText(uiLocale, "Sparad", "Saved")}` : uiText(uiLocale, "Spara", "Save")}
           </button>
           <button
             type="button"
             onClick={() => {
-              const artist = artwork.artists?.[0]?.name || "Okänd konstnär";
-              const text = `${artwork.title} av ${artist}`;
+              const artist = artwork.artists?.[0]?.name || uiText(uiLocale, "Okänd konstnär", "Unknown artist");
+              const text = uiText(uiLocale, `${artwork.title} av ${artist}`, `${artwork.title} by ${artist}`);
               const url = window.location.href;
               if (navigator.share) {
                 navigator.share({ title: artwork.title, text, url });
               } else {
                 navigator.clipboard.writeText(url);
-                window.__toast?.("Länk kopierad");
+                window.__toast?.(uiText(uiLocale, "Länk kopierad", "Link copied"));
               }
             }}
             className="px-3.5 py-1.5 text-[13px] border border-rule rounded-card bg-white text-secondary hover:text-primary hover:border-secondary transition-colors cursor-pointer focus-ring"
           >
-            Dela
+            {uiText(uiLocale, "Dela", "Share")}
           </button>
           {artwork.museumSiteUrl && artwork.museumName && (
             <a href={artwork.museumSiteUrl} target="_blank" rel="noopener noreferrer"
               className="px-3.5 py-1.5 text-[13px] border border-rule rounded-card bg-white text-secondary hover:text-primary hover:border-secondary transition-colors no-underline focus-ring">
-              Till {artwork.museumName} →
+              {uiText(uiLocale, `Till ${artwork.museumName}`, `Visit ${artwork.museumName}`)} →
             </a>
           )}
         </div>
@@ -608,14 +625,14 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
       {!relatedLoading && related.sameArtist.length > 0 && (
         <section className="px-4 md:px-6 lg:px-10 pt-10">
           <h2 className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-3">
-            Mer av {artistName}
+            {uiText(uiLocale, `Mer av ${artistName}`, `More by ${artistName}`)}
           </h2>
           <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
             {related.sameArtist.map((s) => (
               <RelatedArtworkCard
                 key={s.id}
                 item={s}
-                fallbackArtist={artistName || "Okänd konstnär"}
+                fallbackArtist={artistName || uiText(uiLocale, "Okänd konstnär", "Unknown artist")}
                 secondaryText={buildRelatedSecondaryText(s, "same-artist")}
               />
             ))}
@@ -627,14 +644,14 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
       {!relatedLoading && related.similar.length > 0 && (
         <section className="px-4 md:px-6 lg:px-10 pt-10">
           <h2 className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-3">
-            Liknande verk
+            {uiText(uiLocale, "Liknande verk", "Similar works")}
           </h2>
           <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
             {related.similar.map((s) => (
               <RelatedArtworkCard
                 key={s.id}
                 item={s}
-                fallbackArtist="Okänd konstnär"
+                fallbackArtist={uiText(uiLocale, "Okänd konstnär", "Unknown artist")}
                 secondaryText={buildRelatedSecondaryText(s, "similar")}
               />
             ))}

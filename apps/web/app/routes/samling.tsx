@@ -5,6 +5,8 @@ import { sourceFilter } from "../lib/museums.server";
 import { parseArtist } from "../lib/parsing";
 import InfiniteArtworkGrid from "../components/InfiniteArtworkGrid";
 import FeaturedGrid from "../components/FeaturedGrid";
+import { getCampaignConfig } from "../lib/campaign.server";
+import { formatUiNumber, resolveUiLocale, uiText, useUiLocale } from "../lib/ui-language";
 
 type FeaturedRow = {
   id: number;
@@ -21,8 +23,8 @@ type FeaturedRow = {
 const FEATURED_CACHE_TTL_MS = 60 * 1000;
 const collectionFeaturedCache = new Map<string, { expiresAt: number; rows: FeaturedRow[] }>();
 
-function formatRange(minYear: number | null, maxYear: number | null): string {
-  if (!minYear || !maxYear) return "Okänt";
+function formatRange(minYear: number | null, maxYear: number | null, uiLocale: "sv" | "en"): string {
+  if (!minYear || !maxYear) return uiText(uiLocale, "Okänt", "Unknown");
   if (minYear === maxYear) return String(minYear);
   return `${minYear}–${maxYear}`;
 }
@@ -32,11 +34,17 @@ export function headers() {
 }
 
 export function meta({ data }: Route.MetaArgs) {
-  if (!data?.name) return [{ title: "Samling — Kabinett" }];
+  const isEnglish = data?.uiLocale === "en";
+  if (!data?.name) return [{ title: isEnglish ? "Collection — Kabinett" : "Samling — Kabinett" }];
   const title = `${data.name} — Kabinett`;
   return [
     { title },
-    { name: "description", content: `Utforska ${data.stats.totalWorks.toLocaleString("sv")} verk från ${data.name} i Kabinett.` },
+    {
+      name: "description",
+      content: isEnglish
+        ? `Explore ${formatUiNumber(data.stats.totalWorks, "en")} works from ${data.name} in Kabinett.`
+        : `Utforska ${data.stats.totalWorks.toLocaleString("sv")} verk från ${data.name} i Kabinett.`,
+    },
     { property: "og:title", content: title },
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary_large_image" },
@@ -51,6 +59,7 @@ export function meta({ data }: Route.MetaArgs) {
 }
 
 export async function loader({ params }: Route.LoaderArgs) {
+  const uiLocale = resolveUiLocale(getCampaignConfig().id);
   let slug = "";
   try {
     slug = decodeURIComponent(params.name || "");
@@ -124,7 +133,7 @@ export async function loader({ params }: Route.LoaderArgs) {
 
   const featured = featuredRows.map((row: any) => ({
     id: row.id,
-    title: row.title_sv || row.title_en || "Utan titel",
+    title: row.title_sv || row.title_en || uiText(uiLocale, "Utan titel", "Untitled"),
     artist: parseArtist(row.artists),
     datingText: row.dating_text || null,
     imageUrl: buildImageUrl(row.iiif_url, 400),
@@ -135,42 +144,53 @@ export async function loader({ params }: Route.LoaderArgs) {
 
   const ogImageUrl = featuredRows[0]?.iiif_url ? buildImageUrl(featuredRows[0].iiif_url, 800) : null;
 
-  return { name: slug, stats: { totalWorks, dateRange: formatRange(dateRow?.minYear || null, dateRow?.maxYear || null), categories }, featured, ogImageUrl };
+  return {
+    name: slug,
+    stats: {
+      totalWorks,
+      dateRange: formatRange(dateRow?.minYear || null, dateRow?.maxYear || null, uiLocale),
+      categories,
+    },
+    featured,
+    ogImageUrl,
+    uiLocale,
+  };
 }
 
 export default function Samling({ loaderData }: Route.ComponentProps) {
+  const uiLocale = useUiLocale();
   const { name, stats, featured } = loaderData;
 
   return (
     <div className="min-h-screen pt-16 bg-white">
       <div className="px-4 md:px-6 lg:px-10">
         <div className="pt-8">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-secondary">Samling</p>
+          <p className="text-[11px] uppercase tracking-[0.08em] text-secondary">{uiText(uiLocale, "Samling", "Collection")}</p>
           <h1 className="text-[32px] text-primary leading-[1.3] mt-1">{name}</h1>
         </div>
 
         <section className="pt-10">
-          <h2 className="sr-only">Nyckeltal</h2>
+          <h2 className="sr-only">{uiText(uiLocale, "Nyckeltal", "Key figures")}</h2>
           <div className="grid gap-3 md:grid-cols-3">
             <div className="bg-white p-5">
-              <p className="text-[0.65rem] uppercase tracking-[0.14em] text-secondary m-0">Verk</p>
-              <p className="text-[1.6rem] text-primary mt-2">{stats.totalWorks.toLocaleString("sv")}</p>
+              <p className="text-[0.65rem] uppercase tracking-[0.14em] text-secondary m-0">{uiText(uiLocale, "Verk", "Works")}</p>
+              <p className="text-[1.6rem] text-primary mt-2">{formatUiNumber(stats.totalWorks, uiLocale)}</p>
             </div>
             <div className="bg-white p-5">
-              <p className="text-[0.65rem] uppercase tracking-[0.14em] text-secondary m-0">Tidsomfång</p>
+              <p className="text-[0.65rem] uppercase tracking-[0.14em] text-secondary m-0">{uiText(uiLocale, "Tidsomfång", "Time span")}</p>
               <p className="text-[1.6rem] text-primary mt-2">{stats.dateRange}</p>
             </div>
             <div className="bg-white p-5">
-              <p className="text-[0.65rem] uppercase tracking-[0.14em] text-secondary m-0">Kategorier</p>
+              <p className="text-[0.65rem] uppercase tracking-[0.14em] text-secondary m-0">{uiText(uiLocale, "Kategorier", "Categories")}</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {stats.categories.length > 0 ? (
                   stats.categories.map((c) => (
                     <span key={c.name} className="text-xs px-2 py-0.5 bg-paper text-primary">
-                      {c.name} · {c.count.toLocaleString("sv")}
+                      {c.name} · {formatUiNumber(c.count, uiLocale)}
                     </span>
                   ))
                 ) : (
-                  <span className="text-sm text-secondary">Inga kategorier</span>
+                  <span className="text-sm text-secondary">{uiText(uiLocale, "Inga kategorier", "No categories")}</span>
                 )}
               </div>
             </div>
@@ -178,7 +198,7 @@ export default function Samling({ loaderData }: Route.ComponentProps) {
         </section>
 
         <section className="pt-10 pb-6">
-          <h2 className="text-[1.35rem] text-primary">Utvalda verk</h2>
+          <h2 className="text-[1.35rem] text-primary">{uiText(uiLocale, "Utvalda verk", "Featured works")}</h2>
           <FeaturedGrid items={featured} />
         </section>
 

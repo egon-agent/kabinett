@@ -451,9 +451,16 @@ export async function loader() {
 }
 
 export default function Discover({ loaderData }: Route.ComponentProps) {
-  const { collections, topArtists, stats, museums } = loaderData;
+  const { collections, topArtists, stats, museums, museumName } = loaderData;
   const uiLocale = useUiLocale();
   const hasWalks = uiLocale !== "en";
+  const isEuropeanaCampaign = museumName === "Europeana";
+  const secondaryStatNumber = isEuropeanaCampaign
+    ? formatUiNumber(stats.totalWorks, uiLocale)
+    : formatUiNumber(stats.paintings, uiLocale);
+  const secondaryStatLabel = isEuropeanaCampaign
+    ? uiText(uiLocale, "bilder", "images")
+    : uiText(uiLocale, "målningar", "paintings");
 
   const tools: ToolItem[] = [
     { title: uiText(uiLocale, "Tidslinje", "Timeline"), desc: uiText(uiLocale, "800 år av konst, decennium för decennium", "800 years of art, decade by decade"), href: "/timeline" },
@@ -585,7 +592,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
                   <StatItem number={formatUiNumber(stats.totalWorks, uiLocale)} label={uiText(uiLocale, "verk", "artworks")} />
                   <StatItem number={formatUiNumber(stats.museums, uiLocale)} label={uiText(uiLocale, "samlingar", "collections")} />
                   <StatItem number={uiText(uiLocale, `${stats.yearsSpan} år`, `${formatUiNumber(stats.yearsSpan, uiLocale)} years`)} label={uiText(uiLocale, "av historia", "of history")} />
-                  <StatItem number={formatUiNumber(stats.paintings, uiLocale)} label={uiText(uiLocale, "målningar", "paintings")} />
+                  <StatItem number={secondaryStatNumber} label={secondaryStatLabel} />
                 </div>
               </div>
             </div>

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import GridCard, { type GridCardItem } from "./GridCard";
+import { uiText, useUiLocale } from "../lib/ui-language";
 
 type Props = {
   fetchUrl: string;
@@ -7,6 +8,7 @@ type Props = {
 };
 
 export default function InfiniteArtworkGrid({ fetchUrl, heading = "Alla verk" }: Props) {
+  const uiLocale = useUiLocale();
   const [works, setWorks] = useState<GridCardItem[]>([]);
   const [canLoadMore, setCanLoadMore] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -22,7 +24,7 @@ export default function InfiniteArtworkGrid({ fetchUrl, heading = "Alla verk" }:
     try {
       const separator = fetchUrl.includes("?") ? "&" : "?";
       const res = await fetch(`${fetchUrl}${separator}offset=${offsetRef.current}`);
-      if (!res.ok) throw new Error("Kunde inte ladda verk");
+      if (!res.ok) throw new Error("Could not load artworks");
       const data = (await res.json()) as { works: GridCardItem[]; hasMore: boolean };
       if (data.works.length === 0) {
         setCanLoadMore(false);
@@ -63,7 +65,7 @@ export default function InfiniteArtworkGrid({ fetchUrl, heading = "Alla verk" }:
 
   return (
     <section className="pt-10 pb-16">
-      <h2 className="text-[1.35rem] text-primary mb-5">{heading}</h2>
+      <h2 className="text-[1.35rem] text-primary mb-5">{uiText(uiLocale, heading, heading === "Alla verk" ? "All works" : heading)}</h2>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         {works.map((w) => (
           <GridCard key={w.id} item={w} />
@@ -71,20 +73,20 @@ export default function InfiniteArtworkGrid({ fetchUrl, heading = "Alla verk" }:
       </div>
       {loadError && (
         <div className="text-center py-6" aria-live="polite">
-          <p className="text-sm text-secondary mb-3">Kunde inte ladda fler verk.</p>
+          <p className="text-sm text-secondary mb-3">{uiText(uiLocale, "Kunde inte ladda fler verk.", "Could not load more artworks.")}</p>
           <button
             type="button"
             onClick={() => { setLoadError(false); loadMore(); }}
             className="px-4 py-2 rounded-full border border-rule/30 text-sm text-primary font-medium hover:bg-paper transition-colors focus-ring"
           >
-            Försök igen
+            {uiText(uiLocale, "Försök igen", "Try again")}
           </button>
         </div>
       )}
       {canLoadMore && !loadError && <div ref={sentinelRef} className="h-4" />}
       {loading && (
         <p className="text-center text-sm text-secondary py-4">
-          Laddar fler verk…
+          {uiText(uiLocale, "Laddar fler verk…", "Loading more artworks…")}
         </p>
       )}
     </section>

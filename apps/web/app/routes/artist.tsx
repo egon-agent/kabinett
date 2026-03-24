@@ -4,6 +4,8 @@ import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
 import GridCard from "../components/GridCard";
+import { getCampaignConfig } from "../lib/campaign.server";
+import { formatUiNumber, resolveUiLocale, uiText, useUiLocale } from "../lib/ui-language";
 
 type ActorDate = { date_type?: string; date_earliest?: string | number };
 
@@ -177,21 +179,23 @@ export function headers() {
 }
 
 export function meta({ data }: Route.MetaArgs) {
-  const name = data?.artistName || "Konstnär";
+  const isEnglish = data?.uiLocale === "en";
+  const name = data?.artistName || (isEnglish ? "Artist" : "Konstnär");
   return [
     { title: `${name} — Kabinett` },
     {
       name: "description",
-      content: `Verk av ${name} i Kabinett.`,
+      content: isEnglish ? `Works by ${name} in Kabinett.` : `Verk av ${name} i Kabinett.`,
     },
     { property: "og:title", content: name },
-    { property: "og:description", content: `Utforska verk av ${name}` },
+    { property: "og:description", content: isEnglish ? `Explore works by ${name}` : `Utforska verk av ${name}` },
   ];
 }
 
 const PAGE_SIZE = 60;
 
 export async function loader({ params }: Route.LoaderArgs) {
+  const uiLocale = resolveUiLocale(getCampaignConfig().id);
   let name = "";
   try {
     name = decodeURIComponent(params.name || "").trim();
@@ -277,7 +281,7 @@ export async function loader({ params }: Route.LoaderArgs) {
         .slice(0, 30)
         .map((r) => ({
           id: r.id,
-          title: r.title_sv || r.title_en || "Utan titel",
+          title: r.title_sv || r.title_en || uiText(uiLocale, "Utan titel", "Untitled"),
           imageUrl: buildImageUrl(r.iiif_url, 400),
           year: r.year_start,
           color: r.dominant_color || "#D4CDC3",
@@ -286,7 +290,7 @@ export async function loader({ params }: Route.LoaderArgs) {
 
   const gridWorks = rows.map((r) => ({
     id: r.id,
-    title: r.title_sv || r.title_en || "Utan titel",
+    title: r.title_sv || r.title_en || uiText(uiLocale, "Utan titel", "Untitled"),
     imageUrl: buildImageUrl(r.iiif_url, 400),
     color: r.dominant_color || "#D4CDC3",
     year: r.dating_text || "",
@@ -306,6 +310,7 @@ export async function loader({ params }: Route.LoaderArgs) {
     timelineWorks,
     works: gridWorks,
     hasMore,
+    uiLocale,
   };
 }
 
@@ -318,6 +323,7 @@ type GridWork = {
 };
 
 export default function Artist({ loaderData }: Route.ComponentProps) {
+  const uiLocale = useUiLocale();
   const {
     artistName,
     nationality,
@@ -334,7 +340,7 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
     hasMore: initialHasMore,
   } = loaderData;
 
-  const altArtist = artistName || "Okänd konstnär";
+  const altArtist = artistName || uiText(uiLocale, "Okänd konstnär", "Unknown artist");
 
   const [works, setWorks] = useState<GridWork[]>(initialWorks);
   const [canLoadMore, setCanLoadMore] = useState(initialHasMore);
@@ -358,7 +364,7 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
         offset: String(offsetRef.current),
       });
       const res = await fetch(`/api/artist-works?${params.toString()}`);
-      if (!res.ok) throw new Error("Kunde inte ladda fler verk");
+      if (!res.ok) throw new Error("Could not load more artworks");
       const data = await res.json() as { works: GridWork[]; hasMore: boolean };
       if (data.works.length === 0) {
         setCanLoadMore(false);
@@ -389,7 +395,7 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
     <div className="min-h-screen pt-16 bg-white">
       <div className="px-4 md:px-6 lg:px-10 pt-8 pb-6">
         <p className="text-[11px] uppercase tracking-[0.08em] text-secondary">
-          Konstnärsresa
+          {uiText(uiLocale, "Konstnärsresa", "Artist journey")}
         </p>
         <h1 className="text-[32px] text-primary leading-[1.3] mt-2">
           {artistName}
@@ -404,7 +410,7 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
             </span>
           )}
           {(nationality || birth || death) && <span className="text-secondary">·</span>}
-          <span>{total} verk</span>
+          <span>{uiText(uiLocale, `${total} verk`, `${formatUiNumber(total, uiLocale)} works`)}</span>
         </div>
         {(wikiDescription || wikiExtract || biography) && (
           <p className="mt-[0.9rem] text-[0.95rem] text-primary max-w-[46rem]">
@@ -430,7 +436,7 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
       {timelineWorks.length > 0 && (
         <section className="px-4 md:px-6 lg:px-10 pb-10">
           <h2 className="text-[18px] text-primary mb-4">
-            Verk över tid
+            {uiText(uiLocale, "Verk över tid", "Works over time")}
           </h2>
           <div className="grid grid-flow-col auto-cols-[minmax(140px,180px)] gap-3 overflow-x-auto pb-2 snap-x snap-mandatory no-scrollbar lg:auto-cols-[minmax(180px,220px)]">
             {timelineWorks.map((w) => (
@@ -468,7 +474,7 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
 
       <section className="px-4 md:px-6 lg:px-10 pb-16">
         <h2 className="text-[18px] text-primary mb-5">
-          Alla verk
+          {uiText(uiLocale, "Alla verk", "All works")}
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           {works.map((w) => (
@@ -478,7 +484,7 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
         <div ref={sentinelRef} className="h-4" />
         {loading && (
           <p className="text-center text-[0.85rem] text-secondary py-4">
-            Laddar fler verk…
+            {uiText(uiLocale, "Laddar fler verk…", "Loading more artworks…")}
           </p>
         )}
       </section>
