@@ -90,41 +90,46 @@ img.is-broken {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: minmax(180px, 220px);
-  gap: 1rem;
+  gap: 0.75rem;
   overflow-x: auto;
-  padding: 1rem 1.25rem 2rem;
+  padding: 0.25rem 0 1.5rem;
   scroll-behavior: smooth;
   scroll-snap-type: x mandatory;
-  scroll-padding-inline: 1.25rem;
+  scroll-padding-inline: 1rem;
   -webkit-overflow-scrolling: touch;
 }
 
 .timeline-column {
   scroll-snap-align: start;
-  background: rgba(255,255,255,0.04);
-  padding: 0.5rem 0.75rem 0.75rem;
   display: grid;
-  gap: 0.35rem;
+  gap: 0.4rem;
   align-content: start;
 }
 
 .timeline-label {
   position: sticky;
-  top: 0;
-  padding: 0.35rem 0.25rem;
-  font-size: 1rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  background: var(--color-dark-bg);
+  top: 3.5rem;
+  padding: 0.25rem 0 0.4rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--color-primary);
+  border-bottom: 1.5px solid var(--color-rule);
+  background: var(--color-white);
+  box-shadow: 0 -2rem 0 0 var(--color-white);
   z-index: 2;
 }
 
 .timeline-card {
   overflow: hidden;
-  background: var(--color-dark-surface);
   text-decoration: none;
   color: inherit;
   display: grid;
+  transition: opacity 0.2s ease;
+}
+
+.timeline-card:hover {
+  opacity: 0.8;
 }
 
 .timeline-card img {
@@ -134,24 +139,25 @@ img.is-broken {
 }
 
 .timeline-card-meta {
-  padding: 0.5rem 0.6rem 0.6rem;
+  padding: 0.4rem 0.1rem 0.25rem;
   display: grid;
-  gap: 0.2rem;
+  gap: 0.1rem;
 }
 
 .timeline-expand {
-  margin-top: 0.4rem;
+  margin-top: 0.5rem;
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  font-size: 0.75rem;
-  color: rgba(232,230,226,0.75);
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-secondary);
   text-decoration: none;
   transition: color 0.2s;
 }
 
 .timeline-expand:hover {
-  color: rgba(232,230,226,1);
+  color: var(--color-primary);
 }
 
 .timeline-grid {
@@ -161,12 +167,8 @@ img.is-broken {
 
 @media (min-width: 1024px) {
   .timeline-scroll {
-    grid-auto-columns: minmax(220px, 280px);
-    padding: 1.75rem 0 2.75rem;
-  }
-
-  .timeline-column {
-    padding: 0.9rem;
+    grid-auto-columns: minmax(190px, 230px);
+    gap: 1rem;
   }
 }
 

@@ -238,7 +238,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="min-h-screen pt-16 bg-white text-primary">
-      <div id="top" className="px-4 md:px-6 lg:px-10 pt-8 pb-6">
+      <div id="top" className="px-4 md:px-6 lg:px-10 pt-8 pb-2">
         <h1 className="text-[32px] text-primary leading-[1.3]">{uiText(uiLocale, "Tidslinje", "Timeline")}</h1>
         <p className="text-[15px] text-secondary mt-1">
           {uiText(uiLocale, "800 år av konst — från medeltid till modernism", "800 years of art, from the Middle Ages to modernism")}
@@ -252,7 +252,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
               <div className="timeline-label">{decade.decade}</div>
               {decade.samples.map((art) => (
                 <a key={art.id} href={`/artwork/${art.id}`} className="timeline-card focus-ring">
-                  <div className="aspect-[3/4]" style={{ backgroundColor: art.color }}>
+                  <div className="aspect-[3/4] rounded-card overflow-hidden" style={{ backgroundColor: art.color }}>
                     <img
                       src={art.imageUrl}
                       alt={`${art.title} — ${art.artist}`}
@@ -305,7 +305,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
                 <GridCard
                   key={art.id}
                   item={{ id: art.id, title: art.title, artist: art.artist, year: String(art.year), imageUrl: art.imageUrl, color: art.color }}
-                  variant="dark"
+                  variant="light"
                 />
               ))}
             </div>
