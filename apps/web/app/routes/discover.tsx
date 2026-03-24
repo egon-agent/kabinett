@@ -1,3 +1,4 @@
+import type Database from "better-sqlite3";
 import type { Route } from "./+types/discover";
 import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
@@ -62,6 +63,18 @@ type ThemeImageRow = {
   focal_y: number | null;
 };
 
+type TopArtistQueryRow = {
+  name: string;
+  cnt: number;
+  iiif_url: string | null;
+  dominant_color: string | null;
+  title_sv: string | null;
+  title_en: string | null;
+  artists: string | null;
+  focal_x: number | null;
+  focal_y: number | null;
+};
+
 type ToolItem = {
   title: string;
   desc: string;
@@ -89,7 +102,143 @@ const COLLECTIONS: Collection[] = [
 ];
 
 const discoverCacheMap = new Map<string, { expiresAt: number; data: any }>();
-const DISCOVER_CACHE_TTL_MS = 10 * 60 * 1000;
+const DISCOVER_CACHE_TTL_MS = 3_600_000;
+let hasTopArtistsMaterializedTable: boolean | null = null;
+
+function buildTopArtistFilters(alias: string): string {
+  const artistName = `json_extract(${alias}.artists, '$[0].name')`;
+
+  return [
+    `${alias}.artists IS NOT NULL`,
+    `${artistName} IS NOT NULL`,
+    `${artistName} NOT LIKE '%känd%'`,
+    `${artistName} NOT LIKE '%nonym%'`,
+    `${artistName} NOT LIKE 'http://%'`,
+    `${artistName} NOT LIKE 'https://%'`,
+    `${artistName} NOT LIKE 'www.%'`,
+    `${artistName} NOT GLOB '[0-9]*_*'`,
+    `${artistName} NOT IN ('Gustavsberg')`,
+    `COALESCE(${alias}.category, '') NOT LIKE '%Keramik%'`,
+    `COALESCE(${alias}.category, '') NOT LIKE '%Porslin%'`,
+    `COALESCE(${alias}.category, '') NOT LIKE '%Glas%'`,
+    `COALESCE(${alias}.category, '') NOT LIKE '%Formgivning%'`,
+    `${alias}.iiif_url IS NOT NULL`,
+    `LENGTH(${alias}.iiif_url) > 40`,
+  ].join("\n        AND ");
+}
+
+function topArtistsMaterializedTableExists(db: Database.Database): boolean {
+  if (hasTopArtistsMaterializedTable !== null) {
+    return hasTopArtistsMaterializedTable;
+  }
+
+  const row = db.prepare(
+    `SELECT name
+     FROM sqlite_master
+     WHERE type = 'table' AND name = 'top_artists_materialized'`
+  ).get() as { name?: string } | undefined;
+
+  hasTopArtistsMaterializedTable = Boolean(row?.name);
+  return hasTopArtistsMaterializedTable;
+}
+
+function queryMaterializedTopArtists(db: Database.Database, sources: string[]): TopArtistQueryRow[] {
+  if (sources.length === 0) {
+    return [];
+  }
+
+  const placeholders = sources.map(() => "?").join(",");
+
+  return db.prepare(
+    `WITH filtered AS (
+       SELECT
+         name,
+         SUM(artwork_count) as cnt,
+         MAX(sample_artwork_id) as sample_artwork_id
+       FROM top_artists_materialized
+       WHERE source IN (${placeholders})
+       GROUP BY name
+       HAVING cnt >= 20
+       ORDER BY cnt DESC
+       LIMIT 12
+     )
+     SELECT
+       f.name,
+       f.cnt,
+       a.iiif_url,
+       a.dominant_color,
+       a.title_sv,
+       a.title_en,
+       a.artists,
+       a.focal_x,
+       a.focal_y
+     FROM filtered f
+     JOIN artworks a ON a.id = f.sample_artwork_id
+     LEFT JOIN broken_images bi ON bi.artwork_id = a.id
+     WHERE bi.artwork_id IS NULL
+     ORDER BY f.cnt DESC`
+  ).all(...sources) as TopArtistQueryRow[];
+}
+
+function queryLiveTopArtists(
+  db: Database.Database,
+  source: { sql: string; params: string[] },
+): TopArtistQueryRow[] {
+  const baseFilters = buildTopArtistFilters("a");
+
+  return db.prepare(`
+    WITH top_artists AS (
+      SELECT json_extract(a.artists, '$[0].name') as name, COUNT(*) as cnt
+      FROM artworks a
+      WHERE ${baseFilters}
+        AND ${source.sql}
+      GROUP BY name
+      HAVING cnt >= 20
+      ORDER BY cnt DESC
+      LIMIT 12
+    ), artist_samples AS (
+      SELECT
+        json_extract(a.artists, '$[0].name') as name,
+        MAX(a.id) as sample_id
+      FROM artworks a
+      LEFT JOIN broken_images bi ON bi.artwork_id = a.id
+      WHERE ${baseFilters}
+        AND bi.artwork_id IS NULL
+        AND json_extract(a.artists, '$[0].name') IN (SELECT name FROM top_artists)
+        AND ${source.sql}
+      GROUP BY name
+    )
+    SELECT
+      ta.name,
+      ta.cnt,
+      a.iiif_url,
+      a.dominant_color,
+      a.title_sv,
+      a.title_en,
+      a.artists,
+      a.focal_x,
+      a.focal_y
+    FROM top_artists ta
+    JOIN artist_samples s ON s.name = ta.name
+    JOIN artworks a ON a.id = s.sample_id
+    ORDER BY ta.cnt DESC
+  `).all(...source.params, ...source.params) as TopArtistQueryRow[];
+}
+
+function queryTopArtists(
+  db: Database.Database,
+  source: { sql: string; params: string[] },
+): TopArtistQueryRow[] {
+  if (topArtistsMaterializedTableExists(db)) {
+    try {
+      return queryMaterializedTopArtists(db, source.params);
+    } catch {
+      hasTopArtistsMaterializedTable = false;
+    }
+  }
+
+  return queryLiveTopArtists(db, source);
+}
 
 function pickSeeded<T>(items: T[], seed: number): T | undefined {
   if (items.length === 0) return undefined;
@@ -245,72 +394,7 @@ export async function loader() {
     }
   });
 
-  const artistsWithImages = db.prepare(`
-    WITH top_artists AS (
-      SELECT json_extract(artists, '$[0].name') as name, COUNT(*) as cnt
-      FROM artworks
-      WHERE artists IS NOT NULL
-        AND json_extract(artists, '$[0].name') IS NOT NULL
-        AND json_extract(artists, '$[0].name') NOT LIKE '%känd%'
-        AND json_extract(artists, '$[0].name') NOT LIKE '%nonym%'
-        AND json_extract(artists, '$[0].name') NOT LIKE 'http://%'
-        AND json_extract(artists, '$[0].name') NOT LIKE 'https://%'
-        AND json_extract(artists, '$[0].name') NOT LIKE 'www.%'
-        AND json_extract(artists, '$[0].name') NOT GLOB '[0-9]*_*'
-        AND json_extract(artists, '$[0].name') NOT IN ('Gustavsberg')
-        AND COALESCE(category, '') NOT LIKE '%Keramik%'
-        AND COALESCE(category, '') NOT LIKE '%Porslin%'
-        AND COALESCE(category, '') NOT LIKE '%Glas%'
-        AND COALESCE(category, '') NOT LIKE '%Formgivning%'
-        AND iiif_url IS NOT NULL
-        AND LENGTH(iiif_url) > 40
-        AND ${source.sql}
-      GROUP BY name
-      HAVING cnt >= 20
-      ORDER BY cnt DESC
-      LIMIT 12
-    ), artist_samples AS (
-      SELECT
-        json_extract(artists, '$[0].name') as name,
-        MAX(id) as sample_id
-      FROM artworks
-      WHERE artists IS NOT NULL
-        AND json_extract(artists, '$[0].name') IN (SELECT name FROM top_artists)
-        AND COALESCE(category, '') NOT LIKE '%Keramik%'
-        AND COALESCE(category, '') NOT LIKE '%Porslin%'
-        AND COALESCE(category, '') NOT LIKE '%Glas%'
-        AND COALESCE(category, '') NOT LIKE '%Formgivning%'
-        AND iiif_url IS NOT NULL
-        AND LENGTH(iiif_url) > 40
-        AND id NOT IN (SELECT artwork_id FROM broken_images)
-        AND ${source.sql}
-      GROUP BY name
-    )
-    SELECT
-      ta.name,
-      ta.cnt,
-      a.iiif_url,
-      a.dominant_color,
-      a.title_sv,
-      a.title_en,
-      a.artists,
-      a.focal_x,
-      a.focal_y
-    FROM top_artists ta
-    JOIN artist_samples s ON s.name = ta.name
-    JOIN artworks a ON a.id = s.sample_id
-    ORDER BY ta.cnt DESC
-  `).all(...source.params, ...source.params) as Array<{
-    name: string;
-    cnt: number;
-    iiif_url: string | null;
-    dominant_color: string | null;
-    title_sv: string | null;
-    title_en: string | null;
-    artists: string | null;
-    focal_x: number | null;
-    focal_y: number | null;
-  }>;
+  const artistsWithImages = queryTopArtists(db, source);
 
   const mappedArtists: TopArtist[] = artistsWithImages.map((artistRow) => ({
     name: artistRow.name,

@@ -1,6 +1,6 @@
 import { getDb } from "./db.server";
 import { buildImageUrl } from "./images";
-import { sourceFilter } from "./museums.server";
+import { getEnabledMuseums, sourceFilter } from "./museums.server";
 import { searchArtworksText } from "./text-search.server";
 
 type FeedItemRow = {
@@ -90,6 +90,99 @@ function mapRows(rows: FeedItemRow[]): FeedItem[] {
   }));
 }
 
+const ALLA_MEDIA_LICENSE_SQL = "(a.media_license IS NULL OR a.media_license NOT IN ('In Copyright', '© Bildupphovsrätt i Sverige'))";
+const ALLA_FETCH_ATTEMPTS = 3;
+
+function interleaveRowsRoundRobin(groups: FeedItemRow[][], targetCount: number): FeedItemRow[] {
+  const merged: FeedItemRow[] = [];
+  const seen = new Set<string>();
+  const positions = new Array(groups.length).fill(0);
+
+  while (merged.length < targetCount) {
+    let addedInPass = false;
+
+    for (let groupIndex = 0; groupIndex < groups.length; groupIndex += 1) {
+      const group = groups[groupIndex];
+      if (!group) continue;
+
+      while (positions[groupIndex] < group.length) {
+        const row = group[positions[groupIndex]++];
+        if (!row) break;
+
+        if (row.iiif_url && seen.has(row.iiif_url)) {
+          continue;
+        }
+
+        if (row.iiif_url) {
+          seen.add(row.iiif_url);
+        }
+
+        merged.push(row);
+        addedInPass = true;
+        break;
+      }
+
+      if (merged.length >= targetCount) {
+        break;
+      }
+    }
+
+    if (!addedInPass) {
+      break;
+    }
+  }
+
+  return merged;
+}
+
+function queryAllaRowsPerMuseum(
+  targetCount: number,
+  limit: number,
+  applyMediaLicenseFilter: boolean,
+): { rows: FeedItemRow[]; hasMore: boolean } {
+  const museums = getEnabledMuseums();
+  if (museums.length === 0) {
+    return { rows: [], hasMore: false };
+  }
+
+  const db = getDb();
+  const sql = `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
+                      a.focal_x, a.focal_y,
+                      COALESCE(a.sub_museum, m.name) as museum_name
+               FROM artworks a
+               LEFT JOIN museums m ON m.id = a.source
+               LEFT JOIN broken_images bi ON bi.artwork_id = a.id
+               WHERE a.source = ?
+                 AND a.iiif_url IS NOT NULL
+                 AND LENGTH(a.iiif_url) > 40
+                 AND bi.artwork_id IS NULL
+                 AND LENGTH(COALESCE(a.title_sv, a.title_en, '')) < 60
+                 ${applyMediaLicenseFilter ? `AND ${ALLA_MEDIA_LICENSE_SQL}` : ""}
+               ORDER BY a.id DESC
+               LIMIT ?`;
+  const stmt = db.prepare(sql);
+
+  let perSourceLimit = Math.max(limit * 2, Math.ceil(targetCount / museums.length) * 2);
+  let mergedRows: FeedItemRow[] = [];
+  let hasMore = false;
+
+  for (let attempt = 0; attempt < ALLA_FETCH_ATTEMPTS; attempt += 1) {
+    const groups = museums.map((museumId) => stmt.all(museumId, perSourceLimit) as FeedItemRow[]);
+    mergedRows = interleaveRowsRoundRobin(groups, targetCount);
+
+    const couldHaveMore = groups.some((rows) => rows.length === perSourceLimit);
+    hasMore = mergedRows.length >= targetCount || couldHaveMore;
+
+    if (mergedRows.length >= targetCount || !couldHaveMore) {
+      break;
+    }
+
+    perSourceLimit *= 2;
+  }
+
+  return { rows: mergedRows, hasMore };
+}
+
 export async function fetchFeed(options: {
   cursor?: number | null;
   limit: number;
@@ -100,6 +193,7 @@ export async function fetchFeed(options: {
   const limit = Math.max(1, Math.min(options.limit, 40));
   const filter = options.filter?.trim() || "Alla";
   const cursor = options.cursor ?? null;
+  const applyMediaLicenseFilter = sourceA.sql.includes("media_license");
 
   if (MOOD_QUERIES[filter]) {
     const mood = MOOD_QUERIES[filter];
@@ -181,46 +275,20 @@ export async function fetchFeed(options: {
   let dedupeOrderBy = "a.id ASC";
 
   if (filter === "Alla") {
-    const overFetchLimit = limit * 4;
-    const cursorSql = cursor ? "AND a.id < ?" : "";
-
-    const rawRows = db.prepare(
-      `WITH ranked AS (
-         SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
-                a.focal_x, a.focal_y,
-                COALESCE(a.sub_museum, m.name) as museum_name,
-                ROW_NUMBER() OVER (PARTITION BY a.source ORDER BY a.id DESC) as source_rank
-         FROM artworks a
-         LEFT JOIN museums m ON m.id = a.source
-         WHERE a.iiif_url IS NOT NULL
-           AND LENGTH(a.iiif_url) > 40
-           AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-           AND LENGTH(COALESCE(a.title_sv, a.title_en, '')) < 60
-           AND ${sourceA.sql}
-           ${cursorSql}
-       )
-       SELECT id, title_sv, title_en, artists, dating_text, iiif_url, dominant_color, category, technique_material,
-              focal_x, focal_y, museum_name
-       FROM ranked
-       ORDER BY source_rank ASC, id DESC
-       LIMIT ?`
-    ).all(...sourceA.params, ...(cursor ? [cursor] : []), overFetchLimit) as FeedItemRow[];
-
-    const seen = new Set<string>();
-    const rows: FeedItemRow[] = [];
-    for (const row of rawRows) {
-      if (row.iiif_url && seen.has(row.iiif_url)) continue;
-      if (row.iiif_url) seen.add(row.iiif_url);
-      rows.push(row);
-      if (rows.length >= limit) break;
-    }
-
-    const nextCursor = rows.length > 0 ? Math.min(...rows.map((row) => row.id)) : cursor;
+    const offset = Math.max(0, cursor || 0);
+    const { rows: mergedRows, hasMore } = queryAllaRowsPerMuseum(
+      offset + limit + 1,
+      limit,
+      applyMediaLicenseFilter,
+    );
+    const rows = mergedRows.slice(offset, offset + limit);
+    const pageHasMore = hasMore && rows.length > 0;
+    const nextCursor = pageHasMore ? offset + rows.length : null;
 
     return {
       items: mapRows(rows),
       nextCursor,
-      hasMore: rows.length === limit,
+      hasMore: pageHasMore,
       mode: "cursor" as const,
     };
   }

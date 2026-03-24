@@ -11,7 +11,7 @@ export type SiteStats = {
 };
 
 const statsCache = new Map<string, { stats: SiteStats; ts: number }>();
-const STATS_CACHE_TTL_MS = 300_000;
+const STATS_CACHE_TTL_MS = 3_600_000;
 let hasMaterializedStatsTables: boolean | null = null;
 
 function querySiteStatsLive(db: Database.Database): SiteStats {

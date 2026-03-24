@@ -26,7 +26,7 @@ type CacheEntry = {
   expiresAt: number;
 };
 
-const RELATED_CACHE_TTL_MS = Number(process.env.KABINETT_RELATED_CACHE_MS ?? "600000");
+const RELATED_CACHE_TTL_MS = Number(process.env.KABINETT_RELATED_CACHE_MS ?? "3600000");
 const RELATED_BUDGET_MS = Number(process.env.KABINETT_RELATED_BUDGET_MS ?? "250");
 const RELATED_K = Number(process.env.KABINETT_RELATED_K ?? "16");
 const RELATED_SIMILAR_LIMIT = Number(process.env.KABINETT_RELATED_SIMILAR_LIMIT ?? "8");

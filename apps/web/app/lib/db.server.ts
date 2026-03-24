@@ -17,8 +17,8 @@ export function getDb(): Database.Database {
     db = new Database(DB_PATH, { readonly: true });
     sqliteVec.load(db);
     db.pragma("journal_mode = WAL");
-    db.pragma("cache_size = -64000"); // 64MB cache
-    db.pragma("mmap_size = 268435456"); // 256MB mmap
+    db.pragma("cache_size = -512000"); // 512MB cache
+    db.pragma("mmap_size = 3221225472"); // 3GB mmap
     db.pragma("temp_store = memory");
     instrumentDb(db);
   }
