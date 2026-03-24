@@ -447,6 +447,7 @@ function SearchResultsPanel({
 
 export default function Search({ loaderData }: Route.ComponentProps) {
   const uiLocale = useUiLocale();
+  const navigate = useNavigate();
   const typedLoaderData = loaderData as SearchLoaderData;
   const {
     query,
@@ -502,63 +503,66 @@ export default function Search({ loaderData }: Route.ComponentProps) {
           autoFocus={shouldAutoFocus}
         />
 
-        <div className="mt-5">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-2">{uiText(uiLocale, "Typ", "Type")}</p>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { id: "all" as SearchType, label: uiText(uiLocale, "Alla", "All") },
-              { id: "artwork" as SearchType, label: uiText(uiLocale, "Verk", "Artworks") },
-              { id: "artist" as SearchType, label: uiText(uiLocale, "Konstnärer", "Artists") },
-              { id: "visual" as SearchType, label: uiText(uiLocale, "Bildsök", "Visual") },
-            ].map((option) => (
-              <a
-                key={option.id}
-                href={buildSearchUrl({ type: option.id, museumId: museum })}
-                className={[
-                  "shrink-0 px-3.5 py-1.5 text-[13px] border rounded-card transition-colors focus-ring no-underline",
-                  searchType === option.id
-                    ? "border-primary bg-primary text-white"
-                    : "border-rule text-secondary hover:text-primary hover:border-secondary",
-                ].join(" ")}
-              >
-                {option.label}
-              </a>
-            ))}
-          </div>
-        </div>
-
-        {showMuseumFilters && (
-          <div className="mt-4">
-            <p className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-2">{uiText(uiLocale, "Samlingar", "Collections")}</p>
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-              <a
-                href={buildSearchUrl({ type: searchType })}
-                className={[
-                  "shrink-0 px-3.5 py-1.5 text-[13px] border rounded-card transition-colors focus-ring no-underline",
-                  museum
-                    ? "border-rule text-secondary hover:text-primary hover:border-secondary"
-                    : "border-primary bg-primary text-white",
-                ].join(" ")}
-              >
-                {uiText(uiLocale, "Alla", "All")}
-              </a>
-              {museumOptions.map((option: MuseumOption) => (
+        <div className={showMuseumFilters ? "mt-5 grid gap-4 lg:grid-cols-[max-content_minmax(20rem,1fr)] lg:items-end" : "mt-5"}>
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-2">{uiText(uiLocale, "Typ", "Type")}</p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { id: "all" as SearchType, label: uiText(uiLocale, "Alla", "All") },
+                { id: "artwork" as SearchType, label: uiText(uiLocale, "Verk", "Artworks") },
+                { id: "artist" as SearchType, label: uiText(uiLocale, "Konstnärer", "Artists") },
+                { id: "visual" as SearchType, label: uiText(uiLocale, "Bildsök", "Visual") },
+              ].map((option) => (
                 <a
                   key={option.id}
-                  href={buildSearchUrl({ museumId: option.id })}
+                  href={buildSearchUrl({ type: option.id, museumId: museum })}
                   className={[
                     "shrink-0 px-3.5 py-1.5 text-[13px] border rounded-card transition-colors focus-ring no-underline",
-                    museum === option.id
+                    searchType === option.id
                       ? "border-primary bg-primary text-white"
                       : "border-rule text-secondary hover:text-primary hover:border-secondary",
                   ].join(" ")}
                 >
-                  {option.name}
+                  {option.label}
                 </a>
               ))}
             </div>
           </div>
-        )}
+
+          {showMuseumFilters && (
+            <div>
+              <label htmlFor="collection-filter" className="block text-[11px] uppercase tracking-[0.08em] text-secondary mb-2">
+                {uiText(uiLocale, "Samling", "Collection")}
+              </label>
+              <div className="relative rounded-card border border-rule bg-white transition-colors has-[:focus-visible]:border-secondary">
+                <select
+                  id="collection-filter"
+                  value={museum}
+                  onChange={(event) => {
+                    const nextValue = event.currentTarget.value || undefined;
+                    navigate(buildSearchUrl({ museumId: nextValue, type: searchType }));
+                  }}
+                  className="w-full appearance-none border-0 bg-transparent px-4 py-3 pr-11 text-[14px] text-primary outline-none ring-0 shadow-none focus:outline-none focus:ring-0"
+                >
+                  <option value="">{uiText(uiLocale, "Alla samlingar", "All collections")}</option>
+                  {museumOptions.map((option: MuseumOption) => (
+                  <option key={option.id} value={option.id}>
+                      {option.name}
+                  </option>
+                ))}
+              </select>
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-secondary"
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="block">
+                    <path d="M3 5.5 7 9l4-3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
 
         {!query && (
           <div className="mt-6">

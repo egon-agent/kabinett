@@ -180,6 +180,7 @@ function autocompleteSelectSql(): string {
 
 function autocompleteFromSql(): string {
   return `FROM artworks a
+          LEFT JOIN museums m ON m.id = a.source
           WHERE a.iiif_url IS NOT NULL
             AND LENGTH(a.iiif_url) > 40
             AND a.id NOT IN (SELECT artwork_id FROM broken_images)`;
@@ -188,6 +189,7 @@ function autocompleteFromSql(): string {
 function autocompleteFtsFromSql(): string {
   return `FROM artworks_fts
           JOIN artworks a ON a.id = artworks_fts.rowid
+          LEFT JOIN museums m ON m.id = a.source
           WHERE a.iiif_url IS NOT NULL
             AND LENGTH(a.iiif_url) > 40
             AND a.id NOT IN (SELECT artwork_id FROM broken_images)`;

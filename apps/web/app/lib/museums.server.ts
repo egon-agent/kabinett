@@ -140,6 +140,16 @@ export function sourceFilter(prefix?: string): { sql: string; params: string[] }
   return result;
 }
 
+function encodeCollectionFilterId(name: string): string {
+  return `collection:${name}`;
+}
+
+function decodeCollectionFilterId(value: string): string | null {
+  if (!value.startsWith("collection:")) return null;
+  const name = value.slice("collection:".length).trim();
+  return name || null;
+}
+
 function getHasMediaLicenseColumn(): boolean {
   if (hasMediaLicenseColumnCache !== null) {
     return hasMediaLicenseColumnCache;
@@ -152,8 +162,8 @@ function getHasMediaLicenseColumn(): boolean {
 }
 
 /**
- * Returns collection options for search filter chips.
- * SHM is expanded into its sub-museums; others are single entries.
+ * Returns actual collection options for search filters.
+ * Uses sub_museum when present, otherwise falls back to the source museum name.
  */
 export function getCollectionOptions(): Array<{ id: string; name: string; count: number }> {
   const enabled = getEnabledMuseums();
@@ -169,30 +179,27 @@ export function getCollectionOptions(): Array<{ id: string; name: string; count:
   }
 
   const db = getDb();
-  const options: Array<{ id: string; name: string; count: number }> = [];
-
-  for (const museumId of enabled) {
-    if (museumId === "shm") {
-      const subs = db.prepare(
-        `SELECT sub_museum, COUNT(*) as count FROM artworks
-         WHERE source = 'shm' AND sub_museum IS NOT NULL AND sub_museum != ''
-           AND iiif_url IS NOT NULL AND LENGTH(iiif_url) > 40
-           AND id NOT IN (SELECT artwork_id FROM broken_images)
-         GROUP BY sub_museum ORDER BY count DESC`
-      ).all() as Array<{ sub_museum: string; count: number }>;
-      for (const sub of subs) {
-        options.push({ id: `shm:${sub.sub_museum}`, name: sub.sub_museum, count: sub.count });
-      }
-    } else {
-      const info = getMuseumInfo(museumId);
-      const countRow = db.prepare(
-        `SELECT COUNT(*) as count FROM artworks
-         WHERE source = ? AND iiif_url IS NOT NULL AND LENGTH(iiif_url) > 40
-           AND id NOT IN (SELECT artwork_id FROM broken_images)`
-      ).get(museumId) as { count: number };
-      options.push({ id: museumId, name: info?.name || museumId, count: countRow.count });
-    }
-  }
+  const sourceA = sourceFilter("a");
+  const options = db.prepare(
+    `SELECT
+       COALESCE(a.sub_museum, m.name) as name,
+       COUNT(*) as count
+     FROM artworks a
+     LEFT JOIN museums m ON m.id = a.source
+     WHERE ${sourceA.sql}
+       AND COALESCE(a.sub_museum, m.name) IS NOT NULL
+       AND TRIM(COALESCE(a.sub_museum, m.name)) != ''
+       AND COALESCE(a.sub_museum, m.name) != 'Statens historiska museer'
+       AND a.iiif_url IS NOT NULL
+       AND LENGTH(a.iiif_url) > 40
+       AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+     GROUP BY name
+     ORDER BY count DESC, name ASC`
+  ).all(...sourceA.params).map((row: any) => ({
+    id: encodeCollectionFilterId(row.name),
+    name: row.name as string,
+    count: row.count as number,
+  }));
 
   collectionOptionsCache = { key: cacheKey, ts: now, data: options };
   return options;
@@ -200,16 +207,30 @@ export function getCollectionOptions(): Array<{ id: string; name: string; count:
 
 /**
  * Returns WHERE clause for a museum filter param.
- * Handles "nationalmuseum", "nordiska", or "shm:Livrustkammaren" etc.
+ * Handles source ids ("nationalmuseum"), legacy SHM ids ("shm:Livrustkammaren"),
+ * and generic collection ids ("collection:Livrustkammaren").
  */
-export function museumFilterSql(museumParam: string, prefix?: string): { sql: string; params: string[] } | null {
+export function museumFilterSql(
+  museumParam: string,
+  prefix?: string,
+  museumPrefix = "m",
+): { sql: string; params: string[] } | null {
   if (!museumParam) return null;
   const col = prefix ? `${prefix}.source` : "source";
   const subCol = prefix ? `${prefix}.sub_museum` : "sub_museum";
+  const museumCol = museumPrefix ? `${museumPrefix}.name` : "name";
 
   if (museumParam.startsWith("shm:")) {
     const subMuseum = museumParam.slice(4);
     return { sql: `${col} = 'shm' AND ${subCol} = ?`, params: [subMuseum] };
+  }
+
+  const collectionName = decodeCollectionFilterId(museumParam);
+  if (collectionName) {
+    return {
+      sql: `COALESCE(${subCol}, ${museumCol}) = ?`,
+      params: [collectionName],
+    };
   }
 
   if (isMuseumEnabled(museumParam)) {
@@ -221,5 +242,8 @@ export function museumFilterSql(museumParam: string, prefix?: string): { sql: st
 export function isValidMuseumFilter(param: string): boolean {
   if (!param) return false;
   if (param.startsWith("shm:")) return true;
+  if (param.startsWith("collection:")) {
+    return getCollectionOptions().some((option) => option.id === param);
+  }
   return isMuseumEnabled(param);
 }

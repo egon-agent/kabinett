@@ -53,6 +53,7 @@ export function searchArtistsByScope(args: {
             COUNT(DISTINCT aa.artwork_id) as artwork_count
      FROM artwork_artists aa
      JOIN artworks a ON a.id = aa.artwork_id
+     LEFT JOIN museums m ON m.id = a.source
      WHERE aa.artist_name_norm LIKE ? ESCAPE '\\'
        AND aa.artist_name NOT LIKE '%känd%'
        AND aa.artist_name NOT LIKE '%nonym%'

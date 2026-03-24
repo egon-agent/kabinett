@@ -155,6 +155,7 @@ export async function loader({ request }: Route.LoaderArgs) {
                 a.dominant_color,
                 a.artists
          FROM artworks a
+         LEFT JOIN museums m ON m.id = a.source
          WHERE (a.title_sv LIKE ? OR a.title_en LIKE ?)
            AND a.iiif_url IS NOT NULL
            AND LENGTH(a.iiif_url) > 40

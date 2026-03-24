@@ -430,6 +430,7 @@ export async function loader() {
     name: row.coll_name,
     count: row.count as number,
   }));
+  stats.museums = museumList.length;
 
   const payload = {
     collections,

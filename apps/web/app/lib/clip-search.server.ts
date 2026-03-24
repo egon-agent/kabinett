@@ -58,6 +58,12 @@ type AggregatedCandidate = {
   maxDistance: number;
 };
 
+type SearchScope = {
+  source: string | null;
+  subMuseum: string | null;
+  collectionName: string | null;
+};
+
 type TextEncoder = {
   tokenizer: any;
   model: any;
@@ -290,12 +296,46 @@ function toClipResult(row: VectorRow, similarity: number): ClipResult {
   };
 }
 
+function parseSearchScope(rawFilter?: string | null): SearchScope {
+  const effectiveFilter = rawFilter?.trim() || null;
+  if (!effectiveFilter) {
+    return {
+      source: null,
+      subMuseum: null,
+      collectionName: null,
+    };
+  }
+
+  if (effectiveFilter.startsWith("shm:")) {
+    return {
+      source: "shm",
+      subMuseum: effectiveFilter.slice(4),
+      collectionName: effectiveFilter.slice(4),
+    };
+  }
+
+  if (effectiveFilter.startsWith("collection:")) {
+    return {
+      source: null,
+      subMuseum: null,
+      collectionName: effectiveFilter.slice("collection:".length).trim() || null,
+    };
+  }
+
+  return {
+    source: effectiveFilter,
+    subMuseum: null,
+    collectionName: null,
+  };
+}
+
 async function runKnnQuery(
   vectorBlob: Buffer,
   k: number,
   allowedSource: { sql: string; params: string[] },
   filterSource?: string | null,
   filterSubMuseum?: string | null,
+  filterCollectionName?: string | null,
 ): Promise<VectorRow[]> {
   const db = getDb();
   const queryFaiss = async (): Promise<VectorRow[]> => {
@@ -337,8 +377,9 @@ async function runKnnQuery(
               a.focal_x, a.focal_y
        FROM artworks a
        LEFT JOIN museums m ON m.id = a.source
-       WHERE a.id IN (${placeholders})`
-    ).all(...artworkIds) as Array<Omit<VectorRow, "distance">>;
+       WHERE a.id IN (${placeholders})
+         ${filterCollectionName ? "AND COALESCE(a.sub_museum, m.name) = ?" : ""}`
+    ).all(...artworkIds, ...(filterCollectionName ? [filterCollectionName] : [])) as Array<Omit<VectorRow, "distance">>;
 
     const metaMap = new Map(metaRows.map((r) => [r.id, r]));
     const distanceMap = new Map(data.results.map((r) => [r.artwork_id, r.distance]));
@@ -357,11 +398,15 @@ async function runKnnQuery(
 
     const scopedSql = filterSubMuseum
       ? "AND a.source = 'shm' AND a.sub_museum = ?"
+      : filterCollectionName
+        ? "AND COALESCE(a.sub_museum, m.name) = ?"
       : filterSource
         ? "AND a.source = ?"
         : "";
     const scopedParams = filterSubMuseum
       ? [filterSubMuseum]
+      : filterCollectionName
+        ? [filterCollectionName]
       : filterSource
         ? [filterSource]
         : [];
@@ -429,13 +474,12 @@ export async function clipSearch(q: string, limit = 60, offset = 0, source?: str
   const variants = buildQueryVariants(q);
   if (variants.length === 0) return [];
 
-  const effectiveFilter = source?.trim() || null;
-  const isSubMuseum = effectiveFilter?.startsWith("shm:");
-  const subMuseumName = isSubMuseum ? effectiveFilter!.slice(4) : null;
-  const effectiveSource = isSubMuseum ? "shm" : effectiveFilter;
+  const scope = parseSearchScope(source);
   const desiredCount = offset + limit;
   const allowedSource = sourceFilter("a");
-  const desiredK = Math.max(120, desiredCount);
+  const desiredK = scope.collectionName
+    ? Math.max(400, desiredCount * 6)
+    : Math.max(120, desiredCount);
   const perVariantK = Math.max(desiredK, Math.ceil(desiredK * 1.5 / variants.length));
   const aggregated = new Map<number, AggregatedCandidate>();
   const RRF_K = 60;
@@ -452,8 +496,9 @@ export async function clipSearch(q: string, limit = 60, offset = 0, source?: str
       queryBuffer,
       perVariantK,
       allowedSource,
-      effectiveSource,
-      subMuseumName
+      scope.source,
+      scope.subMuseum,
+      scope.collectionName
     );
 
     for (let i = 0; i < rows.length; i++) {
@@ -504,18 +549,19 @@ export async function clipSearchFromSeedIds(
   if (!centroid) return [];
 
   const effectiveFilter = source?.trim() || null;
-  const isSubMuseum = effectiveFilter?.startsWith("shm:");
-  const subMuseumName = isSubMuseum ? effectiveFilter!.slice(4) : null;
-  const effectiveSource = isSubMuseum ? "shm" : effectiveFilter;
+  const scope = parseSearchScope(effectiveFilter);
   const desiredCount = offset + limit + uniqueSeedIds.length;
   const allowedSource = sourceFilter("a");
-  const desiredK = Math.max(120, desiredCount);
+  const desiredK = scope.collectionName
+    ? Math.max(400, desiredCount * 6)
+    : Math.max(120, desiredCount);
   const rows = await runKnnQuery(
     centroid,
     desiredK,
     allowedSource,
-    effectiveSource,
-    subMuseumName
+    scope.source,
+    scope.subMuseum,
+    scope.collectionName
   );
   const seedSet = new Set(uniqueSeedIds);
   const filtered = rows.filter((row) => !seedSet.has(row.id));

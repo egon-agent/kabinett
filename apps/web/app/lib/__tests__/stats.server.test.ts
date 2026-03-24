@@ -10,6 +10,11 @@ vi.mock("../museums.server", () => ({
     sql: prefix ? `${prefix}.source IN (?)` : "source IN (?)",
     params: ["nm"],
   }),
+  getCollectionOptions: () => Array.from({ length: 8 }, (_, index) => ({
+    id: `collection:${index + 1}`,
+    name: `Collection ${index + 1}`,
+    count: 100,
+  })),
 }));
 
 import { getSiteStats } from "../stats.server";
@@ -30,7 +35,6 @@ describe("getSiteStats", () => {
             if (sql.includes("MIN(year_start)")) return { c: 1720 };
             if (sql.includes("MAX(COALESCE(year_end, year_start))")) return { c: 1910 };
             if (sql.includes("COUNT(*) as c FROM artworks WHERE category LIKE")) return { c: 42 };
-            if (sql.includes("SELECT DISTINCT COALESCE(sub_museum, m.name)")) return { c: 8 };
             if (sql.includes("COUNT(*) as c FROM artworks WHERE")) return { c: 1234 };
             return { c: 0 };
           }),

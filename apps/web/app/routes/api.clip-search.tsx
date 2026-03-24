@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { clipSearch, clipSearchFromSeedIds } from "../lib/clip-search.server";
 import { getDb } from "../lib/db.server";
-import { isMuseumEnabled, sourceFilter } from "../lib/museums.server";
+import { isValidMuseumFilter, museumFilterSql, sourceFilter } from "../lib/museums.server";
 import { buildArtworkSnippet, searchArtworksText } from "../lib/text-search.server";
 import { translateToEnglish } from "../lib/translate.server";
 
@@ -130,10 +130,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   if (!q) return Response.json([]);
 
-  const scoped = museum && isMuseumEnabled(museum) ? museum : undefined;
+  const scoped = museum && isValidMuseumFilter(museum) ? museum : undefined;
   const db = getDb();
   const sourceA = sourceFilter("a");
-  const museumSql = scoped ? { sql: "a.source = ?", params: [scoped] } : null;
+  const museumSql = scoped ? museumFilterSql(scoped, "a") : null;
 
   if (mode === "clip") {
     try {

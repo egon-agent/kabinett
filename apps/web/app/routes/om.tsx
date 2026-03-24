@@ -51,6 +51,7 @@ export async function loader() {
     ORDER BY cnt DESC
   `).all(...sourceA.params) as Array<{ name: string; id: string; cnt: number }>;
   const museums = collections.map((row: any) => ({ id: row.id, name: row.coll_name }));
+  stats.museums = museums.length;
 
   return { stats, museums, museumName: campaign.museumName, campaignId: campaign.id };
 }

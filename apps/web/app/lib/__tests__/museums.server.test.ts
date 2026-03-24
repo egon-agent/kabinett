@@ -15,7 +15,7 @@ vi.mock("../request-context.server", () => ({
   getRequestContext: () => getRequestContextMock(),
 }));
 
-import { getEnabledMuseums, shouldShowCollectionLabels, sourceFilter } from "../museums.server";
+import { getEnabledMuseums, museumFilterSql, shouldShowCollectionLabels, sourceFilter } from "../museums.server";
 
 describe("museums.server", () => {
   beforeEach(() => {
@@ -49,6 +49,13 @@ describe("museums.server", () => {
     expect(filter).toEqual({
       sql: "a.source IN (?,?)",
       params: ["nm", "shm"],
+    });
+  });
+
+  it("museumFilterSql supports generic collection filters", () => {
+    expect(museumFilterSql("collection:Livrustkammaren", "a")).toEqual({
+      sql: "COALESCE(a.sub_museum, m.name) = ?",
+      params: ["Livrustkammaren"],
     });
   });
 
