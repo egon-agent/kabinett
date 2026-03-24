@@ -31,7 +31,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     const picked = topArtists[Math.floor(Math.random() * topArtists.length)];
     const rows = db.prepare(
-      `SELECT a.id, a.title_sv, a.artists, a.dating_text, a.iiif_url,
+      `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url,
               a.dominant_color, a.category, a.technique_material,
               a.focal_x, a.focal_y,
               COALESCE(a.sub_museum, m.name) as museum_name

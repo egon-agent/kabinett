@@ -142,35 +142,35 @@ export default function Samling({ loaderData }: Route.ComponentProps) {
   const { name, stats, featured } = loaderData;
 
   return (
-    <div className="min-h-screen pt-16 bg-cream">
-      <div className="max-w-5xl mx-auto px-5 lg:px-6">
+    <div className="min-h-screen pt-16 bg-white">
+      <div className="px-4 md:px-6 lg:px-10">
         <div className="pt-8">
-          <p className="text-[0.65rem] tracking-[0.2em] uppercase text-warm-gray">Samling</p>
-          <h1 className="font-serif text-[2.2rem] lg:text-[2.6rem] text-charcoal m-0 mt-1">{name}</h1>
+          <p className="text-[11px] uppercase tracking-[0.08em] text-secondary">Samling</p>
+          <h1 className="text-[32px] text-primary leading-[1.3] mt-1">{name}</h1>
         </div>
 
         <section className="pt-10">
           <h2 className="sr-only">Nyckeltal</h2>
           <div className="grid gap-3 md:grid-cols-3">
-            <div className="bg-white rounded-card p-5 shadow-card">
-              <p className="text-[0.65rem] uppercase tracking-[0.14em] text-warm-gray m-0">Verk</p>
-              <p className="text-[1.6rem] font-serif text-charcoal mt-2">{stats.totalWorks.toLocaleString("sv")}</p>
+            <div className="bg-white p-5">
+              <p className="text-[0.65rem] uppercase tracking-[0.14em] text-secondary m-0">Verk</p>
+              <p className="text-[1.6rem] text-primary mt-2">{stats.totalWorks.toLocaleString("sv")}</p>
             </div>
-            <div className="bg-white rounded-card p-5 shadow-card">
-              <p className="text-[0.65rem] uppercase tracking-[0.14em] text-warm-gray m-0">Tidsomfång</p>
-              <p className="text-[1.6rem] font-serif text-charcoal mt-2">{stats.dateRange}</p>
+            <div className="bg-white p-5">
+              <p className="text-[0.65rem] uppercase tracking-[0.14em] text-secondary m-0">Tidsomfång</p>
+              <p className="text-[1.6rem] text-primary mt-2">{stats.dateRange}</p>
             </div>
-            <div className="bg-white rounded-card p-5 shadow-card">
-              <p className="text-[0.65rem] uppercase tracking-[0.14em] text-warm-gray m-0">Kategorier</p>
+            <div className="bg-white p-5">
+              <p className="text-[0.65rem] uppercase tracking-[0.14em] text-secondary m-0">Kategorier</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {stats.categories.length > 0 ? (
                   stats.categories.map((c) => (
-                    <span key={c.name} className="text-xs px-2 py-0.5 rounded-pill bg-linen text-ink">
+                    <span key={c.name} className="text-xs px-2 py-0.5 bg-paper text-primary">
                       {c.name} · {c.count.toLocaleString("sv")}
                     </span>
                   ))
                 ) : (
-                  <span className="text-sm text-warm-gray">Inga kategorier</span>
+                  <span className="text-sm text-secondary">Inga kategorier</span>
                 )}
               </div>
             </div>
@@ -178,7 +178,7 @@ export default function Samling({ loaderData }: Route.ComponentProps) {
         </section>
 
         <section className="pt-10 pb-6">
-          <h2 className="font-serif text-[1.35rem] text-charcoal">Utvalda verk</h2>
+          <h2 className="text-[1.35rem] text-primary">Utvalda verk</h2>
           <FeaturedGrid items={featured} />
         </section>
 

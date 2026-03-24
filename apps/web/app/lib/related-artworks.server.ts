@@ -5,6 +5,7 @@ import { parseArtists } from "./parsing";
 type RelatedArtworkRow = {
   id: number;
   title_sv: string | null;
+  title_en: string | null;
   iiif_url: string;
   dominant_color: string | null;
   artists: string | null;
@@ -97,6 +98,7 @@ export function getRelatedArtworks(artworkId: number): RelatedResult {
       `SELECT
          n.neighbor_artwork_id AS id,
          a.title_sv,
+         a.title_en,
          a.iiif_url,
          a.dominant_color,
          a.artists,
@@ -121,6 +123,7 @@ export function getRelatedArtworks(artworkId: number): RelatedResult {
         `SELECT
            map.artwork_id AS id,
            a.title_sv,
+           a.title_en,
            a.iiif_url,
            a.dominant_color,
            a.artists,
@@ -167,6 +170,7 @@ export function getRelatedArtworks(artworkId: number): RelatedResult {
           `SELECT
              a.id,
              a.title_sv,
+             a.title_en,
              a.iiif_url,
              a.dominant_color,
              a.artists,
@@ -194,6 +198,7 @@ export function getRelatedArtworks(artworkId: number): RelatedResult {
           `SELECT
              id,
              title_sv,
+             title_en,
              iiif_url,
              dominant_color,
              artists,

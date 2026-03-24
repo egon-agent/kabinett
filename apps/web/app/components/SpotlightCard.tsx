@@ -3,7 +3,6 @@ import {
   focalObjectPosition,
   type ArtworkDisplayItem,
 } from "./artwork-meta";
-import { useScrollReveal } from "../hooks/useScrollReveal";
 import { uiText, useUiLocale } from "../lib/ui-language";
 
 export type SpotlightCardData = {
@@ -12,24 +11,20 @@ export type SpotlightCardData = {
 };
 
 export default function SpotlightCard({ spotlight }: { spotlight: SpotlightCardData }) {
-  const ref = useScrollReveal<HTMLElement>();
   const uiLocale = useUiLocale();
 
   return (
-    <section
-      ref={ref}
-      className="reveal-on-scroll bg-dark-base rounded-none lg:rounded-section px-5 py-9 md:px-7 md:py-10 lg:px-10 lg:py-12 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-7"
-    >
+    <section className="py-10 md:py-12 border-t border-b border-rule px-4 md:px-6 lg:px-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-7">
       <div className="lg:max-w-[22rem]">
-        <p className="text-[0.6rem] uppercase tracking-[0.2em] text-dark-text-muted font-medium">
+        <p className="text-[11px] uppercase tracking-[0.08em] text-secondary">
           {uiText(uiLocale, "Konstnär i fokus", "Artist spotlight")}
         </p>
-        <h2 className="font-serif text-[1.8rem] md:text-[2rem] text-dark-text leading-[1.05] mt-2.5">
+        <h2 className="text-[24px] text-primary leading-[1.3] mt-2">
           {spotlight.artistName}
         </h2>
         <a
           href={`/artist/${encodeURIComponent(spotlight.artistName)}`}
-          className="inline-block mt-5 text-[0.78rem] tracking-[0.03em] text-dark-text-secondary hover:text-dark-text transition-colors no-underline focus-ring"
+          className="inline-block mt-4 text-[13px] text-secondary hover:text-primary transition-colors no-underline focus-ring"
         >
           {uiText(uiLocale, "Utforska konstnären", "Explore artist")} →
         </a>
@@ -39,11 +34,8 @@ export default function SpotlightCard({ spotlight }: { spotlight: SpotlightCardD
           <a
             key={item.id}
             href={`/artwork/${item.id}`}
-            className="shrink-0 w-[8.5rem] h-[8.5rem] rounded-lg overflow-hidden block transition-[shadow,ring-color,transform] duration-300 hover:ring-2 hover:ring-gold/30 hover:scale-[1.04] focus-ring"
-            style={{
-              backgroundColor: item.dominant_color || "#1A1815",
-              transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
-            }}
+            className="shrink-0 w-[8.5rem] h-[8.5rem] overflow-hidden rounded-card block hover:opacity-85 transition-opacity duration-200 focus-ring"
+            style={{ backgroundColor: item.dominant_color || "#E0DEDA" }}
           >
             <img
               src={item.imageUrl}
@@ -51,15 +43,10 @@ export default function SpotlightCard({ spotlight }: { spotlight: SpotlightCardD
               loading="lazy"
               width={140}
               height={140}
-              onLoad={(event) => {
-                const img = event.currentTarget;
-                img.classList.remove("opacity-0");
-                img.classList.add("opacity-100");
-              }}
               onError={(event) => {
                 event.currentTarget.classList.add("is-broken");
               }}
-              className="w-full h-full object-cover opacity-0 transition-opacity duration-[400ms] ease-[ease]"
+              className="w-full h-full object-cover"
               style={{ objectPosition: focalObjectPosition(item.focal_x, item.focal_y) }}
             />
           </a>

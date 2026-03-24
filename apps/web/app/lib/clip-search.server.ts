@@ -202,7 +202,8 @@ async function embedQuery(query: string): Promise<Buffer> {
   );
 }
 
-const FAISS_URL = process.env.FAISS_URL || "http://127.0.0.1:5555";
+const ENABLE_FAISS = process.env.KABINETT_ENABLE_FAISS === "1" || Boolean(process.env.FAISS_URL);
+const FAISS_URL = (process.env.FAISS_URL || "http://127.0.0.1:5555").replace(/\/+$/, "");
 
 function clampSimilarity(distance: number): number {
   if (distance > 1) return 1;
@@ -399,6 +400,15 @@ async function runKnnQuery(
       distance: vecDistanceToSimilarity(row.distance),
     }));
   };
+
+  if (!ENABLE_FAISS) {
+    try {
+      return queryLocalVec();
+    } catch (localError) {
+      logLocalVecWarning(localError);
+      return [];
+    }
+  }
 
   try {
     return await queryFaiss();

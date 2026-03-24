@@ -67,11 +67,13 @@ export function loader({ request }: Route.LoaderArgs) {
 
 function SearchResultsSkeleton() {
   return (
-    <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-3 space-y-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
       {Array.from({ length: 10 }).map((_, index) => (
-        <div key={`search-skeleton-${index}`} className="break-inside-avoid">
-          <div className="relative overflow-hidden rounded-card bg-dark-raised aspect-[3/4] animate-pulse">
-            <div className="absolute inset-0 search-skeleton-shimmer" />
+        <div key={`search-skeleton-${index}`}>
+          <div className="bg-paper aspect-square rounded-card" />
+          <div className="p-3">
+            <div className="h-4 bg-paper w-3/4" />
+            <div className="h-3 bg-paper w-1/2 mt-2" />
           </div>
         </div>
       ))}
@@ -89,7 +91,7 @@ function toArtworkItem(result: ArtworkSearchResult): ArtworkDisplayItem {
     artist_name: result.artist || null,
     dating_text: result.year || result.dating_text || null,
     iiif_url: result.iiif_url || "",
-    dominant_color: result.color || result.dominant_color || "#D4CDC3",
+    dominant_color: result.color || result.dominant_color || "#E0DEDA",
     category: null,
     technique_material: null,
     imageUrl,
@@ -102,6 +104,7 @@ function toArtworkItem(result: ArtworkSearchResult): ArtworkDisplayItem {
 type ThemeFeedItem = {
   id: number;
   title_sv?: string | null;
+  title_en?: string | null;
   iiif_url?: string | null;
   dominant_color?: string | null;
   artists?: string | null;
@@ -117,8 +120,8 @@ function mapThemeFeedItemToSearchResult(item: ThemeFeedItem): ArtworkSearchResul
   return {
     resultType: "artwork",
     id: item.id,
-    title_sv: item.title_sv || "Utan titel",
-    title_en: null,
+    title_sv: item.title_sv || item.title_en || "Utan titel",
+    title_en: item.title_en || null,
     iiif_url: item.iiif_url || null,
     dominant_color: item.dominant_color || null,
     artists: item.artists || null,
@@ -190,7 +193,7 @@ function SearchAutocompleteForm({
       : uiText(uiLocale, "Konstnär, titel, teknik…", "Artist, title, medium…");
 
   return (
-    <div className="relative mt-4">
+    <div className="relative">
       <Autocomplete
         query={query}
         onQueryChange={setQuery}
@@ -205,8 +208,21 @@ function SearchAutocompleteForm({
               submitSearch(query);
             }}
           >
-            <div className="flex gap-2">
-              <label htmlFor="search-input" className="sr-only">{uiText(uiLocale, "Sök", "Search")}</label>
+            <label htmlFor="search-input" className="sr-only">{uiText(uiLocale, "Sök", "Search")}</label>
+            <div className="flex items-center border border-rule rounded-card bg-white px-5 py-3.5 has-[:focus-visible]:border-secondary transition-colors">
+              <svg
+                aria-hidden="true"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                className="text-secondary shrink-0 mr-3"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.35-4.35" />
+              </svg>
               <input
                 {...inputProps}
                 ref={inputRef}
@@ -214,15 +230,9 @@ function SearchAutocompleteForm({
                 type="search"
                 name="q"
                 placeholder={placeholder}
-                className="flex-1 px-4 py-3 rounded-card bg-dark-raised text-dark-text placeholder:text-dark-text-muted
-                       text-base border border-stone/20 focus:border-charcoal/40 focus:outline-none focus-ring [&::-webkit-search-cancel-button]:hidden"
+                className="flex-1 bg-transparent text-primary placeholder:text-secondary
+                       text-[16px] px-0 py-0 border-none outline-none [&::-webkit-search-cancel-button]:hidden"
               />
-              <button
-                type="submit"
-                className="px-5 py-3 bg-charcoal text-cream rounded-card text-sm font-medium hover:bg-ink active:scale-[0.97] transition-[background-color,transform] shrink-0 focus-ring"
-              >
-                {uiText(uiLocale, "Sök", "Search")}
-              </button>
             </div>
           </form>
         )}
@@ -348,71 +358,79 @@ function SearchResultsPanel({
 
   return (
     <>
-      <p aria-live="polite" className="text-sm text-dark-text-secondary mb-6">
-        {results.length > 0
-          ? uiText(
-            uiLocale,
-            `${results.length}${hasMore ? "+" : ""} träffar${displayQuery ? ` för "${displayQuery}"` : ""}`,
-            `${formatUiNumber(results.length, uiLocale)}${hasMore ? "+" : ""} results${displayQuery ? ` for "${displayQuery}"` : ""}`
-          )
-          : uiText(uiLocale, `Inga träffar${displayQuery ? ` för "${displayQuery}"` : ""}`, `No results${displayQuery ? ` for "${displayQuery}"` : ""}`)}
-      </p>
-      {results.length === 0 && displayQuery && (
-        <div className="py-4">
-          <p className="text-sm text-dark-text-secondary mb-3">{uiText(uiLocale, "Förslag:", "Suggestions:")}</p>
-          <ul className="list-none p-0 m-0 space-y-1 text-sm text-dark-text-muted">
-            <li>• {uiText(uiLocale, "Kontrollera stavningen", "Check the spelling")}</li>
-            <li>• {uiText(uiLocale, "Prova ett bredare sökord", "Try a broader query")}</li>
-            <li>• {uiText(uiLocale, "Sök på svenska eller engelska", "Search in Swedish or English")}</li>
-          </ul>
-          <p className="text-sm text-dark-text-secondary mt-5 mb-3">{uiText(uiLocale, "Eller prova:", "Or try:")}</p>
-          <div className="flex flex-wrap gap-2">
-            {(uiLocale === "en"
-              ? ["Landscape", "Portrait", "Still life", "Sculpture", "Watercolor"]
-              : ["Landskap", "Porträtt", "Stilleben", "Skulptur", "Akvarell"]).map((s) => (
-              <a key={s} href={`/search?q=${encodeURIComponent(s)}`}
-                className="px-3 py-1.5 rounded-full bg-dark-raised text-dark-text-secondary text-sm font-medium hover:bg-dark-hover hover:text-dark-text transition-colors focus-ring"
-              >{s}</a>
+      <div className="px-4 md:px-6 lg:px-10">
+        <p aria-live="polite" className="text-[13px] text-secondary mb-6">
+          {results.length > 0
+            ? uiText(
+              uiLocale,
+              `${results.length}${hasMore ? "+" : ""} träffar${displayQuery ? ` för "${displayQuery}"` : ""}`,
+              `${formatUiNumber(results.length, uiLocale)}${hasMore ? "+" : ""} results${displayQuery ? ` for "${displayQuery}"` : ""}`
+            )
+            : uiText(uiLocale, `Inga träffar${displayQuery ? ` för "${displayQuery}"` : ""}`, `No results${displayQuery ? ` for "${displayQuery}"` : ""}`)}
+        </p>
+        {results.length === 0 && displayQuery && (
+          <div className="py-4">
+            <p className="text-[13px] text-secondary mb-3">{uiText(uiLocale, "Förslag:", "Suggestions:")}</p>
+            <ul className="list-none p-0 m-0 space-y-1 text-[13px] text-secondary">
+              <li>• {uiText(uiLocale, "Kontrollera stavningen", "Check the spelling")}</li>
+              <li>• {uiText(uiLocale, "Prova ett bredare sökord", "Try a broader query")}</li>
+              <li>• {uiText(uiLocale, "Sök på svenska eller engelska", "Search in Swedish or English")}</li>
+            </ul>
+            <p className="text-[13px] text-secondary mt-5 mb-3">{uiText(uiLocale, "Eller prova:", "Or try:")}</p>
+            <p className="text-[13px] text-secondary">
+              {(uiLocale === "en"
+                ? ["Landscape", "Portrait", "Still life", "Sculpture", "Watercolor"]
+                : ["Landskap", "Porträtt", "Stilleben", "Skulptur", "Akvarell"]).map((s, i) => (
+                <span key={s}>
+                  {i > 0 && ", "}
+                  <a href={`/search?q=${encodeURIComponent(s)}`}
+                    className="text-secondary hover:text-primary transition-colors underline decoration-rule underline-offset-2 focus-ring"
+                  >{s}</a>
+                </span>
+              ))}
+            </p>
+          </div>
+        )}
+      </div>
+      {searchType === "artist" && artistResults.length > 0 && (
+        <div className="px-4 md:px-6 lg:px-10">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-x-8">
+            {artistResults.map((artist) => (
+              <a
+                key={artist.name}
+                href={`/artist/${encodeURIComponent(artist.name)}`}
+                className="flex items-center justify-between py-3 border-b border-rule no-underline hover:text-primary transition-colors focus-ring"
+              >
+                <p className="text-[15px] text-primary">{artist.name}</p>
+                <p className="text-[13px] text-secondary">{uiText(uiLocale, `${artist.artwork_count} verk`, `${formatUiNumber(artist.artwork_count, uiLocale)} works`)}</p>
+              </a>
             ))}
           </div>
         </div>
       )}
-      {searchType === "artist" && artistResults.length > 0 && (
-        <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-          {artistResults.map((artist) => (
-            <a
-              key={artist.name}
-              href={`/artist/${encodeURIComponent(artist.name)}`}
-              className="rounded-card border border-stone/20 bg-dark-raised px-4 py-4 hover:bg-dark-hover transition-colors focus-ring"
-            >
-              <p className="text-base text-dark-text font-medium">{artist.name}</p>
-              <p className="text-sm text-dark-text-secondary mt-1">{uiText(uiLocale, `${artist.artwork_count} verk`, `${formatUiNumber(artist.artwork_count, uiLocale)} works`)}</p>
-            </a>
-          ))}
-        </div>
-      )}
       {searchType !== "artist" && artworkResults.length > 0 && (
-        <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-3 space-y-3">
-          {artworkResults.map((r) => (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 px-3 md:px-4 lg:px-6">
+          {artworkResults.map((r, i) => (
             <ArtworkCard
               key={r.id}
               item={toArtworkItem(r)}
               showMuseumBadge={showMuseumBadge}
-              layout="search"
+              index={i}
               yearLabel={r.year || r.dating_text || null}
               snippet={r.snippet || null}
               matchType={r.matchType}
+              variant="light"
             />
           ))}
         </div>
       )}
       {loadError && (
         <div className="text-center mt-8 py-4" aria-live="polite">
-          <p className="text-sm text-dark-text-secondary mb-3">{uiText(uiLocale, "Kunde inte ladda fler resultat.", "Could not load more results.")}</p>
+          <p className="text-[13px] text-secondary mb-3">{uiText(uiLocale, "Kunde inte ladda fler resultat.", "Could not load more results.")}</p>
           <button
             type="button"
             onClick={() => { setLoadError(false); loadMore(); }}
-            className="px-4 py-2 rounded-full bg-dark-raised text-dark-text-secondary text-sm font-medium hover:bg-dark-hover hover:text-dark-text transition-colors focus-ring"
+            className="px-4 py-2 bg-paper text-secondary text-[13px] hover:bg-rule hover:text-primary transition-colors focus-ring border-none cursor-pointer"
           >
             {uiText(uiLocale, "Försök igen", "Try again")}
           </button>
@@ -420,7 +438,7 @@ function SearchResultsPanel({
       )}
       {hasMore && !loadError && (
         <div ref={sentinelRef} className="text-center mt-8 py-4">
-          {loading && <p aria-live="polite" className="text-sm text-dark-text-secondary">{uiText(uiLocale, "Laddar fler…", "Loading more…")}</p>}
+          {loading && <p aria-live="polite" className="text-[13px] text-secondary">{uiText(uiLocale, "Laddar fler…", "Loading more…")}</p>}
         </div>
       )}
     </>
@@ -443,13 +461,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
 
   const showResults = Boolean(query) || Boolean(museum);
   const showMuseumFilters = museumOptions.length > 1 && searchMode !== "theme";
-  const searchIntro = searchType === "visual"
-    ? uiText(uiLocale, "Bildsök är bäst för motiv och stämningar som porträtt, blå himmel eller storm. För namn, epoker och material fungerar Alla bättre.", "Visual search works best for motifs and moods like portraits, blue sky or storm. For names, periods and materials, All usually works better.")
-    : searchType === "artist"
-      ? uiText(uiLocale, "Sök efter konstnärer och formgivare. För motiv och stämningar fungerar Bildsök bättre.", "Search for artists and makers. For motifs and moods, Visual search works better.")
-      : searchType === "artwork"
-        ? uiText(uiLocale, "Sök efter verk med ord från titel, beskrivning och metadata. För motiv och stämningar fungerar Bildsök bättre.", "Search for artworks using words from title, description and metadata. For motifs and moods, Visual search works better.")
-        : uiText(uiLocale, "Alla passar bäst för namn, epoker och material. För motiv och stämningar som porträtt, natt eller hav är Bildsök oftast starkare.", "All works best for names, periods and materials. For motifs and moods like portrait, night or sea, Visual search is usually stronger.");
+
   const suggestedQueries = searchType === "visual"
     ? (uiLocale === "en"
       ? ["Portrait", "Landscape", "Flowers", "Storm", "Blue sky", "Gold", "Horse", "Winter", "Forest", "Still life"]
@@ -479,37 +491,34 @@ export default function Search({ loaderData }: Route.ComponentProps) {
   };
 
   return (
-    <div className="min-h-screen pt-14 bg-dark-base text-dark-text">
-      <div className="px-(--spacing-page) pt-8 pb-4 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-        <h1 className="font-serif text-[2rem] text-dark-text mb-2">{uiText(uiLocale, "Sök", "Search")}</h1>
+    <div className="min-h-screen pt-16 bg-white text-primary">
+      <div className="px-4 pt-8 pb-4 md:px-6 lg:px-10">
+        <h1 className="text-[32px] text-primary leading-[1.3]">{uiText(uiLocale, "Sök", "Search")}</h1>
+        <p className="text-[15px] text-secondary mt-1 mb-6">{uiText(uiLocale, "Sök bland hundratusentals verk", "Search hundreds of thousands of works")}</p>
         <SearchAutocompleteForm
           defaultValue={query}
           museum={museum || undefined}
           searchType={searchType}
           autoFocus={shouldAutoFocus}
         />
-        <p className="mt-3 max-w-3xl text-[0.84rem] leading-relaxed text-dark-text-muted">
-          {searchIntro}
-        </p>
 
         <div className="mt-5">
-          <p className="text-[0.68rem] uppercase tracking-[0.08em] text-dark-text-muted mb-2.5">{uiText(uiLocale, "Typ", "Type")}</p>
+          <p className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-2">{uiText(uiLocale, "Typ", "Type")}</p>
           <div className="flex flex-wrap gap-2">
             {[
               { id: "all" as SearchType, label: uiText(uiLocale, "Alla", "All") },
               { id: "artwork" as SearchType, label: uiText(uiLocale, "Verk", "Artworks") },
               { id: "artist" as SearchType, label: uiText(uiLocale, "Konstnärer", "Artists") },
-              { id: "visual" as SearchType, label: uiText(uiLocale, "Bildsök", "Visual search") },
+              { id: "visual" as SearchType, label: uiText(uiLocale, "Bildsök", "Visual") },
             ].map((option) => (
               <a
                 key={option.id}
                 href={buildSearchUrl({ type: option.id, museumId: museum })}
                 className={[
-                  "px-3.5 py-[0.4rem] rounded-full text-[0.8rem] font-medium transition-colors inline-flex items-center",
-                  "focus-ring",
+                  "shrink-0 px-3.5 py-1.5 text-[13px] border rounded-card transition-colors focus-ring no-underline",
                   searchType === option.id
-                    ? "bg-charcoal text-cream"
-                    : "bg-dark-raised text-dark-text-secondary hover:bg-dark-hover hover:text-dark-text",
+                    ? "border-primary bg-primary text-white"
+                    : "border-rule text-secondary hover:text-primary hover:border-secondary",
                 ].join(" ")}
               >
                 {option.label}
@@ -520,16 +529,15 @@ export default function Search({ loaderData }: Route.ComponentProps) {
 
         {showMuseumFilters && (
           <div className="mt-4">
-            <p className="text-[0.68rem] uppercase tracking-[0.08em] text-dark-text-muted mb-2.5">{uiText(uiLocale, "Samlingar", "Collections")}</p>
-            <div className="flex flex-wrap gap-2">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-2">{uiText(uiLocale, "Samlingar", "Collections")}</p>
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
               <a
                 href={buildSearchUrl({ type: searchType })}
                 className={[
-                  "px-3.5 py-[0.4rem] rounded-full text-[0.8rem] font-medium transition-colors inline-flex items-center",
-                  "focus-ring",
+                  "shrink-0 px-3.5 py-1.5 text-[13px] border rounded-card transition-colors focus-ring no-underline",
                   museum
-                    ? "bg-dark-raised text-dark-text-secondary hover:bg-dark-hover hover:text-dark-text"
-                    : "bg-charcoal text-cream",
+                    ? "border-rule text-secondary hover:text-primary hover:border-secondary"
+                    : "border-primary bg-primary text-white",
                 ].join(" ")}
               >
                 {uiText(uiLocale, "Alla", "All")}
@@ -539,11 +547,10 @@ export default function Search({ loaderData }: Route.ComponentProps) {
                   key={option.id}
                   href={buildSearchUrl({ museumId: option.id })}
                   className={[
-                    "px-3.5 py-[0.4rem] rounded-full text-[0.8rem] font-medium transition-colors inline-flex items-center",
-                    "focus-ring",
+                    "shrink-0 px-3.5 py-1.5 text-[13px] border rounded-card transition-colors focus-ring no-underline",
                     museum === option.id
-                      ? "bg-charcoal text-cream"
-                      : "bg-dark-raised text-dark-text-secondary hover:bg-dark-hover hover:text-dark-text",
+                      ? "border-primary bg-primary text-white"
+                      : "border-rule text-secondary hover:text-primary hover:border-secondary",
                   ].join(" ")}
                 >
                   {option.name}
@@ -555,12 +562,14 @@ export default function Search({ loaderData }: Route.ComponentProps) {
 
         {!query && (
           <div className="mt-6">
-            <p className="text-[0.68rem] uppercase tracking-[0.08em] text-dark-text-muted mb-3">{uiText(uiLocale, "Prova", "Try")}</p>
-            <div className="flex flex-wrap gap-2">
-              {suggestedQueries.map(s => (
-                <a key={s} href={buildSearchUrl({ queryValue: s, museumId: museum, type: searchType })}
-                  className="px-3.5 py-[0.4rem] inline-flex items-center rounded-full bg-dark-raised text-dark-text-secondary text-[0.8rem] font-medium
-                             hover:bg-dark-hover hover:text-dark-text transition-colors focus-ring">{s}</a>
+            <p className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-2">{uiText(uiLocale, "Prova", "Try")}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {suggestedQueries.map((s) => (
+                <a
+                  key={s}
+                  href={buildSearchUrl({ queryValue: s, museumId: museum, type: searchType })}
+                  className="px-3 py-1 bg-paper text-[13px] text-secondary hover:text-primary transition-colors focus-ring rounded-card no-underline"
+                >{s}</a>
               ))}
             </div>
           </div>
@@ -568,8 +577,8 @@ export default function Search({ loaderData }: Route.ComponentProps) {
       </div>
 
       {showResults && (
-        <div className="px-(--spacing-page) pb-24 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-          <Suspense fallback={<SearchResultsSkeleton />}>
+        <div className="pb-24">
+          <Suspense fallback={<div className="px-4 md:px-6 lg:px-10"><SearchResultsSkeleton /></div>}>
             <Await resolve={initialResultsPromise}>
               {(initialPayload: SearchResultsPayload) => (
                 <SearchResultsPanel

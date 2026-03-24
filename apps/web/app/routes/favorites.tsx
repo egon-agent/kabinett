@@ -66,24 +66,24 @@ export default function Favorites() {
   }, [undoItem, toggle]);
 
   return (
-    <div className="min-h-screen pt-[3.5rem] bg-dark-base text-dark-text">
-      <div className="max-w-6xl mx-auto px-5 pt-6 pb-6 md:px-6 lg:px-8">
-        <h1 className="font-serif text-[2rem] text-dark-text">{uiText(uiLocale, "Sparade", "Favorites")}</h1>
-        <p className="mt-1.5 text-dark-text-secondary text-[0.82rem]">
+    <div className="min-h-screen pt-16 bg-white text-primary">
+      <div className="px-4 md:px-6 lg:px-10 pt-8 pb-6">
+        <h1 className="text-[32px] text-primary leading-[1.3]">{uiText(uiLocale, "Sparade", "Favorites")}</h1>
+        <p className="mt-1 text-secondary text-[15px]">
           {ids.length > 0 ? uiText(uiLocale, `${ids.length} verk`, `${formatUiNumber(ids.length, uiLocale)} works`) : ""}
         </p>
 
         {loading && items.length === 0 && (
-          <div aria-live="polite" className="py-8 text-dark-text-secondary">{uiText(uiLocale, "Hämtar favoriter…", "Loading favorites…")}</div>
+          <div aria-live="polite" className="py-8 text-secondary">{uiText(uiLocale, "Hämtar favoriter…", "Loading favorites…")}</div>
         )}
 
         {!loading && items.length === 0 && (
           <div aria-live="polite" className="py-12 text-center">
-            <p className="text-dark-text-secondary text-[0.95rem]">{uiText(uiLocale, "Inga sparade verk än.", "No favorites yet.")}</p>
-            <p className="text-dark-text-muted text-sm mt-2">
+            <p className="text-secondary text-[0.95rem]">{uiText(uiLocale, "Inga sparade verk än.", "No favorites yet.")}</p>
+            <p className="text-secondary text-sm mt-2">
               {uiText(uiLocale, "Tryck på hjärtat på ett konstverk för att spara det här.", "Tap the heart on an artwork to save it here.")}
             </p>
-            <a href="/discover" className="inline-block mt-5 px-5 py-2.5 rounded-full bg-dark-raised text-dark-text-secondary text-sm font-medium hover:bg-dark-hover hover:text-dark-text transition-colors no-underline focus-ring">
+            <a href="/discover" className="inline-block mt-5 px-5 py-2.5 bg-paper text-secondary text-sm font-medium hover:bg-rule hover:text-primary transition-colors no-underline focus-ring">
               {uiText(uiLocale, "Utforska konst", "Explore art")}
             </a>
           </div>
@@ -100,12 +100,12 @@ export default function Favorites() {
 
       {/* Undo toast */}
       {undoItem && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[80] flex items-center gap-3 bg-[rgba(10,9,8,0.9)] backdrop-blur-[8px] text-dark-text rounded-full px-5 py-3 shadow-lg">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[80] flex items-center gap-3 bg-white text-primary px-5 py-3 border border-rule">
           <span className="text-sm">{uiText(uiLocale, "Borttagen", "Removed")}</span>
           <button
             type="button"
             onClick={handleUndo}
-            className="text-sm font-semibold text-accent-light border-none bg-transparent cursor-pointer focus-ring"
+            className="text-sm font-semibold text-accent border-none bg-transparent cursor-pointer focus-ring"
           >
             {uiText(uiLocale, "Ångra", "Undo")}
           </button>
@@ -121,7 +121,7 @@ function FavoriteCard({ item, onRemove }: { item: FavoriteItem; onRemove: (id: n
     <div className="relative group">
       <a
         href={`/artwork/${item.id}`}
-        className="block no-underline text-inherit bg-dark-raised rounded-card overflow-hidden shadow-card focus-ring"
+        className="block no-underline text-inherit bg-paper overflow-hidden focus-ring"
       >
         <div
           className="aspect-[3/4]"
@@ -141,10 +141,10 @@ function FavoriteCard({ item, onRemove }: { item: FavoriteItem; onRemove: (id: n
           />
         </div>
         <div className="p-3">
-          <p className="text-sm font-medium text-dark-text leading-snug line-clamp-2 min-h-[2.25rem]">
+          <p className="text-sm font-medium text-primary leading-snug line-clamp-2 min-h-[2.25rem]">
             {item.title}
           </p>
-          <p className="mt-1 text-xs text-dark-text-secondary leading-snug line-clamp-1">
+          <p className="mt-1 text-xs text-secondary leading-snug line-clamp-1">
             {parseArtist(item.artists)}
           </p>
         </div>
@@ -153,7 +153,7 @@ function FavoriteCard({ item, onRemove }: { item: FavoriteItem; onRemove: (id: n
         type="button"
         aria-label={uiText(uiLocale, `Ta bort ${item.title}`, `Remove ${item.title}`)}
         onClick={() => onRemove(item.id, item.title)}
-        className="absolute top-2 right-2 w-8 h-8 rounded-full bg-[rgba(10,9,8,0.7)] backdrop-blur-[4px] text-dark-text-secondary hover:text-dark-text inline-flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100 cursor-pointer border-none focus-ring"
+        className="absolute top-2 right-2 w-8 h-8 bg-white text-secondary hover:text-primary inline-flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100 cursor-pointer border-none focus-ring"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <path d="M18 6L6 18M6 6l12 12" />

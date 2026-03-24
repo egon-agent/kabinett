@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { sourceFilter } from "./museums.server";
+import { getCollectionOptions, sourceFilter } from "./museums.server";
 
 export type SiteStats = {
   totalWorks: number;
@@ -16,21 +16,13 @@ let hasMaterializedStatsTables: boolean | null = null;
 
 function querySiteStatsLive(db: Database.Database): SiteStats {
   const source = sourceFilter();
-  const sourceA = sourceFilter("a");
   const minYear = (db.prepare(`SELECT MIN(year_start) as c FROM artworks WHERE year_start > 0 AND ${source.sql}`).get(...source.params) as any).c as number | null;
   const currentYear = new Date().getFullYear();
   const maxYear = (db.prepare(`SELECT MAX(COALESCE(year_end, year_start)) as c FROM artworks WHERE year_start > 0 AND ${source.sql}`).get(...source.params) as any).c as number | null;
 
   return {
     totalWorks: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE ${source.sql}`).get(...source.params) as any).c as number,
-    museums: (db.prepare(`
-      SELECT COUNT(*) as c FROM (
-        SELECT DISTINCT COALESCE(sub_museum, m.name) as museum_name
-        FROM artworks a
-        LEFT JOIN museums m ON m.id = a.source
-        WHERE ${sourceA.sql} AND COALESCE(sub_museum, m.name) IS NOT NULL AND COALESCE(sub_museum, m.name) != 'Statens historiska museer'
-      )
-    `).get(...sourceA.params) as any).c as number,
+    museums: getCollectionOptions().length,
     paintings: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Måleri%' AND ${source.sql}`).get(...source.params) as any).c as number,
     minYear,
     maxYear,
@@ -94,15 +86,9 @@ function querySiteStatsMaterialized(db: Database.Database): SiteStats {
     max_year: number | null;
   };
 
-  const museumsRow = db.prepare(
-    `SELECT COUNT(DISTINCT collection_name) as c
-     FROM source_collections_materialized
-     WHERE source IN (${placeholders})`
-  ).get(...source.params) as { c: number };
-
   return {
     totalWorks: summary.total_works,
-    museums: museumsRow.c,
+    museums: getCollectionOptions().length,
     paintings: summary.paintings,
     minYear: summary.min_year,
     maxYear: summary.max_year,

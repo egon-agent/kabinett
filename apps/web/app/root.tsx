@@ -25,8 +25,6 @@ export function headers() {
 }
 
 export function loader({ request }: Route.LoaderArgs) {
-  // Set campaign context (via AsyncLocalStorage.enterWith) so all child
-  // loaders see the correct museum filter based on the request hostname.
   const campaign = ensureRequestContext(request);
   const uiLocale = resolveUiLocale(campaign.id);
   return {
@@ -37,8 +35,6 @@ export function loader({ request }: Route.LoaderArgs) {
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://nationalmuseumse.iiifhosting.com" },
-  // SHM preconnect disabled until SHM is enabled
-  // { rel: "preconnect", href: "https://media.samlingar.shm.se" },
   { rel: "preconnect", href: "https://ems.dimu.org" },
 ];
 
@@ -50,7 +46,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#FAF7F2" />
+        <meta name="theme-color" content="#FFFFFF" />
         <meta property="og:locale" content={getOgLocale(uiLocale)} />
         <meta property="og:site_name" content="Kabinett" />
         <meta name="robots" content="index,follow" />
@@ -83,15 +79,15 @@ window.addEventListener('error',function(event){
           }
         `}} />
       </head>
-      <body className="bg-cream text-ink font-sans antialiased m-0">
+      <body className="bg-white text-primary font-sans antialiased m-0">
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:bg-cream focus:text-ink focus:px-4 focus:py-2 focus:rounded-full focus:shadow-lg focus-ring"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:bg-white focus:text-primary focus:px-4 focus:py-2 focus-ring"
         >
           {uiText(uiLocale, "Hoppa till innehåll", "Skip to content")}
         </a>
         <Header />
-        <main id="main-content" className="app-main pb-[7rem] lg:pb-0">{children}</main>
+        <main id="main-content" className="app-main pb-[4.5rem] lg:pb-0">{children}</main>
         <BottomNav />
         <ScrollRestoration />
         <Scripts />
@@ -111,14 +107,7 @@ window.__toast=function(msg){
 }
 
 function useIsLightPage() {
-  const path = useLocation().pathname;
-  return (
-    path.startsWith("/artwork/") ||
-    path.startsWith("/artist/") ||
-    path.startsWith("/samling/") ||
-    path.startsWith("/museum/") ||
-    path.startsWith("/color-match")
-  );
+  return true;
 }
 
 function NavLink({
@@ -138,26 +127,22 @@ function NavLink({
       href={href}
       aria-current={isActive ? "page" : undefined}
       className={[
-        "no-underline transition-colors focus-ring relative pb-0.5 px-2.5 py-1 rounded-full",
+        "no-underline transition-colors focus-ring relative pb-0.5 px-1 py-1",
         isDark
-          ? "hover:text-dark-text hover:bg-[rgba(245,240,232,0.06)]"
-          : "hover:text-ink hover:bg-[rgba(61,56,49,0.05)]",
+          ? "hover:text-dark-primary"
+          : "hover:text-primary",
         isActive
           ? isDark
-            ? "text-dark-text font-medium"
-            : "text-charcoal font-medium"
-          : "",
+            ? "text-accent font-medium"
+            : "text-accent font-medium"
+          : isDark
+            ? "text-dark-secondary"
+            : "text-secondary",
       ].join(" ")}
     >
       {label}
       {isActive && (
-        <span
-          className="absolute left-2 right-2 -bottom-[0.2rem] h-[2px] rounded-full bg-accent origin-left"
-          style={{
-            animation: "scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
-            transformOrigin: "left center",
-          }}
-        />
+        <span className="absolute left-0 right-0 -bottom-[0.2rem] h-[2px] bg-accent" />
       )}
     </a>
   );
@@ -166,6 +151,7 @@ function NavLink({
 function Header() {
   const location = useLocation();
   const path = location.pathname;
+  const isHome = path === "/";
   const isLight = useIsLightPage();
   const isDark = !isLight;
   const uiLocale = useUiLocale();
@@ -181,30 +167,30 @@ function Header() {
   return (
     <header
       className={[
-        "fixed top-0 left-0 right-0 z-[60]",
+        "fixed top-0 left-0 right-0 z-[60] border-b",
         isDark
-          ? "bg-[rgba(10,9,8,0.55)] backdrop-blur-[16px] border-b border-[rgba(255,255,255,0.05)]"
-          : "bg-[rgba(250,247,242,0.92)] backdrop-blur-[16px] border-b border-[rgba(212,205,195,0.25)]",
+          ? "bg-dark-bg border-dark-rule"
+          : "bg-white border-rule",
       ].join(" ")}
     >
       <nav
         aria-label={uiText(uiLocale, "Huvudnavigering", "Main navigation")}
-        className="flex items-center justify-between px-5 md:px-6 lg:px-8 h-[3.5rem] max-w-7xl mx-auto"
+        className="flex items-center justify-between px-4 md:px-6 lg:px-10 h-[3.5rem]"
       >
         <a
           href="/"
           aria-current={path === "/" ? "page" : undefined}
           className={[
-            "font-serif text-[1.55rem] lg:text-[1.75rem] tracking-tight no-underline focus-ring",
-            isDark ? "text-dark-text" : "text-charcoal",
+            "text-[13px] tracking-[0.12em] uppercase no-underline focus-ring font-normal",
+            isDark ? "text-dark-primary" : "text-primary",
+            isHome ? "invisible" : "",
           ].join(" ")}
         >
-          Kabinett
+          KABINETT
         </a>
         <div
           className={[
-            "hidden lg:flex items-center gap-6 text-[0.82rem] tracking-[0.015em]",
-            isDark ? "text-dark-text/70" : "text-warm-gray",
+            "hidden lg:flex items-center gap-6 text-[13px] tracking-[0.015em]",
           ].join(" ")}
         >
           {navItems.map((item) => (
@@ -236,7 +222,7 @@ function BottomNav() {
       label: uiText(uiLocale, "Hem", "Home"),
       active: path === "/",
       icon: (color: string) => (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
           <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" />
           <path d="M9 21V12h6v9" />
         </svg>
@@ -247,7 +233,7 @@ function BottomNav() {
       label: uiText(uiLocale, "Upptäck", "Discover"),
       active: path === "/discover",
       icon: (color: string) => (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
           <circle cx="12" cy="12" r="10" />
           <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill={color} opacity="0.15" stroke={color} />
         </svg>
@@ -258,7 +244,7 @@ function BottomNav() {
       label: uiText(uiLocale, "Sök", "Search"),
       active: path === "/search",
       icon: (color: string) => (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
           <circle cx="11" cy="11" r="8" />
           <path d="m21 21-4.35-4.35" />
         </svg>
@@ -271,7 +257,7 @@ function BottomNav() {
         label: uiText(uiLocale, "Skola", "School"),
         active: path === "/skola" || path.startsWith("/skola/"),
         icon: (color: string) => (
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
             <path d="M3 6.5a1.5 1.5 0 0 1 1.5-1.5h12A1.5 1.5 0 0 1 18 6.5v11A1.5 1.5 0 0 1 16.5 19h-12A1.5 1.5 0 0 1 3 17.5v-11z" />
             <path d="M18 7.5h2a1 1 0 0 1 1 1v9.5a1 1 0 0 1-1 1h-11" />
             <path d="M6.5 9.5h8" />
@@ -285,7 +271,7 @@ function BottomNav() {
       active: path === "/favorites",
       badge: count,
       icon: (color: string) => (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8">
           <path d="M20.8 5.6c-1.4-1.6-3.9-1.6-5.3 0L12 9.1 8.5 5.6c-1.4-1.6-3.9-1.6-5.3 0-1.6 1.8-1.4 4.6.2 6.2L12 21l8.6-9.2c1.6-1.6 1.8-4.4.2-6.2z" />
         </svg>
       ),
@@ -296,52 +282,30 @@ function BottomNav() {
     <nav
       aria-label={uiText(uiLocale, "Snabbnavigering", "Quick navigation")}
       className={[
-        "fixed bottom-0 left-0 right-0 z-[60] backdrop-blur-[16px] pb-[env(safe-area-inset-bottom)] border-t lg:hidden",
+        "fixed bottom-0 left-0 right-0 z-[60] pb-[env(safe-area-inset-bottom)] border-t lg:hidden",
         isDark
-          ? "bg-[rgba(10,9,8,0.85)] border-[rgba(255,255,255,0.08)]"
-          : "bg-[rgba(250,247,242,0.92)] border-[rgba(212,205,195,0.3)]",
+          ? "bg-dark-bg border-dark-rule"
+          : "bg-white border-rule",
       ].join(" ")}
     >
-      <div
-        className={[
-          "absolute top-0 left-0 right-0 h-[1px]",
-          isDark
-            ? "bg-[linear-gradient(90deg,transparent,rgba(212,168,83,0.15)_50%,transparent)]"
-            : "bg-[linear-gradient(90deg,transparent,rgba(212,168,83,0.1)_50%,transparent)]",
-        ].join(" ")}
-      />
       <div
         className="flex justify-around items-center h-[3.5rem] max-w-[32rem] mx-auto"
       >
         {tabs.map((tab) => {
           const color = tab.active
-            ? "var(--color-gold)"
-            : (isDark ? "rgba(245,240,232,0.4)" : "rgba(61,56,49,0.35)");
-          const labelClass = tab.active
-            ? "text-gradient-warm"
-            : (isDark ? "text-dark-text-muted" : "text-[rgba(61,56,49,0.35)]");
+            ? "var(--color-accent)"
+            : (isDark ? "var(--color-dark-secondary)" : "var(--color-secondary)");
           return (
             <a
               key={tab.href}
               href={tab.href}
               aria-current={tab.active ? "page" : undefined}
               aria-label={tab.label}
-              className="flex flex-col items-center gap-[0.15rem] no-underline relative py-1 px-2 focus-ring"
+              className="flex flex-col items-center no-underline relative py-1 px-2 focus-ring"
             >
               {tab.icon(color)}
-              <span
-                className={[
-                  "text-[0.6rem] tracking-[0.01em]",
-                  tab.active ? "font-semibold" : "font-normal",
-                  labelClass,
-                ].join(" ")}
-              >
-                {tab.label}
-              </span>
               {tab.badge && tab.badge > 0 ? (
-                <span className="absolute top-0 right-[0.15rem] min-w-[0.9rem] h-[0.9rem] px-[0.15rem] rounded-full bg-accent text-white text-[0.55rem] inline-flex items-center justify-center font-semibold shadow-[0_0_8px_rgba(212,67,46,0.4)]">
-                  {tab.badge}
-                </span>
+                <span className="absolute top-0 right-[0.15rem] w-[6px] h-[6px] rounded-[50%] bg-accent" />
               ) : null}
             </a>
           );
@@ -358,13 +322,9 @@ export default function App() {
   return (
     <>
       {isNavigating && (
-        <div className="fixed top-0 left-0 right-0 z-[100] h-[2.5px]">
+        <div className="fixed top-0 left-0 right-0 z-[100] h-[2px]">
           <div
-            className="h-full animate-[loading-bar_1.5s_ease-in-out_infinite]"
-            style={{
-              background: "linear-gradient(90deg, var(--color-gold), var(--color-gold-light))",
-              boxShadow: "0 0 12px rgba(212,168,83,0.4)",
-            }}
+            className="h-full bg-accent animate-[loading-bar_1.5s_ease-in-out_infinite]"
           />
         </div>
       )}
@@ -398,20 +358,20 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 
   return (
     <div className="py-[4rem] px-5 min-h-screen flex items-center justify-center">
-      <div className="max-w-md text-center">
-        <h1 className="font-serif text-[2rem] md:text-[2.4rem] text-charcoal">{message}</h1>
-        <p className="mt-4 text-warm-gray leading-relaxed text-[0.92rem]">{details}</p>
-        <div className="mt-8 flex flex-wrap gap-3 justify-center">
+      <div className="max-w-md">
+        <h1 className="text-[2rem] md:text-[2.4rem] text-primary">{message}</h1>
+        <p className="mt-4 text-secondary leading-[1.55] text-[15px]">{details}</p>
+        <div className="mt-8 flex flex-wrap gap-3">
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="px-5 py-2.5 rounded-full bg-charcoal text-cream text-[0.82rem] font-medium border-none cursor-pointer hover:bg-ink active:scale-[0.97] transition-[background-color,transform] focus-ring"
+            className="px-5 py-2.5 bg-primary text-white text-[13px] border-none cursor-pointer hover:bg-black transition-colors focus-ring"
           >
             {uiText(uiLocale, "Försök igen", "Try again")}
           </button>
           <a
             href="/"
-            className="px-5 py-2.5 rounded-full border border-stone/25 text-charcoal text-[0.82rem] font-medium no-underline hover:bg-linen active:scale-[0.97] transition-[background-color,transform] focus-ring"
+            className="px-5 py-2.5 border border-rule text-primary text-[13px] no-underline hover:bg-paper transition-colors focus-ring"
           >
             {uiText(uiLocale, "Till startsidan", "Go to homepage")}
           </a>

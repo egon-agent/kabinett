@@ -237,19 +237,19 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
   }, [loadMore]);
 
   return (
-    <div className="min-h-screen pt-[3.5rem] bg-dark-base text-dark-text">
-      <div id="top" className="md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-        <h1 className="font-serif text-[2rem] text-dark-text px-5 md:px-0 pt-6 md:pt-8 pb-1.5">{uiText(uiLocale, "Tidslinje", "Timeline")}</h1>
-        <p className="px-5 md:px-0 pb-5 text-[0.88rem] text-dark-text-secondary">
+    <div className="min-h-screen pt-16 bg-white text-primary">
+      <div id="top" className="px-4 md:px-6 lg:px-10 pt-8 pb-6">
+        <h1 className="text-[32px] text-primary leading-[1.3]">{uiText(uiLocale, "Tidslinje", "Timeline")}</h1>
+        <p className="text-[15px] text-secondary mt-1">
           {uiText(uiLocale, "800 år av konst — från medeltid till modernism", "800 years of art, from the Middle Ages to modernism")}
         </p>
       </div>
 
-      <div className="md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
+      <div className="px-4 md:px-6 lg:px-10">
         <div className="timeline-scroll no-scrollbar" aria-label={uiText(uiLocale, "Tidslinje decennier", "Timeline decades")}>
           {decades.map((decade) => (
             <div key={decade.decade} className="timeline-column">
-              <div className="timeline-label font-serif">{decade.decade}</div>
+              <div className="timeline-label">{decade.decade}</div>
               {decade.samples.map((art) => (
                 <a key={art.id} href={`/artwork/${art.id}`} className="timeline-card focus-ring">
                   <div className="aspect-[3/4]" style={{ backgroundColor: art.color }}>
@@ -267,8 +267,8 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
                   </div>
                   <div className="timeline-card-meta">
                     <span className="text-[0.82rem] font-medium leading-[1.35] line-clamp-2 min-h-[2.2rem]">{art.title}</span>
-                    <span className="text-xs text-dark-text-secondary leading-snug line-clamp-1">{art.artist}</span>
-                    <span className="text-xs text-dark-text-muted">{art.year}</span>
+                    <span className="text-xs text-secondary leading-snug line-clamp-1">{art.artist}</span>
+                    <span className="text-xs text-secondary">{art.year}</span>
                   </div>
                 </a>
               ))}
@@ -281,19 +281,19 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
       </div>
 
       {selectedDecade > 0 && (
-        <section id={`decade-${selectedDecade}`} className="pt-4 px-5 pb-16 md:max-w-6xl md:mx-auto md:px-6">
+        <section id={`decade-${selectedDecade}`} className="pt-4 px-4 md:px-6 lg:px-10 pb-16">
           <div className="flex items-baseline justify-between flex-wrap gap-4">
             <div>
-              <h2 className="font-serif text-[1.7rem]">
+              <h2 className="text-[1.7rem]">
                 {selectedLabel}
               </h2>
-              <p className="text-sm text-dark-text-secondary">
+              <p className="text-sm text-secondary">
                 {uiText(uiLocale, `${selectedTotal.toLocaleString("sv")} verk`, `${formatUiNumber(selectedTotal, uiLocale)} works`)}
               </p>
             </div>
             <a
               href="#top"
-              className="text-sm text-dark-text-secondary no-underline focus-ring"
+              className="text-sm text-secondary no-underline focus-ring"
             >
               {uiText(uiLocale, "Tillbaka upp", "Back to top")}
             </a>
@@ -310,17 +310,17 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
               ))}
             </div>
           ) : (
-            <p className="py-8 text-dark-text-secondary">
+            <p className="py-8 text-secondary">
               {uiText(uiLocale, "Inga verk från denna period.", "No works from this period.")}
             </p>
           )}
           {loadError && (
             <div className="text-center py-6" aria-live="polite">
-              <p className="text-sm text-dark-text-secondary mb-3">{uiText(uiLocale, "Kunde inte ladda fler verk.", "Could not load more artworks.")}</p>
+              <p className="text-sm text-secondary mb-3">{uiText(uiLocale, "Kunde inte ladda fler verk.", "Could not load more artworks.")}</p>
               <button
                 type="button"
                 onClick={() => { setLoadError(false); loadMore(); }}
-                className="px-4 py-2 rounded-full bg-dark-raised text-dark-text-secondary text-sm font-medium hover:bg-dark-hover hover:text-dark-text transition-colors focus-ring"
+                className="px-4 py-2 bg-paper text-secondary text-sm font-medium hover:bg-rule hover:text-primary transition-colors focus-ring"
               >
                 {uiText(uiLocale, "Försök igen", "Try again")}
               </button>
@@ -328,7 +328,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
           )}
           {canLoadMore && !loadError && <div ref={sentinelRef} className="h-4" />}
           {loading && (
-            <p className="text-center text-sm text-dark-text-secondary py-4">
+            <p className="text-center text-sm text-secondary py-4">
               {uiText(uiLocale, "Laddar fler verk…", "Loading more artworks…")}
             </p>
           )}

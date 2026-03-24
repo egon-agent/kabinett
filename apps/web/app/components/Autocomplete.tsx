@@ -354,7 +354,7 @@ export default function Autocomplete({
         <div
           id={listboxId}
           role="listbox"
-          className={dropdownClassName || "absolute left-0 right-0 top-full mt-1 z-50 bg-dark-base rounded-card shadow-lg border border-[rgba(245,240,232,0.1)] overflow-hidden"}
+          className={dropdownClassName || "absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-rule overflow-hidden"}
         >
           {(() => {
             const { artworks, artists, clips } = suggestions;
@@ -367,7 +367,7 @@ export default function Autocomplete({
                 {hasArtworkSection && (
                   <>
                     <div className="px-4 pt-2.5 pb-1">
-                      <span className="text-[0.65rem] uppercase tracking-[0.15em] text-dark-text-muted/75">
+                      <span className="text-[0.65rem] uppercase tracking-[0.15em] text-secondary/75">
                         {uiText(uiLocale, "Verk", "Artworks")}
                       </span>
                     </div>
@@ -388,8 +388,8 @@ export default function Autocomplete({
                             onMouseEnter={() => setActiveIndex(idx)}
                             className={[
                               "w-full text-left px-4 py-2.5 flex items-center gap-3 cursor-pointer transition-colors",
-                              "hover:bg-dark-hover focus-ring",
-                              isActive ? "bg-dark-hover" : "",
+                              "hover:bg-rule focus-ring",
+                              isActive ? "bg-rule" : "",
                               index > 0 ? "border-t border-[rgba(245,240,232,0.05)]" : "",
                             ].join(" ")}
                           >
@@ -397,18 +397,18 @@ export default function Autocomplete({
                               <img
                                 src={suggestion.imageUrl}
                                 alt=""
-                                className="h-8 w-8 rounded-md object-cover shrink-0 bg-dark-raised"
+                                className="h-8 w-8 rounded-md object-cover shrink-0 bg-paper"
                                 loading="lazy"
                               />
                             ) : (
                               <div
-                                className="h-8 w-8 rounded-md shrink-0 bg-dark-raised"
+                                className="h-8 w-8 rounded-md shrink-0 bg-paper"
                                 style={suggestion.dominant_color ? { backgroundColor: suggestion.dominant_color } : undefined}
                               />
                             )}
                             <span className="min-w-0">
-                              <span className="block text-sm text-dark-text truncate">{suggestion.title}</span>
-                              <span className="block text-xs text-dark-text-muted truncate">
+                              <span className="block text-sm text-primary truncate">{suggestion.title}</span>
+                              <span className="block text-xs text-secondary truncate">
                                 {suggestion.artist_name || uiText(uiLocale, "Okänd konstnär", "Unknown artist")}
                               </span>
                             </span>
@@ -422,7 +422,7 @@ export default function Autocomplete({
                 {hasArtistSection && (
                   <>
                     <div className={`px-4 pt-2.5 pb-1 ${hasArtworkSection ? "border-t border-[rgba(245,240,232,0.08)]" : ""}`}>
-                      <span className="text-[0.65rem] uppercase tracking-[0.15em] text-dark-text-muted/75">
+                      <span className="text-[0.65rem] uppercase tracking-[0.15em] text-secondary/75">
                         {uiText(uiLocale, "Konstnärer", "Artists")}
                       </span>
                     </div>
@@ -443,13 +443,13 @@ export default function Autocomplete({
                             onMouseEnter={() => setActiveIndex(idx)}
                             className={[
                               "w-full text-left px-4 py-2.5 text-sm flex justify-between items-center cursor-pointer transition-colors",
-                              "hover:bg-dark-hover focus-ring",
-                              isActive ? "bg-dark-hover" : "",
+                              "hover:bg-rule focus-ring",
+                              isActive ? "bg-rule" : "",
                               index > 0 ? "border-t border-[rgba(245,240,232,0.05)]" : "",
                             ].join(" ")}
                           >
-                            <span className="text-dark-text truncate">{suggestion.value}</span>
-                            <span className="text-xs text-dark-text-muted ml-2 shrink-0">
+                            <span className="text-primary truncate">{suggestion.value}</span>
+                            <span className="text-xs text-secondary ml-2 shrink-0">
                               {suggestion.count
                                 ? uiText(uiLocale, `${suggestion.count} verk`, `${formatUiNumber(suggestion.count, uiLocale)} works`)
                                 : uiText(uiLocale, "Konstnär", "Artist")}
@@ -464,7 +464,7 @@ export default function Autocomplete({
                 {clips.length > 0 && (
                   <>
                     <div className={`px-4 pt-2.5 pb-1 ${(hasArtworkSection || hasArtistSection) ? "border-t border-[rgba(245,240,232,0.08)]" : ""}`}>
-                      <span className="text-[0.65rem] uppercase tracking-[0.15em] text-dark-text-muted/75">
+                      <span className="text-[0.65rem] uppercase tracking-[0.15em] text-secondary/75">
                         {uiText(uiLocale, "Sök visuellt", "Visual search")}
                       </span>
                     </div>
@@ -485,10 +485,10 @@ export default function Autocomplete({
                             onMouseEnter={() => setActiveIndex(idx)}
                             className={[
                               "px-3 py-1.5 rounded-full text-sm cursor-pointer transition-colors",
-                              "hover:bg-dark-hover focus-ring",
+                              "hover:bg-rule focus-ring",
                               isActive
-                                ? "bg-dark-hover text-dark-text"
-                                : "bg-[rgba(245,240,232,0.06)] text-dark-text-secondary",
+                                ? "bg-rule text-primary"
+                                : "bg-paper text-secondary",
                             ].join(" ")}
                           >
                             {suggestion.value}

@@ -1,14 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import ArtworkCard, { type CardVariant } from "../components/ArtworkCard";
+import { useCallback, useEffect, useRef, useState } from "react";
+import ArtworkCard from "../components/ArtworkCard";
 import HeroSearch from "../components/HeroSearch";
 import SpotlightCard, { type SpotlightCardData } from "../components/SpotlightCard";
-import StatsSection, { type StatsCardData } from "../components/StatsSection";
 import ThemeCard, { type ThemeCardSection } from "../components/ThemeCard";
 import WalkPromoCard from "../components/WalkPromoCard";
 import type { ArtworkDisplayItem } from "../components/artwork-meta";
-import { useScrollReveal } from "../hooks/useScrollReveal";
 import { uiText, useUiLocale } from "../lib/ui-language";
-import { homeLoader, type HomeLoaderData } from "./home.loader.server";
+import { homeLoader } from "./home.loader.server";
 import { getThemes } from "../lib/themes";
 import type { Route } from "./+types/home";
 
@@ -19,11 +17,10 @@ function serializeJsonLd(value: unknown): string {
 type FeedItem = ArtworkDisplayItem;
 
 type ThemeSectionEntry = { type: "theme" } & ThemeCardSection;
-type StatsCardEntry = { type: "stats" } & StatsCardData;
 type ArtCard = { type: "art"; item: FeedItem };
 type SpotlightCardEntry = { type: "spotlight" } & SpotlightCardData;
 type WalkPromoCardEntry = { type: "walkPromo" };
-type FeedEntry = ArtCard | ThemeSectionEntry | StatsCardEntry | SpotlightCardEntry | WalkPromoCardEntry;
+type FeedEntry = ArtCard | ThemeSectionEntry | SpotlightCardEntry | WalkPromoCardEntry;
 
 export function meta({ data }: Route.MetaArgs) {
   const total = data?.stats?.total ?? 0;
@@ -66,14 +63,6 @@ export async function loader({ request }: Route.LoaderArgs) {
   return homeLoader(request);
 }
 
-function getCardVariant(positionInFeed: number, item?: { iiif_url?: string | null }): CardVariant {
-  const p = positionInFeed % 6;
-  // SHM images max out at ~400px — never show them as large cards
-  const isSHM = item?.iiif_url?.includes("media.samlingar.shm.se");
-  if (p === 0 && !isSHM) return "large";
-  return "small";
-}
-
 export default function Home({ loaderData }: Route.ComponentProps) {
   const uiLocale = useUiLocale();
   const hasWalks = loaderData.campaignId !== "europeana";
@@ -95,29 +84,16 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     const themes = loaderData.preloadedThemes || [];
     for (let i = 0; i < initial.length; i++) {
       entries.push({ type: "art", item: initial[i] });
-      // Insert full-width modules only after a completed desktop row.
-      // With the current card mix, 5 artworks fills the first 3-column block
-      // without leaving a gap before a col-span-3 section.
-      if (i === 4 && themes[0]) {
+      if (i === 9 && themes[0]) {
         entries.push({ type: "theme", ...themes[0] });
         if (hasWalks) entries.push({ type: "walkPromo" });
       }
-      if (i === 9 && loaderData.spotlight) {
+      if (i === 14 && loaderData.spotlight) {
         entries.push({ type: "spotlight", ...loaderData.spotlight });
       }
-      if (i === 11 && themes[1]) {
+      if (i === 19 && themes[1]) {
         entries.push({ type: "theme", ...themes[1] });
       }
-      if (i === 14) {
-        entries.push({ type: "stats", ...loaderData.stats });
-      }
-      if (i === 16 && themes[2]) {
-        entries.push({ type: "theme", ...themes[2] });
-      }
-    }
-
-    if (initial.length <= 14) {
-      entries.push({ type: "stats", ...loaderData.stats });
     }
 
     if (themes.length > 0 && !entries.some((entry) => entry.type === "theme")) {
@@ -125,7 +101,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       if (hasWalks) entries.push({ type: "walkPromo" });
     }
 
-    if (initial.length <= 10 && loaderData.spotlight && !entries.some((entry) => entry.type === "spotlight")) {
+    if (initial.length <= 14 && loaderData.spotlight && !entries.some((entry) => entry.type === "spotlight")) {
       entries.push({ type: "spotlight", ...loaderData.spotlight });
     }
 
@@ -142,30 +118,25 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const loadedIdsRef = useRef<Set<number>>(new Set(loaderData.initialItems.map((item: FeedItem) => item.id)));
   const inFlightRef = useRef(false);
 
-  const bgColor = useMemo(() => {
-    const firstArt = feed.find((entry): entry is ArtCard => entry.type === "art");
-    const hex = firstArt?.item.dominant_color || "#1A1815";
-    const m = hex.match(/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
-    if (!m) return "#0F0E0D";
-    const mix = 0.25;
-    const floor = 22;
-    const r = Math.max(floor, Math.round(parseInt(m[1], 16) * mix));
-    const g = Math.max(floor, Math.round(parseInt(m[2], 16) * mix));
-    const b = Math.max(floor, Math.round(parseInt(m[3], 16) * mix));
-    return `rgb(${r},${g},${b})`;
-  }, [feed]);
+  useEffect(() => {
+    document.body.style.backgroundColor = "#FFFFFF";
+    document.body.style.color = "#2B2926";
+    return () => {
+      document.body.style.backgroundColor = "";
+      document.body.style.color = "";
+    };
+  }, []);
 
   // Lazy-load spotlight client-side
   useEffect(() => {
-    if (loaderData.spotlight) return; // already have it from server
+    if (loaderData.spotlight) return;
     fetch("/api/spotlight")
       .then(r => r.json())
       .then(data => {
         if (!data) return;
         setFeed(prev => {
           if (prev.some(e => e.type === "spotlight")) return prev;
-          // Insert after position 4 or at end
-          const idx = Math.min(5, prev.length);
+          const idx = Math.min(10, prev.length);
           const next = [...prev];
           next.splice(idx, 0, { type: "spotlight", ...data });
           return next;
@@ -174,22 +145,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    document.body.style.backgroundColor = bgColor;
-    document.body.style.color = "#F5F0E8";
-    return () => {
-      document.body.style.backgroundColor = "";
-      document.body.style.color = "";
-    };
-  }, [bgColor]);
-
   const loadMore = useCallback(async () => {
     if (inFlightRef.current || !hasMore) return;
     inFlightRef.current = true;
     setLoading(true);
     setLoadError("");
     try {
-      const res = await fetch(`/api/feed?filter=Alla&limit=12&cursor=${cursorRef.current ?? ""}`);
+      const res = await fetch(`/api/feed?filter=Alla&limit=20&cursor=${cursorRef.current ?? ""}`);
       if (!res.ok) throw new Error("Kunde inte hämta fler verk");
       const data = await res.json() as { items?: FeedItem[]; nextCursor?: number | null; hasMore?: boolean };
       const nextItems: FeedItem[] = (data.items || []).filter((item: FeedItem) => !loadedIdsRef.current.has(item.id));
@@ -205,7 +167,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             if (!themeRes.ok) throw new Error("Kunde inte hämta tema");
             const themeData = await themeRes.json() as { items?: FeedItem[] };
             if (themeData.items?.length) {
-              const insertAt = Math.min(5, newEntries.length);
+              const insertAt = Math.min(10, newEntries.length);
               newEntries.splice(insertAt, 0, {
                 type: "theme",
                 ...theme,
@@ -249,15 +211,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     return () => observer.disconnect();
   }, [hasMore, loading, loadMore]);
 
-  const scrollRef = useScrollReveal<HTMLDivElement>();
-
   return (
     <div className="min-h-screen overflow-x-hidden">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(websiteJsonLd) }}
       />
-      <div ref={scrollRef} className="md:max-w-4xl lg:max-w-7xl md:mx-auto md:px-6 lg:px-8">
+      <div className="max-w-[1400px] mx-auto">
         <HeroSearch
           totalWorks={loaderData.stats.total}
           headline={loaderData.heroHeadline}
@@ -265,79 +225,69 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           introText={loaderData.heroIntro}
           isCampaign={loaderData.noindex}
           campaignId={loaderData.campaignId}
+          museumCount={loaderData.stats.museums}
         />
+      </div>
 
-        {<div className="grid grid-cols-1 md:gap-1.5 lg:grid-cols-3 lg:gap-2 lg:grid-flow-dense">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 px-3 md:px-4 lg:px-6">
           {(() => {
-            let artPosition = -1;
+            let artIndex = -1;
             return feed.map((entry, index) => {
               if (entry.type === "art") {
-                artPosition += 1;
+                artIndex += 1;
                 return (
                   <ArtworkCard
                     key={`art-${entry.item.id}-${index}`}
                     item={entry.item}
-                    index={artPosition}
-                    variant={getCardVariant(artPosition, entry.item)}
+                    index={artIndex}
                     showMuseumBadge={loaderData.showMuseumBadge}
                   />
                 );
               }
 
-              if (entry.type === "stats") {
-                if (loaderData.noindex) return null; // Skip stats card in campaign mode
-                return (
-                  <div key="stats" className="lg:col-span-3 mt-4 mb-2 md:mt-6 md:mb-3 lg:mt-10 lg:mb-5">
-                    <StatsSection stats={entry} museumName={loaderData.museumName} />
-                  </div>
-                );
-              }
-
               if (entry.type === "spotlight") {
                 return (
-                  <div key={`spotlight-${entry.artistName}-${index}`} className="lg:col-span-3 mt-4 mb-2 md:mt-6 md:mb-3 lg:mt-10 lg:mb-5">
+                  <div key={`spotlight-${entry.artistName}-${index}`} className="col-span-2 md:col-span-3 lg:col-span-4 xl:col-span-5">
                     <SpotlightCard spotlight={entry} />
                   </div>
                 );
               }
 
               if (entry.type === "walkPromo") {
-                // All campaigns now have walks
                 return (
-                  <div key={`walks-${index}`} className="lg:col-span-3 mt-4 mb-2 md:mt-6 md:mb-3 lg:mt-10 lg:mb-5">
+                  <div key={`walks-${index}`} className="col-span-2 md:col-span-3 lg:col-span-4 xl:col-span-5 border-t border-rule">
                     <WalkPromoCard campaignId={loaderData.campaignId} />
                   </div>
                 );
               }
 
               return (
-                <div key={`theme-${entry.title}-${index}`} className="lg:col-span-3 mt-4 mb-2 md:mt-6 md:mb-3 lg:mt-10 lg:mb-5">
+                <div key={`theme-${entry.title}-${index}`} className="col-span-2 md:col-span-3 lg:col-span-4 xl:col-span-5">
                   <ThemeCard section={entry} showMuseumBadge={loaderData.showMuseumBadge} />
                 </div>
               );
             });
           })()}
-        </div>}
+        </div>
 
-        {<div ref={sentinelRef} className="h-px" />}
+        <div ref={sentinelRef} className="h-px" />
         {loading && (
-          <div aria-live="polite" className="text-center p-8 text-dark-text-muted text-[0.8rem]">
+          <div aria-live="polite" className="text-center p-8 text-secondary text-[13px]">
             {uiText(uiLocale, "Laddar mer konst…", "Loading more artworks…")}
           </div>
         )}
         {loadError && !loading && (
           <div aria-live="polite" className="text-center p-8">
-            <p className="text-dark-text-muted text-[0.8rem] mb-3">{loadError}</p>
+            <p className="text-secondary text-[13px] mb-3">{loadError}</p>
             <button
               type="button"
               onClick={() => { setLoadError(""); void loadMore(); }}
-              className="px-4 py-2 rounded-full bg-dark-raised text-dark-text-secondary text-sm font-medium hover:bg-dark-hover hover:text-dark-text transition-colors focus-ring"
+              className="px-4 py-2 bg-paper text-secondary text-[13px] hover:bg-rule hover:text-primary transition-colors focus-ring border-none cursor-pointer"
             >
               {uiText(uiLocale, "Försök igen", "Try again")}
             </button>
           </div>
         )}
-      </div>
     </div>
   );
 }

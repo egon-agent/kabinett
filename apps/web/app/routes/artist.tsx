@@ -386,40 +386,40 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
   }, [loadMore]);
 
   return (
-    <div className="min-h-screen pt-[3.5rem] bg-cream">
-      <div className="pt-8 px-5 pb-6 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-        <p className="text-[0.65rem] uppercase tracking-[0.2em] text-warm-gray">
+    <div className="min-h-screen pt-16 bg-white">
+      <div className="px-4 md:px-6 lg:px-10 pt-8 pb-6">
+        <p className="text-[11px] uppercase tracking-[0.08em] text-secondary">
           Konstnärsresa
         </p>
-        <h1 className="font-serif text-[2.2rem] lg:text-[2.6rem] text-charcoal leading-[1.08] mt-2">
+        <h1 className="text-[32px] text-primary leading-[1.3] mt-2">
           {artistName}
         </h1>
-        <div className="flex flex-wrap gap-2 mt-3 text-[0.85rem] text-warm-gray">
+        <div className="flex flex-wrap gap-2 mt-3 text-[0.85rem] text-secondary">
           {nationality && <span>{nationality}</span>}
-          {nationality && (birth || death) && <span className="text-stone">·</span>}
+          {nationality && (birth || death) && <span className="text-secondary">·</span>}
           {(birth || death) && (
             <span>
               {birth || "?"}
               {death ? `–${death}` : birth ? "–" : ""}
             </span>
           )}
-          {(nationality || birth || death) && <span className="text-stone">·</span>}
+          {(nationality || birth || death) && <span className="text-secondary">·</span>}
           <span>{total} verk</span>
         </div>
         {(wikiDescription || wikiExtract || biography) && (
-          <p className="mt-[0.9rem] text-[0.95rem] text-charcoal max-w-[46rem]">
+          <p className="mt-[0.9rem] text-[0.95rem] text-primary max-w-[46rem]">
             {wikiExtract || biography || wikiDescription}
           </p>
         )}
         {(wikidata || wikipedia) && (
           <div className="flex gap-2 mt-4 flex-wrap">
             {wikipedia && (
-              <a href={wikipedia} target="_blank" rel="noopener noreferrer" className="text-[0.78rem] px-3 py-1 rounded-full border border-stone/30 text-warm-gray no-underline hover:bg-linen hover:text-charcoal transition-colors focus-ring">
+              <a href={wikipedia} target="_blank" rel="noopener noreferrer" className="text-[0.78rem] px-3 py-1 border border-rule/30 text-secondary no-underline hover:bg-paper hover:text-primary transition-colors focus-ring">
                 Wikipedia →
               </a>
             )}
             {wikidata && (
-              <a href={wikidata} target="_blank" rel="noopener noreferrer" className="text-[0.78rem] px-3 py-1 rounded-full border border-stone/30 text-warm-gray no-underline hover:bg-linen hover:text-charcoal transition-colors focus-ring">
+              <a href={wikidata} target="_blank" rel="noopener noreferrer" className="text-[0.78rem] px-3 py-1 border border-rule/30 text-secondary no-underline hover:bg-paper hover:text-primary transition-colors focus-ring">
                 Wikidata
               </a>
             )}
@@ -428,8 +428,8 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
       </div>
 
       {timelineWorks.length > 0 && (
-        <section className="px-5 pb-10 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-          <h2 className="font-serif text-[1.35rem] text-charcoal mb-4">
+        <section className="px-4 md:px-6 lg:px-10 pb-10">
+          <h2 className="text-[18px] text-primary mb-4">
             Verk över tid
           </h2>
           <div className="grid grid-flow-col auto-cols-[minmax(140px,180px)] gap-3 overflow-x-auto pb-2 snap-x snap-mandatory no-scrollbar lg:auto-cols-[minmax(180px,220px)]">
@@ -437,7 +437,7 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
               <a
                 key={w.id}
                 href={`/artwork/${w.id}`}
-                className="no-underline rounded-card overflow-hidden bg-linen snap-start focus-ring"
+                className="no-underline overflow-hidden bg-paper snap-start focus-ring"
               >
                 <div className="aspect-[3/4]" style={{ backgroundColor: w.color }}>
                   <img
@@ -453,10 +453,10 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
                   />
                 </div>
                 <div className="p-3">
-                  <p className="text-xs text-charcoal font-medium leading-snug">
+                  <p className="text-xs text-primary font-medium leading-snug">
                     {w.year}
                   </p>
-                  <p className="text-sm text-warm-gray mt-1 leading-snug line-clamp-2 min-h-[2.1rem]">
+                  <p className="text-sm text-secondary mt-1 leading-snug line-clamp-2 min-h-[2.1rem]">
                     {w.title}
                   </p>
                 </div>
@@ -466,18 +466,18 @@ export default function Artist({ loaderData }: Route.ComponentProps) {
         </section>
       )}
 
-      <section className="px-5 pb-16 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-        <h2 className="font-serif text-[1.35rem] text-charcoal mb-5">
+      <section className="px-4 md:px-6 lg:px-10 pb-16">
+        <h2 className="text-[18px] text-primary mb-5">
           Alla verk
         </h2>
-        <div className="columns-2 gap-3 md:columns-3 lg:columns-4 lg:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           {works.map((w) => (
             <GridCard key={w.id} item={{ ...w, artist: altArtist }} />
           ))}
         </div>
         <div ref={sentinelRef} className="h-4" />
         {loading && (
-          <p className="text-center text-[0.85rem] text-warm-gray py-4">
+          <p className="text-center text-[0.85rem] text-secondary py-4">
             Laddar fler verk…
           </p>
         )}

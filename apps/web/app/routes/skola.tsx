@@ -553,59 +553,52 @@ const WalkCard = memo(function WalkCard({ w }: { w: SchoolWalkPreview }) {
     <a
       key={w.slug}
       href={"/skola?walk=" + w.slug}
-      className="block relative overflow-hidden rounded-2xl h-64 no-underline group/walk focus-ring border border-[rgba(255,255,255,0.14)] shadow-[0_12px_30px_rgba(0,0,0,0.22)] bg-[rgba(18,16,14,0.95)]"
+      className="block no-underline group/walk focus-ring hover:opacity-80 transition-opacity"
     >
-      {!w.previewUrl && (
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.32),rgba(255,255,255,0.02)_64%)]" />
-      )}
-      {w.previewUrl && (
-        <img
-          src={w.previewUrl}
-          alt=""
-          role="presentation"
-          loading="lazy"
-          decoding="async"
-          onError={(event) => {
-            event.currentTarget.classList.add("is-broken");
-          }}
-          className="absolute inset-0 w-full h-full object-cover opacity-62 group-hover/walk:scale-[1.05] group-hover/walk:opacity-78 transition-[transform,opacity] duration-500"
-        />
-      )}
-      <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.78)_0%,rgba(0,0,0,0.3)_58%,rgba(0,0,0,0.36)_100%)]" />
-      <div className="absolute inset-x-0 top-0 h-14 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.38),transparent)]" />
-      <div className="absolute bottom-0 left-0 right-0 p-5">
-        <div className="flex flex-wrap gap-1.5 mb-2.5">
-          <p className="text-[0.62rem] uppercase tracking-[0.13em] text-[rgba(255,255,255,0.8)] rounded-full border border-[rgba(255,255,255,0.36)] bg-[rgba(0,0,0,0.2)] px-2 py-0.5">
+      <div
+        className="aspect-[3/2] overflow-hidden rounded-card"
+        style={{ backgroundColor: w.previewUrl ? undefined : "#E0DEDA" }}
+      >
+        {w.previewUrl && (
+          <img
+            src={w.previewUrl}
+            alt=""
+            role="presentation"
+            loading="lazy"
+            decoding="async"
+            onError={(event) => {
+              event.currentTarget.classList.add("is-broken");
+            }}
+            className="w-full h-full object-cover group-hover/walk:scale-[1.03] transition-transform duration-500"
+          />
+        )}
+      </div>
+      <div className="p-4">
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          <p className="text-[11px] uppercase tracking-[0.08em] text-secondary bg-paper px-2 py-0.5 rounded-card">
             {grade}
           </p>
-          <p className="text-[0.62rem] uppercase tracking-[0.13em] text-[rgba(255,255,255,0.8)] rounded-full border border-[rgba(255,255,255,0.36)] bg-[rgba(0,0,0,0.2)] px-2 py-0.5">
+          <p className="text-[11px] uppercase tracking-[0.08em] text-secondary bg-paper px-2 py-0.5 rounded-card">
             {subject}
           </p>
-          <p className="text-[0.62rem] uppercase tracking-[0.13em] text-[rgba(255,255,255,0.8)] rounded-full border border-[rgba(255,255,255,0.36)] bg-[rgba(0,0,0,0.2)] px-2 py-0.5">
+          <p className="text-[11px] uppercase tracking-[0.08em] text-secondary bg-paper px-2 py-0.5 rounded-card">
             {theme}
           </p>
         </div>
-        <h2 className="font-serif text-[1.28rem] font-bold text-white leading-[1.22] drop-shadow-[0_1px_4px_rgba(0,0,0,0.34)]">
+        <h3 className="text-[15px] text-primary leading-[1.3]">
           {w.title}
-        </h2>
-        <p className="text-[0.8rem] text-[rgba(255,255,255,0.76)] mt-1 line-clamp-1">
+        </h3>
+        <p className="text-[13px] text-secondary mt-1 line-clamp-1">
           {w.subtitle}
         </p>
-        <p className="text-[0.73rem] text-[rgba(255,255,255,0.72)] mt-2 line-clamp-1">
-          {valueText}
-        </p>
-        <p className="text-[0.69rem] text-[rgba(255,255,255,0.62)] mt-1.5">
-          {dialogueText}
-        </p>
-        <div className="mt-3 flex items-center justify-between rounded-lg border border-[rgba(255,255,255,0.14)] bg-[rgba(7,6,5,0.26)] px-2.5 py-1.5">
-          <p className="text-[0.72rem] text-[rgba(255,255,255,0.82)]">
-            {w.artworkCount} verk
+        <div className="mt-3 flex items-center justify-between">
+          <p className="text-[11px] text-secondary">
+            {w.artworkCount} verk · {dialogueText}
           </p>
-          <span className="text-[0.66rem] uppercase tracking-[0.14em] text-[rgba(255,255,255,0.9)]">
-            Öppna upplägg
+          <span className="text-[11px] text-secondary group-hover/walk:text-primary transition-colors">
+            Öppna →
           </span>
         </div>
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-[linear-gradient(to_top,rgba(0,0,0,0.08),transparent)] opacity-0 transition-opacity duration-300 group-hover/walk:opacity-100" />
       </div>
     </a>
   );
@@ -660,56 +653,29 @@ function WalkGrid({
   }, [grouped, preferredOrder]);
 
   return (
-    <div id="upplagg" className="px-5 pb-16 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-      <div className="relative overflow-hidden rounded-2xl border border-[rgba(201,176,142,0.24)] bg-[rgba(30,25,21,0.9)] px-4 py-4 mb-6 md:px-5 md:py-5">
-        <div className="relative flex flex-wrap items-center justify-between gap-2 mb-3">
-          <p className="text-[0.63rem] uppercase tracking-[0.16em] text-dark-text-muted">
-            Snabbvälj
-          </p>
-          <p className="text-[0.78rem] text-[rgba(245,240,232,0.76)]">
-            Välj vy och öppna ett färdigt upplägg direkt.
-          </p>
-        </div>
-
-        <p className="relative text-[0.67rem] uppercase tracking-[0.14em] text-[rgba(245,240,232,0.48)]">
+    <div id="upplagg" className="px-4 md:px-6 lg:px-10 pb-16">
+      <div className="mb-8">
+        <p className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-2">
           Visa efter
         </p>
-        <div className="relative flex flex-wrap gap-2 mt-2.5">
+        <div className="flex flex-wrap gap-2">
           {groupModes.map((mode) => (
             <button
               key={mode}
               onClick={() => setGroupBy(mode)}
-              className={`px-4 py-1.5 rounded-full text-[0.8rem] font-medium transition-colors cursor-pointer border ${
+              className={`px-3.5 py-1.5 text-[13px] transition-colors cursor-pointer border rounded-card ${
                 groupBy === mode
-                  ? "bg-dark-text text-dark-base border-[rgba(245,240,232,0.92)]"
-                  : "bg-[rgba(245,240,232,0.08)] border-transparent text-dark-text-secondary hover:text-dark-text hover:border-[rgba(245,240,232,0.24)]"
+                  ? "bg-primary text-white border-primary"
+                  : "bg-white border-rule text-secondary hover:text-primary hover:border-secondary"
               }`}
             >
               {GROUP_MODE_LABELS[mode]}
             </button>
           ))}
         </div>
-        <div className="relative mt-4 grid grid-cols-2 gap-2.5 md:grid-cols-4">
-          <div className="rounded-lg border border-[rgba(245,240,232,0.13)] bg-[rgba(13,11,9,0.34)] px-3 py-2">
-            <p className="text-[0.62rem] uppercase tracking-[0.13em] text-dark-text-muted">Upplägg</p>
-            <p className="font-serif text-[1.05rem] text-dark-text mt-0.5">{stats.walkCount}</p>
-          </div>
-          <div className="rounded-lg border border-[rgba(245,240,232,0.13)] bg-[rgba(13,11,9,0.34)] px-3 py-2">
-            <p className="text-[0.62rem] uppercase tracking-[0.13em] text-dark-text-muted">Ämnen</p>
-            <p className="font-serif text-[1.05rem] text-dark-text mt-0.5">{stats.subjectCount}</p>
-          </div>
-          <div className="rounded-lg border border-[rgba(245,240,232,0.13)] bg-[rgba(13,11,9,0.34)] px-3 py-2">
-            <p className="text-[0.62rem] uppercase tracking-[0.13em] text-dark-text-muted">Årskurser</p>
-            <p className="font-serif text-[1.05rem] text-dark-text mt-0.5">{stats.gradeCount}</p>
-          </div>
-          <div className="rounded-lg border border-[rgba(245,240,232,0.13)] bg-[rgba(13,11,9,0.34)] px-3 py-2">
-            <p className="text-[0.62rem] uppercase tracking-[0.13em] text-dark-text-muted">Teman</p>
-            <p className="font-serif text-[1.05rem] text-dark-text mt-0.5">{stats.themeCount}</p>
-          </div>
-        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:gap-5">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 lg:gap-5">
         {orderedKeys.map((key) => {
           const groupItems = grouped.get(key) || [];
           const helperText = getGroupHelp(groupBy, key);
@@ -717,18 +683,18 @@ function WalkGrid({
           return (
             <section
               key={key}
-              className="relative overflow-hidden rounded-2xl border border-[rgba(245,240,232,0.14)] bg-[rgba(33,28,24,0.72)] p-4 md:p-5"
+              className="overflow-hidden"
             >
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="font-serif text-[1.18rem] text-dark-text">
+              <div className="flex items-baseline justify-between gap-2">
+                <h2 className="text-[18px] text-primary">
                   {labels[key] || key}
                 </h2>
-                <p className="text-[0.68rem] uppercase tracking-[0.08em] text-dark-text-muted">
+                <p className="text-[11px] uppercase tracking-[0.08em] text-secondary whitespace-nowrap">
                   {groupItems.length} upplägg
                 </p>
               </div>
               {helperText && (
-                <p className="text-[0.79rem] leading-[1.5] text-dark-text-secondary mt-1.5">
+                <p className="text-[13px] leading-[1.5] text-secondary mt-2">
                   {helperText}
                 </p>
               )}
@@ -743,8 +709,8 @@ function WalkGrid({
       </div>
 
       {orderedKeys.length === 0 && (
-        <div className="rounded-xl border border-[rgba(245,240,232,0.12)] bg-dark-raised p-4">
-          <p className="text-[0.85rem] text-dark-text-secondary">
+        <div className="border border-rule rounded-card bg-paper p-4">
+          <p className="text-[13px] text-secondary">
             Inga upplägg finns i den här vyn just nu.
           </p>
         </div>
@@ -767,57 +733,12 @@ export default function Skola({ loaderData }: Route.ComponentProps) {
   const hasQuickStarts = heroSummary.quickStarts > 0;
 
   return (
-    <div className="min-h-screen pt-[3.5rem] bg-dark-base text-dark-text">
+    <div className="min-h-screen pt-16 bg-white text-primary">
       {/* Header */}
       {!selected && (
-        <div className="pt-10 px-5 pb-6 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-3xl border border-[rgba(201,176,142,0.24)] bg-[rgba(28,23,19,0.92)] px-5 py-7 md:px-8 md:py-8">
-            <div className="relative grid gap-5 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
-              <div>
-                <p className="text-[0.62rem] uppercase tracking-[0.2em] text-[rgba(245,240,232,0.58)] font-medium">
-                  För skolan
-                </p>
-                <h1 className="font-serif text-[2rem] md:text-[2.2rem] text-dark-text mt-2">
-                  Startklara lektionsupplägg för klassrummet
-                </h1>
-                <p className="text-dark-text-secondary text-[0.9rem] mt-3 leading-[1.7] max-w-[42rem]">
-                  Välj ett upplägg efter ämne, årskurs eller tema. Varje upplägg samlar verk,
-                  diskussionsfrågor och Lgr22-koppling i en tydlig lektionsstruktur.
-                </p>
-                {hasQuickStarts ? (
-                  <p className="mt-4 text-[0.8rem] text-[rgba(245,240,232,0.7)]">
-                    {heroSummary.quickStarts} upplägg är extra snabba att komma igång med.
-                  </p>
-                ) : (
-                  <p className="mt-4 text-[0.8rem] text-[rgba(245,240,232,0.7)]">
-                    Börja med ämne, årskurs eller tema för att hitta rätt upplägg snabbare.
-                  </p>
-                )}
-              </div>
-              <div className="rounded-2xl border border-[rgba(245,240,232,0.16)] bg-[rgba(16,13,11,0.5)] px-4 py-4 md:px-5">
-                <p className="text-[0.62rem] uppercase tracking-[0.16em] text-dark-text-muted">
-                  {hasQuickStarts ? "Redo att starta" : "Att utforska"}
-                </p>
-                <p className="font-serif text-[1.85rem] leading-none text-dark-text mt-2">
-                  {hasQuickStarts ? heroSummary.quickStarts : stats.walkCount}
-                </p>
-                <p className="text-[0.78rem] text-dark-text-secondary mt-1">
-                  {hasQuickStarts
-                    ? "upplägg fungerar som snabbstart just nu."
-                    : "publicerade upplägg att välja bland just nu."}
-                </p>
-                <a
-                  href="#upplagg"
-                  className="mt-4 inline-flex items-center rounded-full border border-[rgba(245,240,232,0.24)] bg-[rgba(245,240,232,0.92)] px-4 py-2 text-[0.72rem] tracking-[0.08em] uppercase text-[#181410] hover:bg-white transition-colors no-underline focus-ring"
-                >
-                  Utforska upplägg
-                </a>
-              </div>
-            </div>
-            <p className="relative mt-4 text-[0.78rem] text-[rgba(245,240,232,0.76)]">
-              Visar {stats.walkCount} publicerade upplägg just nu.
-            </p>
-          </div>
+        <div className="px-4 md:px-6 lg:px-10 pt-8 pb-6">
+          <h1 className="text-[32px] text-primary pb-1 leading-[1.3]">Skola</h1>
+          <p className="text-[15px] text-secondary">{stats.walkCount} lektionsupplägg — välj efter ämne, årskurs eller tema</p>
         </div>
       )}
 
@@ -834,61 +755,45 @@ export default function Skola({ loaderData }: Route.ComponentProps) {
       {selected && walkInfo && (
         <>
           {/* Hero */}
-          <div
-            className="pt-12 px-4 pb-10 relative md:px-6 bg-[rgba(18,16,14,0.96)]"
-          >
-            {artworks[0] && (
-              <img
-                src={buildImageUrl(artworks[0].iiif_url, 800)}
-                alt=""
-                role="presentation"
-                loading="eager"
-                fetchPriority="high"
-                onError={(event) => {
-                  event.currentTarget.classList.add("is-broken");
-                }}
-                className="absolute inset-0 w-full h-full object-cover opacity-25 no-print"
-              />
-            )}
-            <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(11,10,9,0.55)_0%,rgba(11,10,9,0.7)_100%)]" />
-            <div className="relative md:max-w-6xl md:mx-auto md:px-0 lg:px-0">
+          <div className="pt-8 px-4 pb-8 border-b border-rule md:px-6 lg:px-10">
+            <div className="max-w-[46rem] mx-auto">
               <a
                 href="/skola"
-                className="text-[0.8rem] text-[rgba(255,255,255,0.5)] no-underline focus-ring"
+                className="text-[13px] text-secondary no-underline hover:text-primary transition-colors focus-ring"
               >
                 ← Tillbaka till översikten
               </a>
-              <h1 className="font-serif text-[2rem] font-bold text-white mt-2 leading-[1.2]">
+              <h1 className="text-[32px] text-primary mt-3 leading-[1.3]">
                 {walkInfo.title}
               </h1>
-              <p className="font-serif text-[1rem] text-[rgba(255,255,255,0.75)] mt-2">
+              <p className="text-[15px] text-secondary mt-2">
                 {walkInfo.subtitle}
               </p>
               <div className="flex flex-wrap gap-2 mt-4">
-                <p className="text-[0.64rem] uppercase tracking-[0.13em] text-[rgba(255,255,255,0.74)] rounded-full border border-[rgba(255,255,255,0.3)] px-2.5 py-1">
+                <p className="text-[11px] uppercase tracking-[0.08em] text-secondary border border-rule px-2.5 py-1 rounded-card">
                   {selectedPreview?.gradeBuckets[0] || walkInfo.target_grades || "Alla årskurser"}
                 </p>
-                <p className="text-[0.64rem] uppercase tracking-[0.13em] text-[rgba(255,255,255,0.74)] rounded-full border border-[rgba(255,255,255,0.3)] px-2.5 py-1">
+                <p className="text-[11px] uppercase tracking-[0.08em] text-secondary border border-rule px-2.5 py-1 rounded-card">
                   {selectedPreview?.subjects[0] || "Övergripande"}
                 </p>
-                <p className="text-[0.64rem] uppercase tracking-[0.13em] text-[rgba(255,255,255,0.74)] rounded-full border border-[rgba(255,255,255,0.3)] px-2.5 py-1">
+                <p className="text-[11px] uppercase tracking-[0.08em] text-secondary border border-rule px-2.5 py-1 rounded-card">
                   {selectedPreview?.themes[0] || "Kulturarv & källor"}
                 </p>
-                <p className="text-[0.64rem] uppercase tracking-[0.13em] text-[rgba(255,255,255,0.74)] rounded-full border border-[rgba(255,255,255,0.3)] px-2.5 py-1">
+                <p className="text-[11px] uppercase tracking-[0.08em] text-secondary border border-rule px-2.5 py-1 rounded-card">
                   {selectedPreview?.artworkCount || artworks.length} verk
                 </p>
               </div>
-              <p className="text-[0.9rem] text-[rgba(255,255,255,0.7)] mt-3 leading-[1.6] max-w-[32rem]">
+              <p className="text-[15px] text-secondary mt-4 leading-[1.6] max-w-[32rem]">
                 {walkInfo.description}
               </p>
 
               {/* Lgr22 reference */}
               {walkInfo.lgr22_references && (
-                <div className="mt-5 bg-[rgba(255,255,255,0.08)] rounded-xl px-4 py-3 max-w-[32rem]">
-                  <p className="text-[0.65rem] uppercase tracking-[0.15em] text-[rgba(255,255,255,0.4)] mb-1">
+                <div className="mt-5 bg-paper border border-rule rounded-card px-4 py-3 max-w-[32rem]">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-1">
                     Koppling till Lgr22
                   </p>
-                  <p className="text-[0.8rem] text-[rgba(255,255,255,0.65)] leading-[1.5]">
+                  <p className="text-[13px] text-secondary leading-[1.5]">
                     {walkInfo.lgr22_references}
                   </p>
                 </div>
@@ -898,13 +803,13 @@ export default function Skola({ loaderData }: Route.ComponentProps) {
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="rounded-full border border-[rgba(255,255,255,0.24)] bg-[rgba(255,255,255,0.9)] px-4 py-2 text-[0.72rem] tracking-[0.08em] uppercase text-[#191511] hover:bg-white transition-colors no-underline focus-ring"
+                  className="border border-primary bg-primary px-4 py-2 text-[11px] tracking-[0.08em] uppercase text-white hover:opacity-85 transition-opacity focus-ring rounded-card"
                 >
                   Skriv ut upplägg
                 </button>
                 <a
                   href="/skola"
-                  className="rounded-full border border-[rgba(255,255,255,0.24)] px-4 py-2 text-[0.72rem] tracking-[0.08em] uppercase text-[rgba(255,255,255,0.7)] hover:text-[rgba(255,255,255,0.94)] transition-colors no-underline focus-ring"
+                  className="border border-rule px-4 py-2 text-[11px] tracking-[0.08em] uppercase text-secondary hover:text-primary hover:border-secondary transition-colors no-underline focus-ring rounded-card"
                 >
                   Alla upplägg
                 </a>
@@ -914,12 +819,12 @@ export default function Skola({ loaderData }: Route.ComponentProps) {
 
           {/* Discussion intro */}
           {walkInfo.discussion_intro && (
-            <div className="px-4 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-              <div className="bg-dark-raised border border-[rgba(201,176,142,0.15)] rounded-xl px-5 py-4 mt-6 max-w-[36rem]">
-                <p className="text-[0.65rem] uppercase tracking-[0.15em] text-[rgba(201,176,142,0.55)] mb-1.5">
+            <div className="px-4 md:px-6 lg:px-10">
+              <div className="bg-paper border border-rule rounded-card px-5 py-4 mt-6 max-w-[46rem] mx-auto">
+                <p className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-1.5">
                   Innan ni börjar
                 </p>
-                <p className="text-[0.88rem] text-dark-text leading-[1.6]">
+                <p className="text-[15px] text-primary leading-[1.6]">
                   {walkInfo.discussion_intro}
                 </p>
               </div>
@@ -927,12 +832,12 @@ export default function Skola({ loaderData }: Route.ComponentProps) {
           )}
 
           {/* Artworks with discussion questions */}
-          <div className="pt-6 px-4 pb-16 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
+          <div className="pt-6 px-4 md:px-6 lg:px-10 pb-16 max-w-[46rem] mx-auto">
             {artworks.map((a: WalkArtwork, i: number) => (
               <div key={a.id}>
                 <a
                   href={"/artwork/" + a.id}
-                  className="block rounded-2xl overflow-hidden bg-linen mb-2 no-underline shadow-[0_2px_12px_rgba(0,0,0,0.06)] focus-ring"
+                  className="block overflow-hidden bg-paper mb-2 no-underline shadow-[0_2px_12px_rgba(0,0,0,0.06)] focus-ring"
                 >
                   <div
                     className="overflow-hidden"
@@ -963,7 +868,7 @@ export default function Skola({ loaderData }: Route.ComponentProps) {
                     <p className="text-[0.7rem] text-[#8a7e72] mb-1">
                       {i + 1} / {artworks.length}
                     </p>
-                    <p className="font-serif text-[1.125rem] font-semibold text-charcoal leading-[1.3]">
+                    <p className="text-[1.125rem] font-semibold text-primary leading-[1.3]">
                       {a.title_sv || a.title_en || "Utan titel"}
                     </p>
                     <p className="text-[0.8rem] text-[#6b6054] mt-[0.375rem]">
@@ -979,8 +884,8 @@ export default function Skola({ loaderData }: Route.ComponentProps) {
 
                 {/* Narrative text */}
                 {a.narrative_text && (
-                  <div className="bg-cream rounded-card py-[0.9rem] px-4 mb-2 text-warm-gray">
-                    <p className="font-serif italic text-[0.95rem] leading-[1.6]">
+                  <div className="bg-white py-[0.9rem] px-4 mb-2 text-secondary">
+                    <p className="italic text-[0.95rem] leading-[1.6]">
                       {a.narrative_text}
                     </p>
                   </div>
@@ -988,11 +893,11 @@ export default function Skola({ loaderData }: Route.ComponentProps) {
 
                 {/* Discussion question */}
                 {a.discussion_question && (
-                  <div className="bg-dark-raised border border-[rgba(201,176,142,0.12)] rounded-card py-[0.9rem] px-4 mb-5">
-                    <p className="text-[0.65rem] uppercase tracking-[0.12em] text-[rgba(201,176,142,0.55)] mb-1.5">
+                  <div className="bg-paper border border-rule rounded-card py-[0.9rem] px-4 mb-5">
+                    <p className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-1.5">
                       Diskutera
                     </p>
-                    <p className="text-[0.9rem] text-dark-text leading-[1.6]">
+                    <p className="text-[15px] text-primary leading-[1.6]">
                       {a.discussion_question}
                     </p>
                   </div>
@@ -1021,7 +926,7 @@ export default function Skola({ loaderData }: Route.ComponentProps) {
           h1, h2, p { color: black !important; }
           [class*="bg-"] { background: white !important; background-color: white !important; }
           [class*="border-"] { border-color: #ddd !important; }
-          [class*="text-dark"], [class*="text-stone"], [class*="text-warm"], [class*="text-charcoal"] { color: #333 !important; }
+          [class*="text-dark"], [class*="text-secondary"], [class*="text-warm"], [class*="text-primary"] { color: #333 !important; }
           [class*="rounded-card"], [class*="rounded-xl"] { border: 1px solid #ddd !important; }
           .shadow-lg, [class*="shadow-"] { box-shadow: none !important; }
         }

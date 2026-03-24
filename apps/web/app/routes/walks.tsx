@@ -148,24 +148,24 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
 
   if (!hasWalks) {
     return (
-      <div className="min-h-screen pt-[3.5rem] bg-dark-base text-dark-text">
+      <div className="min-h-screen pt-[3.5rem] bg-white text-primary">
         <div className="max-w-3xl mx-auto px-5 pt-12 pb-16 text-center">
-          <h1 className="font-serif text-[2rem] text-dark-text">
+          <h1 className="text-[2rem] text-primary">
             {uiText(uiLocale, "Vandringar", "Walks")}
           </h1>
-          <p className="mt-4 text-[0.95rem] text-dark-text-secondary leading-[1.7]">
+          <p className="mt-4 text-[0.95rem] text-secondary leading-[1.7]">
             {uiText(uiLocale, "Det finns inga publicerade vandringar här just nu.", "There are no published walks for Europeana right now.")}
           </p>
           <div className="mt-8 flex items-center justify-center gap-3">
             <a
               href="/discover"
-              className="px-5 py-2.5 rounded-full bg-dark-raised text-dark-text text-sm font-medium no-underline hover:bg-dark-hover transition-colors focus-ring"
+              className="px-5 py-2.5 bg-paper text-primary text-sm font-medium no-underline hover:bg-rule transition-colors focus-ring"
             >
               {uiText(uiLocale, "Upptäck", "Discover")}
             </a>
             <a
               href="/search?type=visual&focus=1"
-              className="px-5 py-2.5 rounded-full border border-[rgba(255,255,255,0.12)] text-dark-text-secondary text-sm font-medium no-underline hover:bg-dark-hover hover:text-dark-text transition-colors focus-ring"
+              className="px-5 py-2.5 border border-[rgba(255,255,255,0.12)] text-secondary text-sm font-medium no-underline hover:bg-rule hover:text-primary transition-colors focus-ring"
             >
               {uiText(uiLocale, "Sök", "Search")}
             </a>
@@ -176,14 +176,14 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
   }
 
   return (
-    <div className="min-h-screen pt-[3.5rem] bg-dark-base text-dark-text">
+    <div className="min-h-screen pt-16 bg-white text-primary">
       {/* Header */}
       {!selected && (
-        <div className="pt-10 px-5 pb-6 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
-          <h1 className="font-serif text-[2rem] text-dark-text">
+        <div className="px-4 md:px-6 lg:px-10 pt-8 pb-6">
+          <h1 className="text-[32px] text-primary leading-[1.3]">
             {uiText(uiLocale, "Vandringar", "Walks")}
           </h1>
-          <p className="text-dark-text-secondary text-[0.88rem] mt-2.5 leading-[1.6]">
+          <p className="text-[15px] text-secondary mt-1">
             {uiText(uiLocale, "Utvalda resor genom samlingen. Varje vandring har ett tema och en berättelse.", "Curated journeys through the collection. Each walk has a theme and a story.")}
           </p>
         </div>
@@ -191,10 +191,10 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
 
       {/* Walk cards */}
       {!selected && (
-        <div className="px-5 pb-16 flex flex-col gap-3.5 md:max-w-6xl md:mx-auto md:px-6 lg:px-8 lg:grid lg:grid-cols-2 lg:gap-4">
+        <div className="px-4 md:px-6 lg:px-10 pb-16 flex flex-col gap-3.5 lg:grid lg:grid-cols-2 lg:gap-4">
           {walkPreviews.map((w) => (
             <a key={w.slug} href={"/vandringar?walk=" + w.slug}
-              className="block relative overflow-hidden rounded-2xl h-44 no-underline group/walk focus-ring"
+              className="block relative overflow-hidden h-44 no-underline group/walk focus-ring"
               style={{ backgroundColor: w.color }}
             >
               {w.previewUrl && (
@@ -208,7 +208,7 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
               )}
               <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.7)_0%,rgba(0,0,0,0.1)_60%)]" />
               <div className="absolute bottom-0 left-0 right-0 p-5">
-                <h2 className="font-serif text-[1.375rem] font-bold text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.3)]">
+                <h2 className="text-[1.375rem] font-bold text-white">
                   {w.title}
                 </h2>
                 <p className="text-[0.8rem] text-[rgba(255,255,255,0.7)] mt-1">
@@ -238,14 +238,14 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
                   className="absolute inset-0 w-full h-full object-cover opacity-25"
                 />
             )}
-            <div className="relative md:max-w-6xl md:mx-auto md:px-0 lg:px-0">
+            <div className="relative max-w-[46rem] mx-auto">
               <a href="/vandringar" className="text-[0.8rem] text-[rgba(255,255,255,0.5)] no-underline focus-ring">
                 ← {uiText(uiLocale, "Vandringar", "Walks")}
               </a>
-              <h1 className="font-serif text-[2rem] font-bold text-white mt-3 leading-[1.2]">
+              <h1 className="text-[2rem] font-bold text-white mt-3 leading-[1.2]">
                 {walkInfo.title}
               </h1>
-              <p className="font-serif text-[1rem] text-[rgba(255,255,255,0.75)] mt-2">
+              <p className="text-[1rem] text-[rgba(255,255,255,0.75)] mt-2">
                 {walkInfo.subtitle}
               </p>
               <p className="text-[0.9rem] text-[rgba(255,255,255,0.7)] mt-3 leading-[1.6] max-w-[32rem]">
@@ -258,11 +258,11 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
           </div>
 
           {/* Walk artworks — large, one per row for immersive feel */}
-          <div className="pt-6 px-4 pb-16 md:max-w-6xl md:mx-auto md:px-6 lg:px-8">
+          <div className="pt-6 px-4 md:px-6 lg:px-10 pb-16 max-w-[46rem] mx-auto">
             {artworks.map((a: WalkArtwork, i: number) => (
               <div key={a.id}>
                 <a href={"/artwork/" + a.id}
-                  className="block rounded-2xl overflow-hidden bg-linen mb-4 no-underline shadow-[0_2px_12px_rgba(0,0,0,0.06)] focus-ring"
+                  className="block overflow-hidden bg-paper mb-4 no-underline shadow-[0_2px_12px_rgba(0,0,0,0.06)] focus-ring"
                 >
                   <div className="overflow-hidden" style={{ backgroundColor: a.dominant_color || "#D4CDC3" }}>
                     <img src={buildImageUrl(a.iiif_url, 800)}
@@ -275,21 +275,21 @@ export default function Walks({ loaderData }: Route.ComponentProps) {
                       className="w-full block" />
                   </div>
                   <div className="p-4">
-                    <p className="text-[0.7rem] text-stone mb-1">{i + 1} / {artworks.length}</p>
-                    <p className="font-serif text-[1.125rem] font-semibold text-charcoal leading-[1.3]">
+                    <p className="text-[0.7rem] text-secondary mb-1">{i + 1} / {artworks.length}</p>
+                    <p className="text-[1.125rem] font-semibold text-primary leading-[1.3]">
                       {a.title_sv || a.title_en || uiText(uiLocale, "Utan titel", "Untitled")}
                     </p>
-                    <p className="text-[0.8rem] text-warm-gray mt-[0.375rem]">
+                    <p className="text-[0.8rem] text-secondary mt-[0.375rem]">
                       {parseArtist(a.artists)}
                     </p>
                     {a.dating_text && (
-                      <p className="text-[0.75rem] text-stone mt-1">{a.dating_text}</p>
+                      <p className="text-[0.75rem] text-secondary mt-1">{a.dating_text}</p>
                     )}
                   </div>
                 </a>
                 {a.narrative_text && i < artworks.length - 1 && (
-                  <div className="bg-cream rounded-card py-[0.9rem] px-4 mb-5 text-warm-gray">
-                    <p className="font-serif italic text-[0.95rem] leading-[1.6]">
+                  <div className="bg-white py-[0.9rem] px-4 mb-5 text-secondary">
+                    <p className="italic text-[0.95rem] leading-[1.6]">
                       {a.narrative_text}
                     </p>
                   </div>

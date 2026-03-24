@@ -20,7 +20,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const source = sourceFilter();
   try {
     const results = db.prepare(
-      `SELECT id, title_sv, iiif_url, dominant_color, artists, dating_text
+      `SELECT id, title_sv, title_en, iiif_url, dominant_color, artists, dating_text
        FROM artworks
        WHERE color_r IS NOT NULL
          AND iiif_url IS NOT NULL

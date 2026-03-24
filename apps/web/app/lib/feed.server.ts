@@ -22,6 +22,7 @@ type FeedItemRow = {
 export type FeedItem = {
   id: number;
   title_sv: string | null;
+  title_en?: string | null;
   artists: string | null;
   dating_text: string | null;
   iiif_url: string;
@@ -75,6 +76,7 @@ function mapRows(rows: FeedItemRow[]): FeedItem[] {
   return rows.map((row) => ({
     id: row.id,
     title_sv: row.title_sv || row.title_en || "Utan titel",
+    title_en: row.title_en || null,
     artists: row.artists,
     dating_text: row.dating_text || "",
     iiif_url: row.iiif_url,

@@ -22,6 +22,7 @@ export function meta({ data }: { data?: { uiLocale?: "sv" | "en" } }) {
 type MatchItem = {
   id: number;
   title_sv: string | null;
+  title_en?: string | null;
   iiif_url: string;
   dominant_color: string | null;
   artists: string | null;
@@ -138,23 +139,23 @@ export default function ColorMatch() {
   }
 
   return (
-    <div className="min-h-screen pt-[3.5rem] bg-cream">
-      <div className="max-w-[60rem] mx-auto px-5 pt-8 pb-6 lg:px-6">
-        <h1 className="font-serif text-[2rem] text-charcoal">
+    <div className="min-h-screen pt-16 bg-white">
+      <div className="max-w-[60rem] mx-auto px-4 md:px-6 lg:px-10 pt-8 pb-6">
+        <h1 className="text-[32px] text-primary leading-[1.3]">
           {uiText(uiLocale, "Färg-match", "Color match")}
         </h1>
-        <p className="mt-1.5 text-[0.9rem] text-warm-gray">
+        <p className="mt-1 text-[15px] text-secondary">
           {uiText(uiLocale, "Rikta kameran mot en nyans och hitta konst som matchar.", "Point the camera at a color and find matching art.")}
         </p>
 
-        <div className="mt-6 relative rounded-[1.25rem] overflow-hidden bg-ink">
+        <div className="mt-6 relative rounded-[1.25rem] overflow-hidden bg-black">
           <video ref={videoRef} playsInline muted className="w-full h-auto block" />
           <div
-            className="absolute top-1/2 left-1/2 w-28 h-28 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[rgba(245,240,232,0.8)] shadow-[0_0_0_999px_rgba(0,0,0,0.2)] pointer-events-none"
+            className="absolute top-1/2 left-1/2 w-28 h-28 -translate-x-1/2 -translate-y-1/2 border-2 border-[rgba(245,240,232,0.8)] shadow-[0_0_0_999px_rgba(0,0,0,0.2)] pointer-events-none"
           />
           {status && (
             <div
-              className="absolute inset-0 flex items-center justify-center text-dark-text p-8 text-center bg-[rgba(26,24,21,0.75)]"
+              className="absolute inset-0 flex items-center justify-center text-dark-primary p-8 text-center bg-[rgba(26,24,21,0.75)]"
             >
               {status}
             </div>
@@ -165,23 +166,23 @@ export default function ColorMatch() {
           <button
             type="button"
             onClick={captureColor}
-            className="py-3 px-6 rounded-full border-0 bg-charcoal text-cream font-semibold cursor-pointer focus-ring"
+            className="py-3 px-6 border-0 bg-primary text-white font-semibold cursor-pointer focus-ring"
           >
             {uiText(uiLocale, "Matcha färg", "Match color")}
           </button>
           {color && (
             <div className="flex items-center gap-2">
               <div
-                className="w-6 h-6 rounded-full border border-stone"
+                className="w-6 h-6 border border-rule"
                 style={{ background: color.hex }}
               />
-              <span className="text-[0.8rem] text-warm-gray font-mono">{color.hex}</span>
+              <span className="text-[0.8rem] text-secondary font-mono">{color.hex}</span>
             </div>
           )}
         </div>
 
         <div className="mt-6">
-          <p className="text-[0.85rem] text-warm-gray">{uiText(uiLocale, "Eller välj en palett:", "Or choose a palette:")}</p>
+          <p className="text-[0.85rem] text-secondary">{uiText(uiLocale, "Eller välj en palett:", "Or choose a palette:")}</p>
           <div className="flex gap-[0.6rem] flex-wrap mt-[0.6rem]">
             {palette.map((hex) => (
               <button
@@ -193,7 +194,7 @@ export default function ColorMatch() {
                   void fetchMatches(rgb.r, rgb.g, rgb.b);
                 }}
                 aria-label={uiText(uiLocale, `Välj ${hex}`, `Choose ${hex}`)}
-                className="w-11 h-11 rounded-full border border-[rgba(26,24,21,0.2)] cursor-pointer focus-ring"
+                className="w-11 h-11 border border-[rgba(26,24,21,0.2)] cursor-pointer focus-ring"
                 style={{ background: hex }}
               />
             ))}
@@ -212,15 +213,15 @@ export default function ColorMatch() {
         </div>
 
         <div className="mt-8">
-          <h2 className="text-[1.2rem] font-semibold text-charcoal">{uiText(uiLocale, "Matchar", "Matches")}</h2>
-          {loading && <p className="text-warm-gray">{uiText(uiLocale, "Letar efter nyanser…", "Searching for matching shades…")}</p>}
+          <h2 className="text-[1.2rem] font-semibold text-primary">{uiText(uiLocale, "Matchar", "Matches")}</h2>
+          {loading && <p className="text-secondary">{uiText(uiLocale, "Letar efter nyanser…", "Searching for matching shades…")}</p>}
           <div className="columns-2 gap-3 md:columns-3 lg:columns-4">
             {matches.map((item) => (
               <GridCard
                 key={item.id}
                 item={{
                   id: item.id,
-                  title: item.title_sv || uiText(uiLocale, "Utan titel", "Untitled"),
+                  title: item.title_sv || item.title_en || uiText(uiLocale, "Utan titel", "Untitled"),
                   artist: parseArtist(item.artists),
                   imageUrl: buildImageUrl(item.iiif_url, 400),
                   color: item.dominant_color || "#D4CDC3",

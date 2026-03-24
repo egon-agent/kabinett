@@ -1,4 +1,3 @@
-import { useEffect, useRef } from "react";
 import type { Route } from "./+types/discover";
 import { getDb } from "../lib/db.server";
 import { buildImageUrl } from "../lib/images";
@@ -7,33 +6,6 @@ import { parseArtist } from "../lib/parsing";
 import { getCachedSiteStats as getSiteStats } from "../lib/stats.server";
 import { getCampaignConfig } from "../lib/campaign.server";
 import { formatUiNumber, resolveUiLocale, uiText, useUiLocale } from "../lib/ui-language";
-
-function useScrollRevealDiscover() {
-  const ref = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (prefersReduced) {
-      el.querySelectorAll(".reveal-on-scroll").forEach((child) => child.classList.add("is-visible"));
-      return;
-    }
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("is-visible");
-            observer.unobserve(entry.target);
-          }
-        }
-      },
-      { threshold: 0.1 }
-    );
-    el.querySelectorAll(".reveal-on-scroll").forEach((child) => observer.observe(child));
-    return () => observer.disconnect();
-  }, []);
-  return ref;
-}
 
 export function headers() {
   return { "Cache-Control": "public, max-age=300, stale-while-revalidate=600" };
@@ -117,7 +89,7 @@ const COLLECTIONS: Collection[] = [
 ];
 
 const discoverCacheMap = new Map<string, { expiresAt: number; data: any }>();
-const DISCOVER_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const DISCOVER_CACHE_TTL_MS = 10 * 60 * 1000;
 
 function pickSeeded<T>(items: T[], seed: number): T | undefined {
   if (items.length === 0) return undefined;
@@ -192,7 +164,6 @@ export async function loader() {
 
   const usedThemeImages = new Set<string>();
 
-  // Collection images
   const collections = COLLECTIONS.map((c, index) => {
     try {
       let row: ThemeImageRow | undefined;
@@ -265,16 +236,15 @@ export async function loader() {
         imageUrl: row?.iiif_url ? buildImageUrl(row.iiif_url, 400) : undefined,
         imageTitle: row?.title_sv || row?.title_en || "Utan titel",
         imageArtist: parseArtist(row?.artists || null),
-        color: row?.dominant_color || "#2B2A27",
+        color: row?.dominant_color || "#2B2926",
         focalX: row?.focal_x ?? null,
         focalY: row?.focal_y ?? null,
       };
     } catch {
-      return { ...c, color: "#2B2A27" };
+      return { ...c, color: "#2B2926" };
     }
   });
 
-  // Top artists (excluding factories like Gustavsberg)
   const artistsWithImages = db.prepare(`
     WITH top_artists AS (
       SELECT json_extract(artists, '$[0].name') as name, COUNT(*) as cnt
@@ -348,12 +318,11 @@ export async function loader() {
     imageUrl: artistRow.iiif_url ? buildImageUrl(artistRow.iiif_url, 300) : undefined,
     imageTitle: artistRow.title_sv || artistRow.title_en || "Utan titel",
     imageArtist: parseArtist(artistRow.artists || null),
-    color: artistRow.dominant_color || "#D4CDC3",
+    color: artistRow.dominant_color || "#E0DEDA",
     focalX: artistRow.focal_x,
     focalY: artistRow.focal_y,
   }));
 
-  // Stats
   const siteStats = getSiteStats(db);
   const stats = {
     totalWorks: siteStats.totalWorks,
@@ -400,8 +369,6 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
   const { collections, topArtists, stats, museums } = loaderData;
   const uiLocale = useUiLocale();
   const hasWalks = uiLocale !== "en";
-  /* scroll-reveal: the .reveal-on-scroll children are observed automatically */
-  const scrollRef = useScrollRevealDiscover();
 
   const tools: ToolItem[] = [
     { title: uiText(uiLocale, "Tidslinje", "Timeline"), desc: uiText(uiLocale, "800 år av konst, decennium för decennium", "800 years of art, decade by decade"), href: "/timeline" },
@@ -416,7 +383,7 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
   const showToolHeadingOnDesktop = desktopToolCount > 1;
   const showToolHeading = showToolHeadingOnMobile || showToolHeadingOnDesktop;
   const toolHeadingClass = [
-    "font-serif text-[1.3rem] text-dark-text mb-4",
+    "text-[18px] text-primary leading-[1.3] mb-4",
     showToolHeadingOnMobile && !showToolHeadingOnDesktop
       ? "md:hidden"
       : !showToolHeadingOnMobile && showToolHeadingOnDesktop
@@ -425,42 +392,44 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
   ].join(" ").trim();
 
   return (
-    <div className="min-h-screen pt-16 bg-dark-base text-dark-text">
-      <div ref={scrollRef} className="md:max-w-6xl md:mx-auto md:px-4 lg:px-6">
-        <h1 className="font-serif text-[2rem] text-dark-text px-5 pt-6 pb-2">{uiText(uiLocale, "Upptäck", "Discover")}</h1>
-        {/* Teman — 2-column grid */}
-        <section className="reveal-on-scroll pt-6 px-5">
-          <h2 className="font-serif text-[1.3rem] text-dark-text mb-4">{uiText(uiLocale, "Teman", "Themes")}</h2>
+    <div className="min-h-screen pt-16 bg-white text-primary">
+      <div className="px-4 md:px-6 lg:px-10 pt-8 pb-6">
+        <h1 className="text-[32px] text-primary leading-[1.3]">{uiText(uiLocale, "Upptäck", "Discover")}</h1>
+        <p className="text-[15px] text-secondary mt-1">{uiText(uiLocale, "Teman, konstnärer och samlingar", "Themes, artists and collections")}</p>
+      </div>
 
-          <div className="grid grid-cols-2 gap-2 md:gap-3 lg:grid-cols-4 lg:gap-3.5">
+        {/* Themes — compact list with small thumbnails */}
+        <section className="px-4 md:px-6 lg:px-10">
+          <h2 className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-3">{uiText(uiLocale, "Teman", "Themes")}</h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-1">
             {collections.map((c: Collection) => (
               <a
                 key={c.title}
                 href={`/search?q=${encodeURIComponent(uiLocale === "en" ? (c.queryEn || c.query || c.title) : (c.query || c.title))}&type=visual`}
-                className={[
-                  "relative rounded-card overflow-hidden no-underline group/coll focus-ring",
-                  "aspect-square",
-                ].join(" ")}
-                style={{ backgroundColor: c.color || "#2B2A27" }}
+                className="flex items-center gap-3 py-2.5 no-underline hover:opacity-75 transition-opacity focus-ring"
               >
-                {c.imageUrl && (
-                  <img
-                    src={c.imageUrl}
-                    alt={`${c.imageTitle || uiText(uiLocale, "Utan titel", "Untitled")} — ${c.imageArtist || uiText(uiLocale, "Okänd konstnär", "Unknown artist")}`}
-                    loading="lazy"
-                    width={400}
-                    height={400}
-                    onError={(event) => {
-                      event.currentTarget.classList.add("is-broken");
-                    }}
-                    className="absolute inset-0 w-full h-full object-cover group-hover/coll:scale-[1.05] transition-transform duration-500"
-                    style={{ objectPosition: `${(c.focalX ?? 0.5) * 100}% ${(c.focalY ?? 0.5) * 100}%` }}
-                  />
-                )}
-                <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(10,9,8,0.75)_0%,rgba(10,9,8,0.1)_60%,transparent_100%)]" />
-                <div className="absolute bottom-0 left-0 right-0 py-3 px-3.5">
-                  <p className="font-serif text-[0.95rem] text-white m-0 leading-[1.2]">{uiText(uiLocale, c.title, c.titleEn || c.title)}</p>
-                  <p className="text-[0.62rem] text-[rgba(255,255,255,0.50)] mt-[0.15rem]">{uiText(uiLocale, c.subtitle, c.subtitleEn || c.subtitle)}</p>
+                <div
+                  className="w-14 h-14 shrink-0 overflow-hidden rounded-card"
+                  style={{ backgroundColor: c.color || "#E0DEDA" }}
+                >
+                  {c.imageUrl && (
+                    <img
+                      src={c.imageUrl}
+                      alt=""
+                      loading="lazy"
+                      width={112}
+                      height={112}
+                      onError={(event) => {
+                        event.currentTarget.classList.add("is-broken");
+                      }}
+                      className="w-full h-full object-cover"
+                      style={{ objectPosition: `${(c.focalX ?? 0.5) * 100}% ${(c.focalY ?? 0.5) * 100}%` }}
+                    />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[15px] text-primary leading-[1.3] truncate">{uiText(uiLocale, c.title, c.titleEn || c.title)}</p>
+                  <p className="text-[11px] text-secondary mt-0 truncate">{uiText(uiLocale, c.subtitle, c.subtitleEn || c.subtitle)}</p>
                 </div>
               </a>
             ))}
@@ -469,17 +438,20 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
 
         {/* Top artists */}
         {topArtists.length > 0 && (
-          <section className="reveal-on-scroll pt-10">
-            <h2 className="font-serif text-[1.3rem] text-dark-text px-5 mb-4">{uiText(uiLocale, "Formgivare & konstnärer", "Artists & makers")}</h2>
+          <section className="mt-12 px-4 md:px-6 lg:px-10">
+            <h2 className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-4">{uiText(uiLocale, "Konstnärer", "Artists")}</h2>
 
-            <div className="flex gap-3 overflow-x-auto px-5 pb-2 no-scrollbar lg:grid lg:grid-cols-4 xl:grid-cols-6 lg:gap-4 lg:overflow-visible lg:pb-0">
+            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
               {topArtists.map((a: TopArtist) => (
                 <a
                   key={a.name}
                   href={`/artist/${encodeURIComponent(a.name)}`}
-                  className="shrink-0 w-[5.5rem] lg:w-auto no-underline text-center focus-ring"
+                  className="shrink-0 w-[120px] block no-underline hover:opacity-85 transition-opacity duration-200 focus-ring"
                 >
-                  <div className="w-20 h-20 lg:w-24 lg:h-24 rounded-full overflow-hidden mx-auto" style={{ backgroundColor: a.color || "#D4CDC3" }}>
+                  <div
+                    className="w-[120px] h-[120px] overflow-hidden rounded-card"
+                    style={{ backgroundColor: a.color || "#E0DEDA" }}
+                  >
                     {a.imageUrl && (
                       <img
                         src={a.imageUrl}
@@ -495,86 +467,87 @@ export default function Discover({ loaderData }: Route.ComponentProps) {
                       />
                     )}
                   </div>
-                  <p className="text-[0.7rem] font-medium text-dark-text mt-[0.4rem] leading-[1.2] overflow-hidden line-clamp-2">
-                    {a.name}
-                  </p>
-                  <p className="text-[0.6rem] text-dark-text-secondary mt-[0.1rem]">
-                    {uiText(uiLocale, `${a.count.toLocaleString("sv")} verk`, `${formatUiNumber(a.count, uiLocale)} works`)}
-                  </p>
+                  <div className="pt-2">
+                    <p className="text-[13px] text-primary leading-[1.3]">{a.name}</p>
+                    <p className="text-[11px] text-secondary mt-0.5">
+                      {uiText(uiLocale, `${a.count.toLocaleString("sv")} verk`, `${formatUiNumber(a.count, uiLocale)} works`)}
+                    </p>
+                  </div>
                 </a>
               ))}
             </div>
           </section>
         )}
 
-        {/* Verktyg */}
-        {tools.length > 0 && (
-          <section className="pt-10 px-5">
-            {showToolHeading && <h2 className={toolHeadingClass}>{uiText(uiLocale, "Verktyg", "Tools")}</h2>}
-            <div className="flex flex-col gap-2">
-              {tools.map((tool) => (
-                <div key={tool.title} className={tool.mobileOnly ? "md:hidden" : ""}>
-                  <ToolLink title={tool.title} desc={tool.desc} href={tool.href} />
+        {/* Tools + Collections + Stats — side by side on desktop */}
+        <div className="mt-12 border-t border-rule pt-8 pb-16 px-4 md:px-6 lg:px-10 grid lg:grid-cols-3 gap-10 lg:gap-12">
+          {/* Tools */}
+          {tools.length > 0 && (
+            <div>
+              <h2 className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-3">{uiText(uiLocale, "Verktyg", "Tools")}</h2>
+              <div className="flex flex-col">
+                {tools.map((tool) => (
+                  <div key={tool.title} className={tool.mobileOnly ? "md:hidden" : ""}>
+                    <ToolLink title={tool.title} desc={tool.desc} href={tool.href} />
+                  </div>
+                ))}
+              </div>
+
+              {/* Stats under tools */}
+              <div className="mt-6 bg-white rounded-card p-5">
+                <h2 className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-3">{uiText(uiLocale, "I siffror", "In numbers")}</h2>
+                <div className="grid grid-cols-2 gap-4">
+                  <StatItem number={formatUiNumber(stats.totalWorks, uiLocale)} label={uiText(uiLocale, "verk", "artworks")} />
+                  <StatItem number={formatUiNumber(stats.museums, uiLocale)} label={uiText(uiLocale, "samlingar", "collections")} />
+                  <StatItem number={uiText(uiLocale, `${stats.yearsSpan} år`, `${formatUiNumber(stats.yearsSpan, uiLocale)} years`)} label={uiText(uiLocale, "av historia", "of history")} />
+                  <StatItem number={formatUiNumber(stats.paintings, uiLocale)} label={uiText(uiLocale, "målningar", "paintings")} />
                 </div>
-              ))}
+              </div>
             </div>
-          </section>
-        )}
+          )}
 
-        {/* Samlingar */}
-        {museums.length > 0 && (
-          <section className="pt-10 px-5">
-            <h2 className="font-serif text-[1.3rem] text-dark-text mb-4">{uiText(uiLocale, "Samlingar", "Collections")}</h2>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-              {museums.map((museum: MuseumSummary) => (
-                <a
-                  key={museum.id}
-                  href={`/samling/${encodeURIComponent(museum.name)}`}
-                  className="rounded-card bg-dark-raised p-4 no-underline hover:bg-dark-hover transition-colors focus-ring"
-                >
-                  <p className="text-[0.9rem] font-medium text-dark-text">{museum.name}</p>
-                  <p className="text-[0.7rem] text-dark-text-secondary mt-1">
-                    {uiText(uiLocale, `${museum.count.toLocaleString("sv")} verk`, `${formatUiNumber(museum.count, uiLocale)} works`)}
-                  </p>
-                </a>
-              ))}
+          {/* Collections — spans 2 cols on desktop */}
+          {museums.length > 0 && (
+            <div className="lg:col-span-2">
+              <h2 className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-3">{uiText(uiLocale, "Samlingar", "Collections")}</h2>
+              <div className="grid md:grid-cols-2 gap-x-8">
+                {museums.map((museum: MuseumSummary) => (
+                  <a
+                    key={museum.id}
+                    href={`/samling/${encodeURIComponent(museum.name)}`}
+                    className="flex items-center justify-between py-2.5 border-b border-rule no-underline hover:text-primary transition-colors focus-ring"
+                  >
+                    <span className="text-[15px] text-primary">{museum.name}</span>
+                    <span className="text-[13px] text-secondary">
+                      {uiText(uiLocale, `${museum.count.toLocaleString("sv")} verk`, `${formatUiNumber(museum.count, uiLocale)} works`)}
+                    </span>
+                  </a>
+                ))}
+              </div>
             </div>
-          </section>
-        )}
-
-        {/* Samlingen i siffror */}
-        <section className="reveal-on-scroll pt-10 px-5 pb-16">
-          <h2 className="font-serif text-[1.3rem] text-dark-text mb-4">{uiText(uiLocale, "Samlingen i siffror", "Collection in numbers")}</h2>
-
-          <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4 lg:gap-4">
-            <StatCard number={formatUiNumber(stats.totalWorks, uiLocale)} label={uiText(uiLocale, "verk", "artworks")} />
-            <StatCard number={formatUiNumber(stats.museums, uiLocale)} label={uiText(uiLocale, "samlingar", "collections")} />
-            <StatCard number={uiText(uiLocale, `${stats.yearsSpan} år`, `${formatUiNumber(stats.yearsSpan, uiLocale)} years`)} label={uiText(uiLocale, "av historia", "of history")} />
-            <StatCard number={formatUiNumber(stats.paintings, uiLocale)} label={uiText(uiLocale, "målningar", "paintings")} />
-          </div>
-        </section>
-      </div>
+          )}
+        </div>
     </div>
   );
 }
 
 function ToolLink({ title, desc, href }: { title: string; desc: string; href: string }) {
   return (
-    <a href={href} className="flex items-center gap-[0.8rem] py-[0.9rem] px-4 min-h-11 rounded-card bg-dark-raised no-underline hover:bg-dark-hover focus-ring">
-      <div className="flex-1">
-        <p className="text-[0.88rem] font-medium text-dark-text m-0">{title}</p>
-        <p className="text-[0.72rem] text-dark-text-muted mt-[0.1rem]">{desc}</p>
+    <a href={href} className="flex items-center justify-between py-3 border-b border-rule no-underline hover:text-primary focus-ring">
+      <div>
+        <p className="text-[15px] text-primary m-0">{title}</p>
+        <p className="text-[11px] text-secondary mt-0.5">{desc}</p>
       </div>
-      <span className="text-dark-text-muted text-[1rem]">→</span>
+      <span className="text-secondary text-[15px]">→</span>
     </a>
   );
 }
 
-function StatCard({ number, label }: { number: string; label: string }) {
+function StatItem({ number, label }: { number: string; label: string }) {
   return (
-    <div className="py-4 px-3 rounded-card bg-dark-raised text-center">
-      <p className="font-serif text-[1.4rem] font-semibold text-dark-text m-0 leading-[1.1]">{number}</p>
-      <p className="text-[0.6rem] text-dark-text-secondary mt-1 uppercase tracking-[0.08em]">{label}</p>
+    <div>
+      <p className="text-[42px] text-primary leading-none">{number}</p>
+      <p className="text-[11px] text-secondary mt-1 uppercase tracking-[0.08em]">{label}</p>
     </div>
   );
 }

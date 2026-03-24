@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-import { useFavorites } from "../lib/favorites";
+import React from "react";
 import { buildImageUrl } from "../lib/images";
 import { uiText, useUiLocale } from "../lib/ui-language";
 import type { MatchType } from "../lib/search-types";
@@ -7,196 +6,74 @@ import {
   artworkArtist,
   buildArtworkAltText,
   focalObjectPosition,
+  resolveArtworkTitle,
   type ArtworkDisplayItem,
 } from "./artwork-meta";
 
-export type CardVariant = "large" | "medium" | "small";
-
-type BaseProps = {
+type ArtworkCardProps = {
   item: ArtworkDisplayItem;
   showMuseumBadge: boolean;
-};
-
-type FeedLayoutProps = BaseProps & {
-  layout?: "feed";
-  index: number;
-  variant?: CardVariant;
-};
-
-type SearchLayoutProps = BaseProps & {
-  layout: "search";
+  index?: number;
   yearLabel?: string | null;
   snippet?: string | null;
   matchType?: MatchType;
+  variant?: "light" | "dark";
 };
 
-type ArtworkCardProps = FeedLayoutProps | SearchLayoutProps;
-
-const FeedArtworkCard = React.memo(function FeedArtworkCard({
+const ArtworkCard = React.memo(function ArtworkCard({
   item,
   showMuseumBadge,
-  index,
-  variant = "small",
-}: FeedLayoutProps) {
-  const eager = index < 3;
-  const { isFavorite, toggle } = useFavorites();
-  const uiLocale = useUiLocale();
-  const saved = isFavorite(item.id);
-  const [pulsing, setPulsing] = useState(false);
-  const variantClass = variant === "large"
-    ? "lg:col-span-2 lg:aspect-[3/2] lg:max-h-[34rem]"
-    : variant === "medium"
-      ? "lg:col-span-2 lg:aspect-[5/2] lg:max-h-[22rem]"
-      : "lg:col-span-1 lg:aspect-[3/4] lg:max-h-[34rem]";
-
-  const mobileHeight = variant === "large"
-    ? "h-[48vh] md:h-[65vh]"
-    : variant === "medium"
-      ? "h-[38vh] md:h-[42vh]"
-      : "h-[42vh] md:h-[50vh]";
-
-  const staggerDelay = Math.min(index, 8) * 60;
-
-  return (
-    <a
-      href={`/artwork/${item.id}`}
-      className={`card-reveal block relative w-full ${mobileHeight} lg:h-auto no-underline text-inherit overflow-hidden contain-[layout_paint] md:rounded-card group/card focus-ring ${variantClass}`}
-      style={{
-        backgroundColor: item.dominant_color || "#1A1815",
-        animationDelay: `${staggerDelay}ms`,
-      }}
-    >
-      <img
-        src={item.imageUrl}
-        srcSet={item.iiif_url ? `${buildImageUrl(item.iiif_url, 400)} 400w, ${buildImageUrl(item.iiif_url, 800)} 800w` : undefined}
-        sizes={variant === "large" ? "(max-width: 768px) 100vw, 66vw" : "(max-width: 768px) 100vw, 33vw"}
-        alt={buildArtworkAltText(item)}
-        loading={eager ? "eager" : "lazy"}
-        decoding="auto"
-        fetchPriority={eager ? "high" : undefined}
-        onLoad={eager ? undefined : (event) => {
-          const img = event.currentTarget;
-          img.classList.remove("opacity-0");
-          img.classList.add("opacity-100");
-        }}
-        onError={(event) => {
-          event.currentTarget.classList.add("is-broken");
-        }}
-        className={[
-          "absolute inset-0 w-full h-full object-cover transition-transform duration-500 lg:group-hover/card:scale-[1.04]",
-          eager ? "" : "opacity-0 lg:opacity-100",
-        ].join(" ")}
-        style={{
-          objectPosition: focalObjectPosition(item.focal_x, item.focal_y),
-          transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
-        }}
-      />
-      <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.82)_0%,rgba(0,0,0,0.35)_28%,transparent_50%)] pointer-events-none lg:opacity-50 lg:group-hover/card:opacity-100 lg:transition-opacity lg:duration-500" />
-      <div
-        className="absolute bottom-0 left-0 right-0 p-5 md:p-6 lg:p-7 lg:translate-y-1 lg:group-hover/card:translate-y-0 lg:transition-transform lg:duration-500"
-        style={{
-          textShadow: "0 1px 4px rgba(0,0,0,0.5), 0 0 12px rgba(0,0,0,0.25)",
-          transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
-        }}
-      >
-        <p className="font-serif text-[1.3rem] md:text-[1.4rem] lg:text-[1.55rem] font-semibold text-white leading-[1.15] mb-[0.3rem] line-clamp-2">
-          {item.title_sv || uiText(uiLocale, "Utan titel", "Untitled")}
-        </p>
-        <p className="text-[0.8rem] lg:text-[0.85rem] text-[rgba(255,255,255,0.7)]">
-          {artworkArtist(item)}
-        </p>
-        {showMuseumBadge && item.museum_name && (
-          <p className="text-[0.7rem] lg:text-[0.75rem] text-[rgba(255,255,255,0.4)] mt-[0.15rem]">
-            {item.museum_name}
-          </p>
-        )}
-      </div>
-      <button
-        type="button"
-        aria-label={saved
-          ? uiText(uiLocale, "Ta bort favorit", "Remove favorite")
-          : uiText(uiLocale, "Spara som favorit", "Save as favorite")}
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          if (!saved) {
-            setPulsing(true);
-            window.setTimeout(() => setPulsing(false), 400);
-          }
-          toggle(item.id);
-        }}
-        className={[
-          "absolute right-5 bottom-5 lg:right-6 lg:bottom-6 w-11 h-11 lg:w-[2.75rem] lg:h-[2.75rem] rounded-full border border-[rgba(255,255,255,0.2)] text-white inline-flex items-center justify-center cursor-pointer backdrop-blur-[6px] transition-[transform,background,box-shadow] duration-[200ms]",
-          "focus-ring hover:scale-110",
-          saved ? "bg-[rgba(212,67,46,0.95)] shadow-[0_0_16px_rgba(212,67,46,0.3)]" : "bg-[rgba(0,0,0,0.4)]",
-          pulsing ? "heart-pulse" : "",
-        ].join(" ")}
-        style={{ transitionTimingFunction: "cubic-bezier(0.175, 0.885, 0.32, 1.275)" }}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill={saved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
-          <path d="M20.8 5.6c-1.4-1.6-3.9-1.6-5.3 0L12 9.1 8.5 5.6c-1.4-1.6-3.9-1.6-5.3 0-1.6 1.8-1.4 4.6.2 6.2L12 21l8.6-9.2c1.6-1.6 1.8-4.4.2-6.2z" />
-        </svg>
-      </button>
-    </a>
-  );
-});
-
-const SearchArtworkCard = React.memo(function SearchArtworkCard({
-  item,
-  showMuseumBadge,
+  index = 0,
   yearLabel,
   snippet,
-  matchType,
-}: SearchLayoutProps) {
+  variant = "light",
+}: ArtworkCardProps) {
+  const eager = index < 6;
   const uiLocale = useUiLocale();
+  const titleColor = variant === "dark" ? "text-dark-primary" : "text-primary";
+  const secondaryColor = variant === "dark" ? "text-dark-secondary" : "text-secondary";
+
   return (
     <a
       href={`/artwork/${item.id}`}
-      className="art-card card-reveal block break-inside-avoid rounded-card overflow-hidden bg-dark-raised group focus-ring"
+      className="block no-underline text-inherit hover:opacity-85 transition-opacity duration-200 focus-ring"
     >
       <div
-        style={{ backgroundColor: item.dominant_color || "#D4CDC3" }}
-        className="overflow-hidden aspect-[3/4] relative"
+        className="aspect-square overflow-hidden rounded-card"
+        style={{ backgroundColor: item.dominant_color || "#E0DEDA" }}
       >
         <img
-          src={item.imageUrl}
-          loading="lazy"
-          decoding="async"
+          src={item.imageUrl || (item.iiif_url ? buildImageUrl(item.iiif_url, 400) : "")}
           alt={buildArtworkAltText(item)}
+          loading={eager ? "eager" : "lazy"}
+          decoding="auto"
+          fetchPriority={eager ? "high" : undefined}
           width={400}
-          height={533}
+          height={400}
           onError={(event) => {
             event.currentTarget.classList.add("is-broken");
           }}
-          className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500"
+          className="w-full h-full object-cover"
           style={{
             objectPosition: focalObjectPosition(item.focal_x, item.focal_y),
-            transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
           }}
         />
-        <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.3)_0%,transparent_40%)] opacity-0 group-hover:opacity-100 transition-opacity duration-400 pointer-events-none" />
       </div>
       <div className="p-3">
-        <p className="text-sm font-medium text-dark-text leading-snug line-clamp-2">
-          {item.title_sv || uiText(uiLocale, "Utan titel", "Untitled")}
+        <p className={`text-[15px] ${titleColor} leading-[1.3] line-clamp-2`}>
+          {resolveArtworkTitle(item, uiText(uiLocale, "Utan titel", "Untitled"))}
         </p>
-        <p className="text-xs text-dark-text-secondary mt-1">{artworkArtist(item)}</p>
+        <p className={`text-[13px] ${secondaryColor} mt-0.5`}>{artworkArtist(item)}</p>
         {showMuseumBadge && item.museum_name && (
-          <p className="text-[0.65rem] text-dark-text-secondary mt-0.5">{item.museum_name}</p>
+          <p className={`text-[11px] ${secondaryColor} mt-0.5`}>{item.museum_name}</p>
         )}
-        {yearLabel && <p className="text-xs text-dark-text-muted mt-0.5">{yearLabel}</p>}
+        {yearLabel && <p className={`text-[11px] ${secondaryColor} mt-0.5`}>{yearLabel}</p>}
         {snippet && (
-          <p className="text-[0.7rem] text-dark-text-muted mt-1 line-clamp-2 italic">{snippet}</p>
+          <p className={`text-[11px] ${secondaryColor} mt-1 line-clamp-2`}>{snippet}</p>
         )}
-
       </div>
     </a>
   );
 });
 
-export default function ArtworkCard(props: ArtworkCardProps) {
-  if (props.layout === "search") {
-    return <SearchArtworkCard {...props} />;
-  }
-  return <FeedArtworkCard {...props} />;
-}
+export default ArtworkCard;

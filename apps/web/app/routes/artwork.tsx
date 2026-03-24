@@ -19,12 +19,10 @@ export function meta({ data }: Route.MetaArgs) {
   return [
     { title: `${artwork.title} — Kabinett` },
     { name: "description", content: desc },
-    // OG tags
     { property: "og:title", content: artwork.title },
     { property: "og:description", content: artwork.ogDescription || `${artist}${artwork.datingText ? ` · ${artwork.datingText}` : ""}` },
     { property: "og:image", content: artwork.ogImageUrl || artwork.imageUrl },
     { property: "og:type", content: "article" },
-    // Twitter card
     { name: "twitter:card", content: "summary_large_image" },
     { name: "twitter:title", content: artwork.title },
     { name: "twitter:description", content: artwork.ogDescription || `${artist} — ${artwork.museumName || "Kabinett"}` },
@@ -71,6 +69,7 @@ type DescriptionSection = {
 type RelatedArtwork = {
   id: number;
   title_sv: string | null;
+  title_en: string | null;
   iiif_url: string;
   dominant_color: string | null;
   artists?: string | null;
@@ -104,24 +103,24 @@ function RelatedArtworkCard({
   secondaryText: string;
   fallbackArtist: string;
 }) {
-  const title = item.title_sv || "Utan titel";
+  const title = item.title_sv || item.title_en || "Utan titel";
   const parsedArtist = parseArtist(item.artists || null).trim();
   const altArtist = parsedArtist || fallbackArtist;
 
   return (
     <a
       href={`/artwork/${item.id}`}
-      className="shrink-0 w-32 lg:w-auto rounded-card overflow-hidden bg-linen no-underline focus-ring"
+      className="shrink-0 w-[100px] no-underline hover:opacity-85 transition-opacity duration-200 focus-ring"
     >
       <div
-        className="aspect-[3/4] overflow-hidden"
-        style={{ backgroundColor: item.dominant_color || "#D4CDC3" }}
+        className="w-[100px] h-[100px] overflow-hidden rounded-card"
+        style={{ backgroundColor: item.dominant_color || "#E0DEDA" }}
       >
         <img
           src={buildImageUrl(item.iiif_url, 400)}
           alt={`${title} — ${altArtist}`}
-          width={400}
-          height={534}
+          width={200}
+          height={200}
           loading="lazy"
           decoding="async"
           onError={(event) => {
@@ -131,12 +130,12 @@ function RelatedArtworkCard({
           style={{ objectPosition: `${(item.focal_x ?? 0.5) * 100}% ${(item.focal_y ?? 0.5) * 100}%` }}
         />
       </div>
-      <div className="p-3">
-        <p className="text-sm text-charcoal leading-snug line-clamp-2 min-h-[2.1rem]">
+      <div className="pt-1.5">
+        <p className="text-[11px] text-primary leading-[1.3] line-clamp-2">
           {title}
         </p>
         {secondaryText && (
-          <p className="text-xs text-warm-gray mt-1 leading-snug line-clamp-1">
+          <p className="text-[11px] text-secondary mt-0.5 leading-[1.3] line-clamp-1">
             {secondaryText}
           </p>
         )}
@@ -233,7 +232,6 @@ export async function loader({ params, request }: Route.LoaderArgs) {
 
   const collectionName = row.sub_museum || row.museum_name || null;
   const museumName = row.museum_name || "Museum";
-  // Build deep link to the specific artwork on the museum's website
   const inventoryClean = (row.inventory_number || "").replace(/^(nordiska:|shm:)/, "");
   const museumSiteUrl = row.source === "shm" && inventoryClean
       ? `https://samlingar.shm.se/object/${encodeURIComponent(inventoryClean)}`
@@ -264,7 +262,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     thumbUrl: buildImageUrl(row.iiif_url, 400),
     focalX: row.focal_x,
     focalY: row.focal_y,
-    color: row.dominant_color || "#D4CDC3",
+    color: row.dominant_color || "#E0DEDA",
     colorR: row.color_r,
     colorG: row.color_g,
     colorB: row.color_b,
@@ -273,7 +271,6 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     museumSiteUrl,
     ogImageUrl,
     ogDescription: ogDescriptionParts.join(" · "),
-    // Extra fields
     description: row.descriptions_sv || null,
     dimensions: parseDimensions(row.dimensions_json),
     signature: row.signature || null,
@@ -297,7 +294,6 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
   const artist = artwork.artists?.[0]?.name || "Okänd konstnär";
   const { isFavorite, toggle } = useFavorites();
   const saved = isFavorite(artwork.id);
-  const [pulsing, setPulsing] = useState(false);
   const [relatedLoading, setRelatedLoading] = useState(true);
   const [related, setRelated] = useState<{ sameArtist: RelatedArtwork[]; similar: RelatedArtwork[] }>({
     sameArtist: [],
@@ -363,17 +359,17 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
   }, []);
 
   return (
-    <div className="min-h-screen pt-[3.5rem] bg-cream">
+    <div className="min-h-screen pt-16 bg-white">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(artworkJsonLd) }}
       />
       {/* Back button */}
-      <div className="max-w-3xl mx-auto px-5 lg:px-8 pt-4">
+      <div className="px-4 md:px-6 lg:px-10 pt-4">
         <button
           type="button"
           onClick={handleBack}
-          className="inline-flex items-center gap-1.5 text-[0.82rem] text-warm-gray hover:text-charcoal transition-colors bg-transparent border-none cursor-pointer focus-ring py-1"
+          className="inline-flex items-center gap-1.5 text-[13px] text-secondary hover:text-primary transition-colors bg-transparent border-none cursor-pointer focus-ring py-1"
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M15 18l-6-6 6-6" />
@@ -381,95 +377,68 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
           Tillbaka
         </button>
       </div>
-      {/* Hero image with color bg */}
-      <div
-        className="flex justify-center items-center py-8 px-4 md:px-6 lg:px-8 min-h-[50vh] lg:min-h-[55vh] lg:max-h-[70vh] lg:max-w-5xl lg:mx-auto"
-        style={{ backgroundColor: artwork.color }}
-      >
-        <img
-          src={artwork.imageUrl}
-          srcSet={`${artwork.thumbUrl} 400w, ${artwork.imageUrl} 800w`}
-          sizes="(max-width: 768px) 100vw, 800px"
-          alt={`${artwork.title} — ${artist}`}
-          loading="eager"
-          fetchPriority="high"
-          onError={(event) => {
-            event.currentTarget.classList.add("is-broken");
-          }}
-          className="max-h-[70vh] lg:max-h-[70vh] max-w-full lg:max-w-5xl object-contain rounded shadow-[0_8px_40px_rgba(0,0,0,0.3)]"
-          style={{ objectPosition: focalObjectPosition }}
-        />
-      </div>
 
-      {/* Info card — overlapping the image slightly */}
-      <div className="-mt-8 mx-4 mb-0 p-6 md:p-8 bg-white rounded-2xl relative z-10 shadow-[0_2px_24px_rgba(0,0,0,0.06)] max-w-3xl lg:mx-auto">
-        <div className="flex items-start gap-3">
-          <h1 className="font-serif text-[1.5rem] lg:text-[1.85rem] text-charcoal leading-[1.25] flex-1">
-            {artwork.title}
-          </h1>
-          <button
-            type="button"
-            aria-label={saved ? "Ta bort favorit" : "Spara som favorit"}
-            onClick={() => {
-              if (!saved) {
-                setPulsing(true);
-                window.setTimeout(() => setPulsing(false), 350);
-              }
-              toggle(artwork.id);
-              window.__toast?.(saved ? "Borttagen från sparade" : "Sparad");
+      <div className="px-4 md:px-6 lg:px-10 py-6 lg:grid lg:grid-cols-[1.2fr_1fr] lg:gap-10 xl:gap-16 lg:items-start">
+        {/* Image — sticky on desktop */}
+        <div className="lg:sticky lg:top-20">
+          <img
+            src={artwork.imageUrl}
+            srcSet={`${artwork.thumbUrl} 400w, ${artwork.imageUrl} 800w`}
+            sizes="(max-width: 1024px) 100vw, 55vw"
+            alt={`${artwork.title} — ${artist}`}
+            loading="eager"
+            fetchPriority="high"
+            onError={(event) => {
+              event.currentTarget.classList.add("is-broken");
             }}
-            className={[
-              "shrink-0 mt-1 w-10 h-10 rounded-full border inline-flex items-center justify-center cursor-pointer transition-[transform,background] ease-[ease] duration-[200ms]",
-              "focus-ring",
-              saved
-                ? "bg-[rgba(196,85,58,0.12)] border-[rgba(196,85,58,0.3)] text-accent"
-                : "bg-[rgba(0,0,0,0.03)] border-[rgba(0,0,0,0.1)] text-stone hover:bg-[rgba(0,0,0,0.06)]",
-              pulsing ? "heart-pulse" : "",
-            ].join(" ")}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill={saved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
-              <path d="M20.8 5.6c-1.4-1.6-3.9-1.6-5.3 0L12 9.1 8.5 5.6c-1.4-1.6-3.9-1.6-5.3 0-1.6 1.8-1.4 4.6.2 6.2L12 21l8.6-9.2c1.6-1.6 1.8-4.4.2-6.2z" />
-            </svg>
-          </button>
+            className="w-full object-contain max-h-[80vh]"
+            style={{ objectPosition: focalObjectPosition }}
+          />
         </div>
 
+        {/* Metadata */}
+        <div className="pt-6 lg:pt-0 pb-8">
+        <h1 className="text-[32px] text-primary leading-[1.3]">
+          {artwork.title}
+        </h1>
+
         {artwork.artists.length > 0 && (
-          <p className="mt-2 text-base lg:text-[1.05rem]">
+          <p className="mt-2 text-[15px]">
             {artwork.artists.map((a, i: number) => (
               <span key={i}>
                 {i > 0 && ", "}
                 <a href={"/artist/" + encodeURIComponent(a.name)}
-                  className="text-warm-gray hover:text-charcoal no-underline border-b border-stone hover:border-warm-gray transition-colors focus-ring">
+                  className="text-secondary hover:text-primary no-underline border-b border-rule hover:border-secondary transition-colors focus-ring">
                   {a.name}
                 </a>
               </span>
             ))}
             {artwork.artists[0]?.nationality && (
-              <span className="text-sm text-stone">
+              <span className="text-[13px] text-secondary">
                 {" "}· {artwork.artists[0].nationality}
               </span>
             )}
           </p>
         )}
         {(artwork.collectionName || artwork.museumName) && (
-          <p className="mt-2 text-[0.85rem] text-warm-gray">
+          <p className="mt-2 text-[13px] text-secondary">
             Samling:{" "}
             {artwork.collectionName ? (
               <a
                 href={`/samling/${encodeURIComponent(artwork.collectionName)}`}
-                className="text-charcoal underline decoration-stone underline-offset-2 hover:decoration-warm-gray transition-colors focus-ring"
+                className="text-primary underline decoration-rule underline-offset-2 hover:decoration-secondary transition-colors focus-ring"
               >
                 {artwork.collectionName}
               </a>
             ) : (
-              <span className="text-charcoal">{artwork.museumName}</span>
+              <span className="text-primary">{artwork.museumName}</span>
             )}
           </p>
         )}
 
-        {/* Details grid */}
+        {/* Details — single column definition list */}
         {(artwork.datingText || artwork.category || artwork.techniqueMaterial || artwork.dimensions || artwork.acquisitionYear || artwork.objectType || artwork.style || artwork.motiveCategory) && (
-          <div className="grid grid-cols-2 gap-x-6 gap-y-4 mt-6 pt-6 border-t border-linen">
+          <dl className="mt-8 pt-8 border-t border-rule space-y-4">
             {artwork.datingText && <Detail label={artwork.datingType || "Datering"} value={artwork.datingText} />}
             {artwork.category && <Detail label="Kategori" value={artwork.category} />}
             {artwork.techniqueMaterial && <Detail label="Teknik" value={artwork.techniqueMaterial} />}
@@ -478,12 +447,12 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
             {artwork.objectType && <Detail label="Objekttyp" value={artwork.objectType} />}
             {artwork.style && <Detail label="Stil" value={artwork.style} />}
             {artwork.motiveCategory && <Detail label="Motiv" value={artwork.motiveCategory} />}
-          </div>
+          </dl>
         )}
 
         {/* Description */}
         {descriptionSections.length > 0 && (
-          <div className="mt-6 pt-6 border-t border-linen">
+          <div className="mt-8 pt-8 border-t border-rule">
             <div className={[
               "relative",
               canExpandDescription && !isDescriptionExpanded ? "max-h-[20rem] overflow-hidden" : "",
@@ -491,10 +460,10 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
               <div className="space-y-4">
                 {descriptionSections.map((section, index) => (
                   <section key={`${section.heading}-${index}`}>
-                    <h3 className="text-[0.72rem] text-warm-gray uppercase tracking-[0.05em] mb-1">
+                    <h3 className="text-[11px] text-secondary uppercase tracking-[0.08em] mb-1">
                       {section.heading}
                     </h3>
-                    <p className="text-[0.85rem] lg:text-[0.95rem] text-charcoal leading-[1.6] whitespace-pre-line">
+                    <p className="text-[15px] text-primary leading-[1.55] whitespace-pre-line">
                       {section.content}
                     </p>
                   </section>
@@ -511,7 +480,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                 aria-label={isDescriptionExpanded ? "Visa mindre" : "Visa mer"}
                 aria-expanded={isDescriptionExpanded}
                 onClick={() => setIsDescriptionExpanded((prev) => !prev)}
-                className="mt-3 text-[0.8rem] text-warm-gray hover:text-charcoal transition-colors cursor-pointer bg-transparent border-none focus-ring"
+                className="mt-3 text-[13px] text-secondary hover:text-primary transition-colors cursor-pointer bg-transparent border-none focus-ring"
               >
                 {isDescriptionExpanded ? "Visa mindre" : "Visa mer"}
               </button>
@@ -521,17 +490,17 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 
         {/* Signature & Inscription */}
         {(artwork.signature || artwork.inscription) && (
-          <div className="mt-6 pt-6 border-t border-linen grid grid-cols-1 gap-3">
+          <div className="mt-8 pt-8 border-t border-rule space-y-3">
             {artwork.signature && (
               <div>
-                <p className="text-xs text-warm-gray uppercase tracking-[0.05em]">Signatur</p>
-                <p className="text-[0.8rem] text-charcoal mt-[0.15rem] italic">{artwork.signature}</p>
+                <p className="text-[11px] text-secondary uppercase tracking-[0.08em]">Signatur</p>
+                <p className="text-[13px] text-primary mt-0.5">{artwork.signature}</p>
               </div>
             )}
             {artwork.inscription && (
               <div>
-                <p className="text-xs text-warm-gray uppercase tracking-[0.05em]">Inskription</p>
-                <p className="text-[0.8rem] text-charcoal mt-[0.15rem] italic">{artwork.inscription}</p>
+                <p className="text-[11px] text-secondary uppercase tracking-[0.08em]">Inskription</p>
+                <p className="text-[13px] text-primary mt-0.5">{artwork.inscription}</p>
               </div>
             )}
           </div>
@@ -539,20 +508,20 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 
         {/* Exhibitions */}
         {artwork.exhibitions.length > 0 && (
-          <div className="mt-6 pt-6 border-t border-linen">
-            <p className="text-xs text-warm-gray uppercase tracking-[0.05em] mb-2">
+          <div className="mt-8 pt-8 border-t border-rule">
+            <p className="text-[11px] text-secondary uppercase tracking-[0.08em] mb-2">
               Utställningar ({artwork.exhibitions.length})
             </p>
-            <div className="flex flex-col gap-[0.4rem]">
+            <div className="flex flex-col gap-1">
               {artwork.exhibitions.slice(0, 5).map((ex, i: number) => (
-                <div key={i} className="text-[0.8rem] text-charcoal leading-[1.4]">
-                  <span className="font-medium">{ex.title}</span>
-                  {ex.venue && <span className="text-warm-gray"> — {ex.venue}</span>}
-                  {ex.year && <span className="text-stone"> ({ex.year})</span>}
+                <div key={i} className="text-[13px] text-primary leading-[1.4]">
+                  {ex.title}
+                  {ex.venue && <span className="text-secondary"> — {ex.venue}</span>}
+                  {ex.year && <span className="text-secondary"> ({ex.year})</span>}
                 </div>
               ))}
               {artwork.exhibitions.length > 5 && (
-                <p className="text-[0.7rem] text-stone">
+                <p className="text-[11px] text-secondary">
                   +{artwork.exhibitions.length - 5} till
                 </p>
               )}
@@ -562,19 +531,19 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 
         {/* License / Copyright */}
         {(artwork.mediaLicense || artwork.mediaCopyright) && (
-          <div className="mt-6 pt-6 border-t border-linen">
-            <p className="text-xs text-warm-gray uppercase tracking-[0.05em] mb-1.5">
+          <div className="mt-8 pt-8 border-t border-rule">
+            <p className="text-[11px] text-secondary uppercase tracking-[0.08em] mb-1.5">
               Bildlicens
             </p>
             <div className="flex flex-col gap-1">
               {artwork.mediaLicense && (
-                <p className="text-[0.8rem] text-charcoal">
+                <p className="text-[13px] text-primary">
                   {CC_LICENSE_URLS[artwork.mediaLicense] ? (
                     <a
                       href={CC_LICENSE_URLS[artwork.mediaLicense]}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-charcoal underline decoration-stone underline-offset-2 hover:decoration-warm-gray transition-colors focus-ring"
+                      className="text-primary underline decoration-rule underline-offset-2 hover:decoration-secondary transition-colors focus-ring"
                     >
                       {artwork.mediaLicense}
                     </a>
@@ -584,7 +553,7 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
                 </p>
               )}
               {artwork.mediaCopyright && (
-                <p className="text-[0.78rem] text-warm-gray leading-snug">
+                <p className="text-[13px] text-secondary leading-[1.3]">
                   {artwork.mediaCopyright}
                 </p>
               )}
@@ -593,49 +562,55 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
         )}
 
         {/* Actions row */}
-        <div className="flex flex-wrap justify-between items-center gap-3 mt-6 pt-6 border-t border-linen">
-          <div className="flex items-center gap-2.5">
-            <div
-              className="w-5 h-5 rounded-full border border-[rgba(212,205,195,0.35)]"
-              style={{ backgroundColor: artwork.color }}
-            />
-            <span className="text-[0.72rem] text-stone font-mono tracking-wide">{artwork.color}</span>
-          </div>
-          <div className="flex gap-3 items-center">
-            <button
-              type="button"
-              onClick={() => {
-                const artist = artwork.artists?.[0]?.name || "Okänd konstnär";
-                const text = `${artwork.title} av ${artist}`;
-                const url = window.location.href;
-                if (navigator.share) {
-                  navigator.share({ title: artwork.title, text, url });
-                } else {
-                  navigator.clipboard.writeText(url);
-                  window.__toast?.("Länk kopierad");
-                }
-              }}
-              className="py-2 px-5 min-h-11 rounded-full border border-stone/20 bg-white text-[0.8rem] text-charcoal cursor-pointer font-medium hover:bg-linen active:scale-[0.97] transition-[background-color,transform] focus-ring"
-            >
-              Dela
-            </button>
-            {artwork.museumSiteUrl && (
-              <a href={artwork.museumSiteUrl} target="_blank" rel="noopener noreferrer"
-                className="text-[0.78rem] text-warm-gray hover:text-charcoal transition-colors no-underline focus-ring">
-                {`Visa på ${artwork.museumName}`} →
-              </a>
-            )}
-          </div>
+        <div className="flex flex-wrap items-center gap-3 mt-8 pt-8 border-t border-rule">
+          <button
+            type="button"
+            onClick={() => {
+              if (!saved) {
+                window.__toast?.("Sparad");
+              } else {
+                window.__toast?.("Borttagen från sparade");
+              }
+              toggle(artwork.id);
+            }}
+            className="px-3.5 py-1.5 text-[13px] border border-rule rounded-card bg-white text-secondary hover:text-primary hover:border-secondary transition-colors cursor-pointer focus-ring"
+          >
+            {saved ? "♥ Sparad" : "Spara"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const artist = artwork.artists?.[0]?.name || "Okänd konstnär";
+              const text = `${artwork.title} av ${artist}`;
+              const url = window.location.href;
+              if (navigator.share) {
+                navigator.share({ title: artwork.title, text, url });
+              } else {
+                navigator.clipboard.writeText(url);
+                window.__toast?.("Länk kopierad");
+              }
+            }}
+            className="px-3.5 py-1.5 text-[13px] border border-rule rounded-card bg-white text-secondary hover:text-primary hover:border-secondary transition-colors cursor-pointer focus-ring"
+          >
+            Dela
+          </button>
+          {artwork.museumSiteUrl && artwork.museumName && (
+            <a href={artwork.museumSiteUrl} target="_blank" rel="noopener noreferrer"
+              className="px-3.5 py-1.5 text-[13px] border border-rule rounded-card bg-white text-secondary hover:text-primary hover:border-secondary transition-colors no-underline focus-ring">
+              Till {artwork.museumName} →
+            </a>
+          )}
+        </div>
         </div>
       </div>
 
       {/* Same artist section */}
       {!relatedLoading && related.sameArtist.length > 0 && (
-        <section className="pt-12 px-5 md:px-6 lg:px-8 max-w-[50rem] lg:max-w-5xl mx-auto">
-          <h2 className="font-serif text-[1.3rem] text-charcoal">
+        <section className="px-4 md:px-6 lg:px-10 pt-10">
+          <h2 className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-3">
             Mer av {artistName}
           </h2>
-          <div className="flex gap-3 overflow-x-auto pt-5 pb-2 no-scrollbar lg:grid lg:grid-cols-4 lg:gap-4 lg:overflow-visible lg:pb-0">
+          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
             {related.sameArtist.map((s) => (
               <RelatedArtworkCard
                 key={s.id}
@@ -650,11 +625,11 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 
       {/* Similar works */}
       {!relatedLoading && related.similar.length > 0 && (
-        <section className="pt-12 px-5 md:px-6 lg:px-8 max-w-[50rem] lg:max-w-5xl mx-auto">
-          <h2 className="font-serif text-[1.3rem] text-charcoal">
+        <section className="px-4 md:px-6 lg:px-10 pt-10">
+          <h2 className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-3">
             Liknande verk
           </h2>
-          <div className="flex gap-3 overflow-x-auto pt-5 pb-2 no-scrollbar lg:grid lg:grid-cols-4 lg:gap-4 lg:overflow-visible lg:pb-0">
+          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
             {related.similar.map((s) => (
               <RelatedArtworkCard
                 key={s.id}
@@ -674,9 +649,9 @@ export default function Artwork({ loaderData }: Route.ComponentProps) {
 
 function Detail({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <p className="text-xs text-warm-gray uppercase tracking-[0.05em]">{label}</p>
-      <p className="text-sm text-charcoal mt-0.5">{value}</p>
+    <div className="flex flex-col">
+      <dt className="text-[11px] text-secondary uppercase tracking-[0.08em]">{label}</dt>
+      <dd className="text-[15px] text-primary mt-0.5 m-0">{value}</dd>
     </div>
   );
 }

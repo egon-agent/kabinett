@@ -63,19 +63,19 @@ export default function InfiniteArtworkGrid({ fetchUrl, heading = "Alla verk" }:
 
   return (
     <section className="pt-10 pb-16">
-      <h2 className="font-serif text-[1.35rem] text-charcoal mb-5">{heading}</h2>
-      <div className="columns-2 gap-3 md:columns-3 lg:columns-4 lg:gap-4">
+      <h2 className="text-[1.35rem] text-primary mb-5">{heading}</h2>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
         {works.map((w) => (
           <GridCard key={w.id} item={w} />
         ))}
       </div>
       {loadError && (
         <div className="text-center py-6" aria-live="polite">
-          <p className="text-sm text-warm-gray mb-3">Kunde inte ladda fler verk.</p>
+          <p className="text-sm text-secondary mb-3">Kunde inte ladda fler verk.</p>
           <button
             type="button"
             onClick={() => { setLoadError(false); loadMore(); }}
-            className="px-4 py-2 rounded-full border border-stone/30 text-sm text-charcoal font-medium hover:bg-linen transition-colors focus-ring"
+            className="px-4 py-2 rounded-full border border-rule/30 text-sm text-primary font-medium hover:bg-paper transition-colors focus-ring"
           >
             Försök igen
           </button>
@@ -83,7 +83,7 @@ export default function InfiniteArtworkGrid({ fetchUrl, heading = "Alla verk" }:
       )}
       {canLoadMore && !loadError && <div ref={sentinelRef} className="h-4" />}
       {loading && (
-        <p className="text-center text-sm text-warm-gray py-4">
+        <p className="text-center text-sm text-secondary py-4">
           Laddar fler verk…
         </p>
       )}

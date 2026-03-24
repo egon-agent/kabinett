@@ -17,18 +17,17 @@ type GridCardProps = {
 export type { GridCardItem };
 
 export default function GridCard({ item, variant = "light" }: GridCardProps) {
-  const bgClass = variant === "dark" ? "bg-dark-raised" : "bg-linen";
-  const titleColor = variant === "dark" ? "text-dark-text" : "text-charcoal";
-  const secondaryColor = variant === "dark" ? "text-dark-text-secondary" : "text-warm-gray";
+  const titleColor = variant === "dark" ? "text-dark-primary" : "text-primary";
+  const secondaryColor = variant === "dark" ? "text-dark-secondary" : "text-secondary";
   const focalPos = `${(item.focal_x ?? 0.5) * 100}% ${(item.focal_y ?? 0.5) * 100}%`;
 
   return (
     <a
       href={`/artwork/${item.id}`}
-      className={`art-card break-inside-avoid block rounded-card overflow-hidden ${bgClass} mb-3 no-underline group focus-ring`}
+      className="block no-underline hover:opacity-85 transition-opacity duration-200 focus-ring"
     >
       <div
-        className="aspect-[3/4] overflow-hidden"
+        className="aspect-square overflow-hidden rounded-card"
         style={{ backgroundColor: item.color }}
       >
         <img
@@ -40,19 +39,16 @@ export default function GridCard({ item, variant = "light" }: GridCardProps) {
           onError={(event) => {
             event.currentTarget.classList.add("is-broken");
           }}
-          className="w-full h-full object-cover group-hover:scale-[1.05] transition-transform duration-400"
-          style={{
-            objectPosition: focalPos,
-            transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
-          }}
+          className="w-full h-full object-cover"
+          style={{ objectPosition: focalPos }}
         />
       </div>
       <div className="p-3">
-        <p className={`text-sm font-medium ${titleColor} leading-snug line-clamp-2 min-h-[2.25rem]`}>
+        <p className={`text-[15px] ${titleColor} leading-[1.3] line-clamp-2 min-h-[2.25rem]`}>
           {item.title}
         </p>
         {(item.artist || item.year) && (
-          <p className={`text-xs ${secondaryColor} mt-1 leading-snug line-clamp-1`}>
+          <p className={`text-[13px] ${secondaryColor} mt-0.5 leading-[1.3] line-clamp-1`}>
             {item.artist}
             {item.artist && item.year ? " · " : ""}
             {item.year}
