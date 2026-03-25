@@ -41,7 +41,7 @@ export type ArtistSearchResult = {
 };
 export type SearchResultItem = ArtworkSearchResult | ArtistSearchResult;
 
-import { PAGE_SIZE } from "../lib/search-constants";
+import { INITIAL_VISUAL_PAGE_SIZE, PAGE_SIZE } from "../lib/search-constants";
 
 const COLOR_TERMS: Record<string, { r: number; g: number; b: number }> = {
   "rött": { r: 180, g: 50, b: 40 }, "röd": { r: 180, g: 50, b: 40 }, "röda": { r: 180, g: 50, b: 40 },
@@ -84,8 +84,8 @@ function logClipDebug(event: string, payload: Record<string, unknown>): void {
 }
 
 
-function nextCursor(length: number): number | null {
-  return length >= PAGE_SIZE ? length : null;
+function nextCursor(length: number, limit = PAGE_SIZE): number | null {
+  return length >= limit ? length : null;
 }
 
 function resolveThemeFilter(query: string): string | null {
@@ -387,9 +387,10 @@ async function loadSearchResults(args: {
   }
 
   if (query && type === "visual") {
-    const clipResults = await runClipSearch();
+    const visualLimit = INITIAL_VISUAL_PAGE_SIZE;
+    const clipResults = (await runClipSearch()).slice(0, visualLimit);
     const filteredClip = filterClipByConfidence(clipResults, { visual: true, limit: PAGE_SIZE })
-      .slice(0, PAGE_SIZE);
+      .slice(0, visualLimit);
 
     if (filteredClip.length === 0) {
       try {
@@ -398,7 +399,7 @@ async function loadSearchResults(args: {
           query,
           source: sourceA,
           museum: mf,
-          limit: PAGE_SIZE,
+          limit: visualLimit,
           scope: "broad",
         }) as SearchResult[];
 
@@ -447,7 +448,7 @@ async function loadSearchResults(args: {
     return {
       results: toArtworkSearchResults(filteredClip),
       total: filteredClip.length,
-      cursor: null,
+      cursor: nextCursor(filteredClip.length, visualLimit),
     };
   }
 

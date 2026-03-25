@@ -69,6 +69,13 @@ type TextEncoder = {
   model: any;
 };
 
+type ClipQueryVariantMode = "strict" | "balanced" | "expanded";
+
+type ClipSearchCacheEntry = {
+  ts: number;
+  results: ClipResult[];
+};
+
 let textEncoderPromise: Promise<TextEncoder> | null = null;
 let queryCacheInitAttempted = false;
 let queryCacheWritable = false;
@@ -76,6 +83,9 @@ let queryCacheWarningShown = false;
 let localVecAvailability: boolean | null = null;
 let localVecWarningShown = false;
 let faissFallbackWarningShown = false;
+const clipSearchCache = new Map<string, ClipSearchCacheEntry>();
+const CLIP_SEARCH_CACHE_TTL_MS = Number(process.env.KABINETT_CLIP_SEARCH_CACHE_MS ?? "600000");
+const CLIP_SEARCH_CACHE_MAX_ENTRIES = Number(process.env.KABINETT_CLIP_SEARCH_CACHE_MAX ?? "200");
 
 function logQueryCacheWarning(error: unknown): void {
   if (queryCacheWarningShown) return;
@@ -217,8 +227,6 @@ function clampSimilarity(distance: number): number {
   return distance;
 }
 
-type ClipQueryVariantMode = "strict" | "balanced" | "expanded";
-
 function buildQueryVariants(query: string, mode: ClipQueryVariantMode = "expanded"): string[] {
   const trimmed = query.trim();
   if (!trimmed) return [];
@@ -244,6 +252,48 @@ function buildQueryVariants(query: string, mode: ClipQueryVariantMode = "expande
   }
 
   return [...new Set(base.map((row) => row.trim()).filter(Boolean))];
+}
+
+function buildClipSearchCacheKey(
+  query: string,
+  limit: number,
+  offset: number,
+  source: string | undefined,
+  variantMode: ClipQueryVariantMode,
+): string {
+  return JSON.stringify([
+    query.trim().toLowerCase(),
+    limit,
+    offset,
+    source || "",
+    variantMode,
+  ]);
+}
+
+function readClipSearchCache(key: string): ClipResult[] | null {
+  const cached = clipSearchCache.get(key);
+  if (!cached) return null;
+  if (Date.now() - cached.ts > CLIP_SEARCH_CACHE_TTL_MS) {
+    clipSearchCache.delete(key);
+    return null;
+  }
+  return cached.results.map((row) => ({ ...row }));
+}
+
+function writeClipSearchCache(key: string, results: ClipResult[]): void {
+  clipSearchCache.set(key, {
+    ts: Date.now(),
+    results: results.map((row) => ({ ...row })),
+  });
+
+  if (clipSearchCache.size <= CLIP_SEARCH_CACHE_MAX_ENTRIES) {
+    return;
+  }
+
+  const oldestKey = clipSearchCache.keys().next().value;
+  if (oldestKey) {
+    clipSearchCache.delete(oldestKey);
+  }
 }
 
 function vectorFromBuffer(buffer: Buffer): Float32Array {
@@ -482,7 +532,12 @@ export async function clipSearch(
   options?: { variantMode?: ClipQueryVariantMode }
 ): Promise<ClipResult[]> {
   initQueryEmbeddingCache();
-  const variants = buildQueryVariants(q, options?.variantMode ?? "expanded");
+  const variantMode = options?.variantMode ?? "expanded";
+  const cacheKey = buildClipSearchCacheKey(q, limit, offset, source, variantMode);
+  const cached = readClipSearchCache(cacheKey);
+  if (cached) return cached;
+
+  const variants = buildQueryVariants(q, variantMode);
   if (variants.length === 0) return [];
 
   const scope = parseSearchScope(source);
@@ -535,7 +590,9 @@ export async function clipSearch(
     })
     .slice(offset, offset + limit);
 
-  return mergedRows.map(({ row, maxDistance }) => toClipResult(row, maxDistance));
+  const results = mergedRows.map(({ row, maxDistance }) => toClipResult(row, maxDistance));
+  writeClipSearchCache(cacheKey, results);
+  return results;
 }
 
 export async function clipSearchFromSeedIds(

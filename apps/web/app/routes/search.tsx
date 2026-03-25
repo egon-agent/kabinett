@@ -1,5 +1,5 @@
 import { Suspense, useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { Await, data, useNavigate } from "react-router";
+import { Await, Link, data, useNavigate } from "react-router";
 import type { Route } from "./+types/search";
 import Autocomplete, { type AutocompleteSuggestion } from "../components/Autocomplete";
 import ArtworkCard from "../components/ArtworkCard";
@@ -17,7 +17,7 @@ import {
   type ArtistSearchResult,
   type SearchResultItem,
 } from "./search.loader.server";
-import { PAGE_SIZE } from "../lib/search-constants";
+import { INITIAL_VISUAL_PAGE_SIZE, PAGE_SIZE } from "../lib/search-constants";
 import { formatUiNumber, uiText, useUiLocale } from "../lib/ui-language";
 
 const THEME_FILTERS: Record<string, string> = {
@@ -46,6 +46,17 @@ const THEME_FILTERS: Record<string, string> = {
 
 function resolveThemeFilter(query: string): string | null {
   return THEME_FILTERS[query.trim().toLowerCase()] || null;
+}
+
+function prefetchVisualSearch(query: string): void {
+  const trimmed = query.trim();
+  if (!trimmed) return;
+  const params = new URLSearchParams({
+    q: trimmed,
+    type: "visual",
+    limit: String(INITIAL_VISUAL_PAGE_SIZE),
+  });
+  void fetch(`/api/clip-search?${params.toString()}`).catch(() => {});
 }
 
 export function headers() {
@@ -534,9 +545,10 @@ function SearchResultsPanel({
                 : ["Landskap", "Porträtt", "Stilleben", "Skulptur", "Akvarell"]).map((s, i) => (
                 <span key={s}>
                   {i > 0 && ", "}
-                  <a href={`/search?q=${encodeURIComponent(s)}`}
+                  <Link
+                    to={`/search?q=${encodeURIComponent(s)}`}
                     className="text-secondary hover:text-primary transition-colors underline decoration-rule underline-offset-2 focus-ring"
-                  >{s}</a>
+                  >{s}</Link>
                 </span>
               ))}
             </p>
@@ -659,11 +671,17 @@ export default function Search({ loaderData }: Route.ComponentProps) {
             <p className="text-[11px] uppercase tracking-[0.08em] text-secondary mb-2">{uiText(uiLocale, "Prova", "Try")}</p>
             <div className="flex flex-wrap gap-1.5">
               {suggestedQueries.map((s) => (
-                <a
+                <Link
                   key={s}
-                  href={buildSearchUrl({ queryValue: s, museumId: museum, type: searchType })}
+                  to={buildSearchUrl({ queryValue: s, museumId: museum, type: searchType })}
+                  onPointerEnter={() => {
+                    if (searchType === "visual") prefetchVisualSearch(s);
+                  }}
+                  onFocus={() => {
+                    if (searchType === "visual") prefetchVisualSearch(s);
+                  }}
                   className="px-4 py-2 bg-paper text-[13px] text-secondary hover:text-primary transition-colors focus-ring rounded-card no-underline"
-                >{s}</a>
+                >{s}</Link>
               ))}
             </div>
           </div>
@@ -679,9 +697,9 @@ export default function Search({ loaderData }: Route.ComponentProps) {
                 { id: "artist" as SearchType, label: uiText(uiLocale, "Konstnärer", "Artists") },
                 { id: "visual" as SearchType, label: uiText(uiLocale, "Bildsök", "Visual") },
               ].map((option) => (
-                <a
+                <Link
                   key={option.id}
-                  href={buildSearchUrl({ type: option.id, museumId: museum })}
+                  to={buildSearchUrl({ type: option.id, museumId: museum })}
                   className={[
                     "shrink-0 px-4 py-2 text-[13px] border rounded-card transition-colors focus-ring no-underline",
                     searchType === option.id
@@ -690,7 +708,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
                   ].join(" ")}
                 >
                   {option.label}
-                </a>
+                </Link>
               ))}
             </div>
           </div>

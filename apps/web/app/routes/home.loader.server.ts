@@ -33,6 +33,20 @@ export type HomeLoaderData = {
   origin: string;
 };
 
+type CachedHomePayload = Omit<HomeLoaderData, "canonicalUrl" | "origin">;
+
+const HOME_INITIAL_ITEMS = 10;
+const HOME_INITIAL_ITEMS_MIN = 8;
+const HOME_THEME_PRELOAD_ITEMS = 6;
+const HOME_CACHE_TTL_MS = Number(process.env.KABINETT_HOME_CACHE_MS ?? "300000");
+let homeCache:
+  | {
+      key: string;
+      ts: number;
+      data: CachedHomePayload;
+    }
+  | null = null;
+
 /** Pick n random items from an array (Fisher-Yates partial shuffle). */
 function pickRandom<T>(arr: T[], n: number): T[] {
   const copy = arr.slice();
@@ -46,17 +60,41 @@ function pickRandom<T>(arr: T[], n: number): T[] {
   return result;
 }
 
+function cloneHomePayload(payload: CachedHomePayload): CachedHomePayload {
+  return {
+    ...payload,
+    initialItems: payload.initialItems.map((item) => ({ ...item })),
+    preloadedThemes: payload.preloadedThemes.map((theme) => ({
+      ...theme,
+      items: theme.items.map((item) => ({ ...item })),
+    })),
+    stats: { ...payload.stats },
+    spotlight: payload.spotlight ? { ...payload.spotlight } : null,
+  };
+}
+
 export async function homeLoader(request: Request): Promise<HomeLoaderData> {
   const url = new URL(request.url);
   const canonicalUrl = `${url.origin}${url.pathname}`;
   const enabledMuseums = getEnabledMuseums();
-  const sourceA = sourceFilter("a");
   const campaign = getCampaignConfig();
+  const cacheKey = `${campaign.id}:${enabledMuseums.join(",")}`;
+  const cached = homeCache;
+
+  if (cached && cached.key === cacheKey && Date.now() - cached.ts < HOME_CACHE_TTL_MS) {
+    return {
+      ...cloneHomePayload(cached.data),
+      canonicalUrl,
+      origin: url.origin,
+    };
+  }
+
+  const sourceA = sourceFilter("a");
   const db = getDb();
 
   // 1. Curated initial items — fast lookup by ID
   const curatedIds = getCuratedIds(campaign.id);
-  const pickedIds = pickRandom(curatedIds, 15);
+  const pickedIds = pickRandom(curatedIds, HOME_INITIAL_ITEMS);
   const placeholders = pickedIds.map(() => "?").join(",");
   const curatedRows = db.prepare(
     `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url,
@@ -78,14 +116,14 @@ export async function homeLoader(request: Request): Promise<HomeLoaderData> {
     imageUrl: buildImageUrl(row.iiif_url, 400),
   }));
 
-  if (initialItems.length < 12) {
-    const fallback = await fetchFeed({ cursor: null, limit: 15, filter: "Alla" });
+  if (initialItems.length < HOME_INITIAL_ITEMS_MIN) {
+    const fallback = await fetchFeed({ cursor: null, limit: HOME_INITIAL_ITEMS, filter: "Alla" });
     const seen = new Set(initialItems.map((item) => item.id));
     for (const item of fallback.items) {
       if (seen.has(item.id)) continue;
       initialItems.push(item);
       seen.add(item.id);
-      if (initialItems.length >= 15) break;
+      if (initialItems.length >= HOME_INITIAL_ITEMS) break;
     }
   }
 
@@ -133,14 +171,16 @@ export async function homeLoader(request: Request): Promise<HomeLoaderData> {
   const themes = getThemes(campaign.id);
   const firstTheme = themes[0];
   let preloadedThemes: ThemeCardSection[] = [];
-  try {
-    const themeResult = await fetchFeed({ cursor: null, limit: 8, filter: firstTheme.filter });
-    if (themeResult.items.length > 0) {
-      preloadedThemes = [{ ...firstTheme, items: themeResult.items }];
-    }
-  } catch { /* skip on error */ }
+  if (firstTheme) {
+    try {
+      const themeResult = await fetchFeed({ cursor: null, limit: HOME_THEME_PRELOAD_ITEMS, filter: firstTheme.filter });
+      if (themeResult.items.length > 0) {
+        preloadedThemes = [{ ...firstTheme, items: themeResult.items }];
+      }
+    } catch { /* skip on error */ }
+  }
 
-  return {
+  const payload: CachedHomePayload = {
     initialItems,
     initialCursor: null,
     initialHasMore: true,
@@ -157,6 +197,16 @@ export async function homeLoader(request: Request): Promise<HomeLoaderData> {
     metaDescription,
     noindex: campaign.noindex,
     campaignId: campaign.id,
+  };
+
+  homeCache = {
+    key: cacheKey,
+    ts: Date.now(),
+    data: cloneHomePayload(payload),
+  };
+
+  return {
+    ...cloneHomePayload(payload),
     canonicalUrl,
     origin: url.origin,
   };
