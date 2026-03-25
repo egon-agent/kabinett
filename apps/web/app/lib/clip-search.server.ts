@@ -84,6 +84,7 @@ let localVecAvailability: boolean | null = null;
 let localVecWarningShown = false;
 let faissFallbackWarningShown = false;
 const clipSearchCache = new Map<string, ClipSearchCacheEntry>();
+const clipSearchInFlight = new Map<string, Promise<ClipResult[]>>();
 const CLIP_SEARCH_CACHE_TTL_MS = Number(process.env.KABINETT_CLIP_SEARCH_CACHE_MS ?? "600000");
 const CLIP_SEARCH_CACHE_MAX_ENTRIES = Number(process.env.KABINETT_CLIP_SEARCH_CACHE_MAX ?? "200");
 
@@ -240,7 +241,6 @@ function buildQueryVariants(query: string, mode: ClipQueryVariantMode = "expande
     return [...new Set([
       trimmed,
       `an artwork depicting ${trimmed}`,
-      wordCount <= 3 ? `a painting of ${trimmed}` : "",
     ].filter(Boolean))];
   }
 
@@ -278,6 +278,10 @@ function readClipSearchCache(key: string): ClipResult[] | null {
     return null;
   }
   return cached.results.map((row) => ({ ...row }));
+}
+
+function cloneClipResults(results: ClipResult[]): ClipResult[] {
+  return results.map((row) => ({ ...row }));
 }
 
 function writeClipSearchCache(key: string, results: ClipResult[]): void {
@@ -536,63 +540,76 @@ export async function clipSearch(
   const cacheKey = buildClipSearchCacheKey(q, limit, offset, source, variantMode);
   const cached = readClipSearchCache(cacheKey);
   if (cached) return cached;
-
-  const variants = buildQueryVariants(q, variantMode);
-  if (variants.length === 0) return [];
-
-  const scope = parseSearchScope(source);
-  const desiredCount = offset + limit;
-  const allowedSource = sourceFilter("a");
-  const desiredK = scope.collectionName
-    ? Math.max(400, desiredCount * 6)
-    : Math.max(120, desiredCount);
-  const perVariantK = Math.max(desiredK, Math.ceil(desiredK * 1.5 / variants.length));
-  const aggregated = new Map<number, AggregatedCandidate>();
-  const RRF_K = 60;
-
-  for (const variant of variants) {
-    const variantKey = `${QUERY_EMBEDDING_VERSION}:${QUERY_PROMPT_VERSION}:${variant.trim().toLowerCase()}`;
-    let queryBuffer = getCachedQueryEmbedding(variantKey);
-    if (!queryBuffer) {
-      queryBuffer = await embedQuery(variant);
-      storeQueryEmbedding(variantKey, queryBuffer);
-    }
-
-    const rows = await runKnnQuery(
-      queryBuffer,
-      perVariantK,
-      allowedSource,
-      scope.source,
-      scope.subMuseum,
-      scope.collectionName
-    );
-
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      const rrf = 1 / (RRF_K + i + 1);
-      const existing = aggregated.get(row.id);
-      if (!existing) {
-        aggregated.set(row.id, { row, rrfScore: rrf, maxDistance: row.distance });
-        continue;
-      }
-      existing.rrfScore += rrf;
-      if (row.distance > existing.maxDistance) {
-        existing.maxDistance = row.distance;
-        existing.row = row;
-      }
-    }
+  const inflight = clipSearchInFlight.get(cacheKey);
+  if (inflight) {
+    return cloneClipResults(await inflight);
   }
 
-  const mergedRows = [...aggregated.values()]
-    .sort((a, b) => {
-      if (b.rrfScore !== a.rrfScore) return b.rrfScore - a.rrfScore;
-      return b.maxDistance - a.maxDistance;
-    })
-    .slice(offset, offset + limit);
+  const request = (async () => {
+    const variants = buildQueryVariants(q, variantMode);
+    if (variants.length === 0) return [];
 
-  const results = mergedRows.map(({ row, maxDistance }) => toClipResult(row, maxDistance));
-  writeClipSearchCache(cacheKey, results);
-  return results;
+    const scope = parseSearchScope(source);
+    const desiredCount = offset + limit;
+    const allowedSource = sourceFilter("a");
+    const desiredK = scope.collectionName
+      ? Math.max(400, desiredCount * 6)
+      : Math.max(120, desiredCount);
+    const perVariantK = Math.max(desiredK, Math.ceil(desiredK * 1.5 / variants.length));
+    const aggregated = new Map<number, AggregatedCandidate>();
+    const RRF_K = 60;
+
+    for (const variant of variants) {
+      const variantKey = `${QUERY_EMBEDDING_VERSION}:${QUERY_PROMPT_VERSION}:${variant.trim().toLowerCase()}`;
+      let queryBuffer = getCachedQueryEmbedding(variantKey);
+      if (!queryBuffer) {
+        queryBuffer = await embedQuery(variant);
+        storeQueryEmbedding(variantKey, queryBuffer);
+      }
+
+      const rows = await runKnnQuery(
+        queryBuffer,
+        perVariantK,
+        allowedSource,
+        scope.source,
+        scope.subMuseum,
+        scope.collectionName
+      );
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const rrf = 1 / (RRF_K + i + 1);
+        const existing = aggregated.get(row.id);
+        if (!existing) {
+          aggregated.set(row.id, { row, rrfScore: rrf, maxDistance: row.distance });
+          continue;
+        }
+        existing.rrfScore += rrf;
+        if (row.distance > existing.maxDistance) {
+          existing.maxDistance = row.distance;
+          existing.row = row;
+        }
+      }
+    }
+
+    const mergedRows = [...aggregated.values()]
+      .sort((a, b) => {
+        if (b.rrfScore !== a.rrfScore) return b.rrfScore - a.rrfScore;
+        return b.maxDistance - a.maxDistance;
+      })
+      .slice(offset, offset + limit);
+
+    const results = mergedRows.map(({ row, maxDistance }) => toClipResult(row, maxDistance));
+    writeClipSearchCache(cacheKey, results);
+    return results;
+  })();
+
+  clipSearchInFlight.set(cacheKey, request);
+  try {
+    return cloneClipResults(await request);
+  } finally {
+    clipSearchInFlight.delete(cacheKey);
+  }
 }
 
 export async function clipSearchFromSeedIds(

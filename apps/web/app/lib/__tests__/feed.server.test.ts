@@ -244,4 +244,33 @@ describe("fetchFeed", () => {
 
     expect(secondPage.items.map((item) => item.id)).toEqual([99, 199]);
   });
+
+  it("uses FTS-backed category filters instead of a broad LIKE scan", async () => {
+    allMock.mockReturnValue([
+      {
+        id: 301,
+        title_sv: "Skulptur i sten",
+        title_en: null,
+        artists: null,
+        dating_text: "1900",
+        iiif_url: "https://example.com/iiif/skulptur-301-abcdefghijklmnopqrstuv",
+        dominant_color: "#999999",
+        category: "Friskulpturer (Skulptur)",
+        technique_material: "Sten",
+        museum_name: "Nationalmuseum",
+        focal_x: null,
+        focal_y: null,
+      },
+    ]);
+
+    const result = await fetchFeed({ limit: 8, filter: "Skulptur" });
+
+    expect(allMock).toHaveBeenCalledWith('category:"skulptur"*', "nm", 24);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
+      id: 301,
+      category: "Friskulpturer (Skulptur)",
+    });
+    expect(result.mode).toBe("offset");
+  });
 });

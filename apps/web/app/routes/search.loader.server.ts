@@ -275,12 +275,17 @@ async function loadSearchResults(args: {
           .slice(0, PAGE_SIZE) as SearchResult[];
       };
 
-      const clipOptions = type === "visual" ? { variantMode: "balanced" as const } : undefined;
+      const { shouldTranslateToEnglish, translateToEnglish } = await import("../lib/translate.server");
+      const shouldTranslate = shouldTranslateToEnglish(query);
+      const clipOptions = type === "visual"
+        ? { variantMode: shouldTranslate ? "strict" as const : "balanced" as const }
+        : undefined;
+      const translatedClipOptions = type === "visual"
+        ? { variantMode: "balanced" as const }
+        : undefined;
       const originalResults = await clipMod.clipSearch(query, PAGE_SIZE, 0, museum || undefined, clipOptions);
       let merged = mergeBestResults([originalResults]);
 
-      const { shouldTranslateToEnglish, translateToEnglish } = await import("../lib/translate.server");
-      const shouldTranslate = shouldTranslateToEnglish(query);
       const shouldTryFallback = shouldTranslate
         && shouldTryTranslatedClipFallback(merged, { visual: type === "visual" });
 
@@ -296,7 +301,13 @@ async function loadSearchResults(args: {
         });
 
         if (isTranslated) {
-          const translatedResults = await clipMod.clipSearch(enQuery, PAGE_SIZE, 0, museum || undefined, clipOptions);
+          const translatedResults = await clipMod.clipSearch(
+            enQuery,
+            PAGE_SIZE,
+            0,
+            museum || undefined,
+            translatedClipOptions
+          );
           merged = mergeBestResults([merged as unknown as any[], translatedResults]);
         }
       }

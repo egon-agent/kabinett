@@ -1,5 +1,9 @@
 const cache = new Map<string, string>();
+const inflightTranslations = new Map<string, Promise<string>>();
+const failedTranslations = new Map<string, number>();
 const TRANSLATE_TIMEOUT_MS = Number(process.env.KABINETT_TRANSLATE_TIMEOUT_MS ?? "700");
+const TRANSLATE_FAILURE_TTL_MS = Number(process.env.KABINETT_TRANSLATE_FAILURE_TTL_MS ?? "5000");
+const TRANSLATE_CACHE_MAX_ENTRIES = 5000;
 
 const SWEDISH_HINTS = new Set([
   "och",
@@ -81,6 +85,46 @@ function normalizeToken(input: string): string {
     .trim();
 }
 
+function trimBoundedMap<T>(map: Map<string, T>): void {
+  if (map.size <= TRANSLATE_CACHE_MAX_ENTRIES) return;
+  const first = map.keys().next().value;
+  if (first) map.delete(first);
+}
+
+function hasRecentTranslationFailure(text: string): boolean {
+  const failedAt = failedTranslations.get(text);
+  if (!failedAt) return false;
+  if (Date.now() - failedAt < TRANSLATE_FAILURE_TTL_MS) {
+    return true;
+  }
+  failedTranslations.delete(text);
+  return false;
+}
+
+function rememberTranslationFailure(text: string): void {
+  failedTranslations.set(text, Date.now());
+  trimBoundedMap(failedTranslations);
+}
+
+async function fetchWithHardTimeout(url: string): Promise<Response> {
+  const controller = new AbortController();
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  try {
+    return await Promise.race([
+      fetch(url, { signal: controller.signal }),
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          controller.abort();
+          reject(new DOMException("The operation was aborted due to timeout", "TimeoutError"));
+        }, TRANSLATE_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
 export function shouldTranslateToEnglish(text: string): boolean {
   const trimmed = text.trim();
   if (!trimmed) return false;
@@ -126,25 +170,42 @@ export async function translateToEnglish(text: string): Promise<string> {
     return trimmed;
   }
 
-  const cached = cache.get(trimmed);
-  if (cached) return cached;
+  if (cache.has(trimmed)) {
+    return cache.get(trimmed) ?? trimmed;
+  }
 
-  try {
-    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=sv&tl=en&dt=t&q=${encodeURIComponent(trimmed)}`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(TRANSLATE_TIMEOUT_MS) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    // Response format: [[["translated","original",...],...]...]
-    const translated = data?.[0]?.map((seg: any) => seg[0]).join("") || trimmed;
-    cache.set(trimmed, translated);
-    // Keep cache bounded
-    if (cache.size > 5000) {
-      const first = cache.keys().next().value;
-      if (first) cache.delete(first);
-    }
-    return translated;
-  } catch (err) {
-    console.error("[Translate error]", err);
+  if (hasRecentTranslationFailure(trimmed)) {
     return trimmed;
   }
+
+  const inflight = inflightTranslations.get(trimmed);
+  if (inflight) return inflight;
+
+  const request = (async () => {
+    try {
+      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=sv&tl=en&dt=t&q=${encodeURIComponent(trimmed)}`;
+      const res = await fetchWithHardTimeout(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      // Response format: [[["translated","original",...],...]...]
+      const translated = data?.[0]?.map((seg: any) => seg[0]).join("") || trimmed;
+      cache.set(trimmed, translated);
+      trimBoundedMap(cache);
+      failedTranslations.delete(trimmed);
+      return translated;
+    } catch (err) {
+      rememberTranslationFailure(trimmed);
+      if ((err as { name?: string }).name === "TimeoutError") {
+        console.warn("[Translate timeout]", trimmed);
+      } else {
+        console.error("[Translate error]", err);
+      }
+      return trimmed;
+    } finally {
+      inflightTranslations.delete(trimmed);
+    }
+  })();
+
+  inflightTranslations.set(trimmed, request);
+  return request;
 }

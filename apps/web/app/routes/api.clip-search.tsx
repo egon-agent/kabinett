@@ -156,7 +156,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
   if (mode === "clip") {
     try {
       // Hybrid: CLIP + FTS in parallel, CLIP results first, FTS fills gaps.
-      const clipOptions = type === "visual" ? { variantMode: "balanced" as const } : undefined;
+      const shouldTranslate = shouldTranslateToEnglish(q);
+      const clipOptions = type === "visual"
+        ? { variantMode: shouldTranslate ? "strict" as const : "balanced" as const }
+        : undefined;
+      const translatedClipOptions = type === "visual"
+        ? { variantMode: "balanced" as const }
+        : undefined;
       const [originalClipResults, ftsResults] = await Promise.all([
         clipSearch(q, limit, offset, scoped, clipOptions).catch(() => [] as any[]),
         (async () => {
@@ -192,7 +198,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
       const clipFilterOptions = type === "visual" ? { visual: true, limit } : undefined;
       let clipResults = filterClipByConfidence(rawClip, clipFilterOptions);
 
-      const shouldTranslate = shouldTranslateToEnglish(q);
       const shouldTryFallback = shouldTranslate
         && shouldTryTranslatedClipFallback(clipResults, { visual: type === "visual" });
 
@@ -202,7 +207,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
         translatedQuery = await translateToEnglish(q);
         isTranslated = translatedQuery.trim().toLowerCase() !== q.toLowerCase();
         if (isTranslated) {
-          const translatedClipResults = await clipSearch(translatedQuery, limit, offset, scoped, clipOptions).catch(() => [] as any[]);
+          const translatedClipResults = await clipSearch(
+            translatedQuery,
+            limit,
+            offset,
+            scoped,
+            translatedClipOptions
+          ).catch(() => [] as any[]);
           rawClip = mergeBestClipResults([rawClip, translatedClipResults]);
           clipResults = filterClipByConfidence(rawClip, clipFilterOptions);
         }

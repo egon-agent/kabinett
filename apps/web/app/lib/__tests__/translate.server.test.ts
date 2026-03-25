@@ -42,6 +42,39 @@ describe("translate.server", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("deduplicates concurrent translations for the same query", async () => {
+    let resolveFetch!: (value: { ok: boolean; json: () => Promise<unknown> }) => void;
+    const fetchMock = vi.fn().mockImplementation(() => new Promise<{
+      ok: boolean;
+      json: () => Promise<unknown>;
+    }>((resolve) => {
+      resolveFetch = resolve;
+    }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const first = translateToEnglish("röd hatt dedupe");
+    const second = translateToEnglish("röd hatt dedupe");
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    resolveFetch({
+      ok: true,
+      json: async () => [[["red hat"]]],
+    });
+
+    await expect(first).resolves.toBe("red hat");
+    await expect(second).resolves.toBe("red hat");
+  });
+
+  it("short-circuits immediate retries after a translation timeout", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new DOMException("timeout", "TimeoutError"));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(translateToEnglish("röd timeout cache")).resolves.toBe("röd timeout cache");
+    await expect(translateToEnglish("röd timeout cache")).resolves.toBe("röd timeout cache");
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("treats ascii Swedish queries as translatable when they contain Swedish hints", () => {
     expect(shouldTranslateToEnglish("rod klanning")).toBe(true);
   });

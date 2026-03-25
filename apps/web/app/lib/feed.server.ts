@@ -47,6 +47,12 @@ const CENTURIES: Record<string, { from: number; to: number }> = {
 };
 
 const CATEGORY_FILTERS = new Set(["Målningar", "Skulptur", "Porträtt", "Landskap"]);
+const CATEGORY_FTS_QUERIES: Record<string, string> = {
+  "Målningar": 'category:"målning"*',
+  "Skulptur": 'category:"skulptur"*',
+  "Porträtt": 'category:"porträtt"*',
+  "Landskap": 'category:"landskap"*',
+};
 
 const MOOD_QUERIES: Record<string, { fts: string }> = {
   Djur: {
@@ -183,6 +189,47 @@ function queryAllaRowsPerMuseum(
   return { rows: mergedRows, hasMore };
 }
 
+function queryFtsFeedRows(args: {
+  db: ReturnType<typeof getDb>;
+  ftsQuery: string;
+  source: ReturnType<typeof sourceFilter>;
+  limit: number;
+  offset: number;
+  orderBy: string;
+}): FeedItemRow[] {
+  const { db, ftsQuery, source, limit, offset, orderBy } = args;
+  const overFetch = (limit + offset) * 3;
+  const rawRows = db
+    .prepare(
+      `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
+              a.focal_x, a.focal_y,
+              COALESCE(a.sub_museum, m.name) as museum_name,
+              artworks_fts.rank as relevance
+       FROM artworks_fts
+       JOIN artworks a ON a.id = artworks_fts.rowid
+       LEFT JOIN museums m ON m.id = a.source
+       WHERE artworks_fts MATCH ?
+         AND a.iiif_url IS NOT NULL
+         AND LENGTH(a.iiif_url) > 40
+         AND LENGTH(COALESCE(a.title_sv, a.title_en, '')) <= 140
+         AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+         AND ${source.sql}
+       ORDER BY ${orderBy}
+       LIMIT ?`
+    )
+    .all(ftsQuery, ...source.params, overFetch) as (FeedItemRow & { relevance: number })[];
+
+  const seen = new Set<string>();
+  const deduped: FeedItemRow[] = [];
+  for (const row of rawRows) {
+    if (row.iiif_url && seen.has(row.iiif_url)) continue;
+    if (row.iiif_url) seen.add(row.iiif_url);
+    deduped.push(row);
+  }
+
+  return deduped.slice(offset, offset + limit);
+}
+
 export async function fetchFeed(options: {
   cursor?: number | null;
   limit: number;
@@ -200,37 +247,42 @@ export async function fetchFeed(options: {
     const offset = Math.max(0, cursor || 0);
     let rows: FeedItemRow[];
     try {
-    // Fetch extra rows and dedupe in JS to avoid expensive window function
-    const overFetch = (limit + offset) * 3;
-    const rawRows = db
-      .prepare(
-        `SELECT a.id, a.title_sv, a.title_en, a.artists, a.dating_text, a.iiif_url, a.dominant_color, a.category, a.technique_material,
-                a.focal_x, a.focal_y,
-                COALESCE(a.sub_museum, m.name) as museum_name,
-                artworks_fts.rank as relevance
-         FROM artworks_fts
-         JOIN artworks a ON a.id = artworks_fts.rowid
-         LEFT JOIN museums m ON m.id = a.source
-         WHERE artworks_fts MATCH ?
-           AND a.iiif_url IS NOT NULL
-           AND LENGTH(a.iiif_url) > 40
-           AND LENGTH(COALESCE(a.title_sv, a.title_en, '')) <= 140
-           AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-           AND ${sourceA.sql}
-         ORDER BY artworks_fts.rank ASC, a.id DESC
-         LIMIT ?`
-      )
-      .all(mood.fts, ...sourceA.params, overFetch) as (FeedItemRow & { relevance: number })[];
-    const seen = new Set<string>();
-    const deduped: FeedItemRow[] = [];
-    for (const row of rawRows) {
-      if (row.iiif_url && seen.has(row.iiif_url)) continue;
-      if (row.iiif_url) seen.add(row.iiif_url);
-      deduped.push(row);
-    }
-    rows = deduped.slice(offset, offset + limit);
+      rows = queryFtsFeedRows({
+        db,
+        ftsQuery: mood.fts,
+        source: sourceA,
+        limit,
+        offset,
+        orderBy: "artworks_fts.rank ASC, a.id DESC",
+      });
     } catch (err) {
       console.error("FTS mood query failed (artworks_fts may be missing):", err);
+      rows = [];
+    }
+
+    return {
+      items: mapRows(rows),
+      nextCursor: offset + rows.length,
+      hasMore: rows.length === limit,
+      mode: "offset" as const,
+    };
+  }
+
+  if (CATEGORY_FILTERS.has(filter)) {
+    const offset = Math.max(0, cursor || 0);
+    const ftsQuery = CATEGORY_FTS_QUERIES[filter];
+    let rows: FeedItemRow[];
+    try {
+      rows = queryFtsFeedRows({
+        db,
+        ftsQuery,
+        source: sourceA,
+        limit,
+        offset,
+        orderBy: "a.id ASC",
+      });
+    } catch (err) {
+      console.error("FTS category query failed (artworks_fts may be missing):", err);
       rows = [];
     }
 
@@ -291,11 +343,6 @@ export async function fetchFeed(options: {
       hasMore: pageHasMore,
       mode: "cursor" as const,
     };
-  }
-
-  if (CATEGORY_FILTERS.has(filter)) {
-    baseConditions.push("a.category LIKE ?");
-    baseParams.push(`%${filter}%`);
   }
 
   if (filter === "Rött" || filter === "Blått") {
