@@ -194,6 +194,7 @@ export async function loader({ request }: Route.LoaderArgs) {
         source: sourceA,
         museum: museumFilter,
         limit: 3,
+        matchMode: "prefix",
       });
 
       for (const artist of artists) {

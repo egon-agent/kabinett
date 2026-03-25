@@ -277,10 +277,12 @@ async function loadSearchResults(args: {
 
       const { getLocalEnglishTranslation, shouldTranslateToEnglish, translateToEnglish } = await import("../lib/translate.server");
       const localEnglishQuery = getLocalEnglishTranslation(query);
-      const primaryClipQuery = localEnglishQuery ?? query;
       const shouldTranslate = !localEnglishQuery && shouldTranslateToEnglish(query);
+      const translatedPrimaryQuery = shouldTranslate ? await translateToEnglish(query) : query;
+      const primaryClipQuery = localEnglishQuery ?? translatedPrimaryQuery;
+      const usedTranslatedPrimary = primaryClipQuery.trim().toLowerCase() !== query.toLowerCase();
       const clipOptions = type === "visual"
-        ? { variantMode: localEnglishQuery || !shouldTranslate ? "balanced" as const : "strict" as const }
+        ? { variantMode: usedTranslatedPrimary || !shouldTranslate ? "balanced" as const : "strict" as const }
         : undefined;
       const translatedClipOptions = type === "visual"
         ? { variantMode: "balanced" as const }
@@ -289,6 +291,7 @@ async function loadSearchResults(args: {
       let merged = mergeBestResults([originalResults]);
 
       const shouldTryFallback = shouldTranslate
+        && !usedTranslatedPrimary
         && shouldTryTranslatedClipFallback(merged, { visual: type === "visual" });
 
       if (shouldTryFallback) {
@@ -756,7 +759,10 @@ export function searchLoader(request: Request): SearchLoaderData {
   return {
     query,
     museum,
-    results: loadSearchResults({ query, museum, mode: searchMode, type: searchType }),
+    results: loadSearchResults({ query, museum, mode: searchMode, type: searchType }).catch((error) => {
+      console.error("[Search results error]", error);
+      return { results: [], total: 0, cursor: null };
+    }),
     museumOptions,
     showMuseumBadge,
     searchMode,

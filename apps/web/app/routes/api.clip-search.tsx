@@ -157,10 +157,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
     try {
       // Hybrid: CLIP + FTS in parallel, CLIP results first, FTS fills gaps.
       const localEnglishQuery = getLocalEnglishTranslation(q);
-      const primaryClipQuery = localEnglishQuery ?? q;
       const shouldTranslate = !localEnglishQuery && shouldTranslateToEnglish(q);
+      const translatedPrimaryQuery = shouldTranslate ? await translateToEnglish(q) : q;
+      const primaryClipQuery = localEnglishQuery ?? translatedPrimaryQuery;
+      const usedTranslatedPrimary = primaryClipQuery.trim().toLowerCase() !== q.toLowerCase();
       const clipOptions = type === "visual"
-        ? { variantMode: localEnglishQuery || !shouldTranslate ? "balanced" as const : "strict" as const }
+        ? { variantMode: usedTranslatedPrimary || !shouldTranslate ? "balanced" as const : "strict" as const }
         : undefined;
       const translatedClipOptions = type === "visual"
         ? { variantMode: "balanced" as const }
@@ -201,10 +203,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
       let clipResults = filterClipByConfidence(rawClip, clipFilterOptions);
 
       const shouldTryFallback = shouldTranslate
+        && !usedTranslatedPrimary
         && shouldTryTranslatedClipFallback(clipResults, { visual: type === "visual" });
 
-      let isTranslated = Boolean(localEnglishQuery && localEnglishQuery.trim().toLowerCase() !== q.toLowerCase());
-      let translatedQuery = localEnglishQuery ?? q;
+      let isTranslated = usedTranslatedPrimary;
+      let translatedQuery = primaryClipQuery;
       if (shouldTryFallback) {
         translatedQuery = await translateToEnglish(q);
         isTranslated = translatedQuery.trim().toLowerCase() !== q.toLowerCase();

@@ -92,6 +92,37 @@ function SearchResultsSkeleton() {
   );
 }
 
+function SearchResultsError({ retryUrl }: { retryUrl: string }) {
+  const uiLocale = useUiLocale();
+
+  return (
+    <div className="px-4 md:px-6 lg:px-10 py-6" aria-live="polite">
+      <div className="max-w-xl rounded-card border border-rule bg-white p-5 shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
+        <p className="text-[16px] text-primary">
+          {uiText(uiLocale, "Kunde inte ladda sökresultaten just nu.", "Couldn't load the search results right now.")}
+        </p>
+        <p className="mt-2 text-[13px] text-secondary">
+          {uiText(uiLocale, "Försök igen om en liten stund.", "Try again in a moment.")}
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link
+            to={retryUrl}
+            className="inline-flex items-center rounded-card bg-primary px-4 py-2 text-[13px] text-white no-underline transition-colors hover:opacity-90 focus-ring"
+          >
+            {uiText(uiLocale, "Försök igen", "Try again")}
+          </Link>
+          <Link
+            to="/"
+            className="inline-flex items-center rounded-card border border-[#C8C3BC] px-4 py-2 text-[13px] text-secondary no-underline transition-colors hover:text-primary hover:border-secondary focus-ring"
+          >
+            {uiText(uiLocale, "Till startsidan", "Go to home")}
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function toArtworkItem(result: ArtworkSearchResult): ArtworkDisplayItem {
   const title = result.title || result.title_sv || result.title_en || "Utan titel";
   const imageUrl = result.imageUrl || (result.iiif_url ? buildImageUrl(result.iiif_url, 400) : "");
@@ -653,6 +684,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
     const qs = params.toString();
     return qs ? `/search?${qs}` : "/search";
   };
+  const retryUrl = buildSearchUrl();
 
   return (
     <div className="min-h-screen pt-16 bg-white text-primary">
@@ -734,7 +766,10 @@ export default function Search({ loaderData }: Route.ComponentProps) {
       {showResults && (
         <div className="pb-24">
           <Suspense fallback={<div className="px-4 md:px-6 lg:px-10"><SearchResultsSkeleton /></div>}>
-            <Await resolve={initialResultsPromise}>
+            <Await
+              resolve={initialResultsPromise}
+              errorElement={<SearchResultsError retryUrl={retryUrl} />}
+            >
               {(initialPayload: SearchResultsPayload) => (
                 <SearchResultsPanel
                   initialPayload={initialPayload}

@@ -555,7 +555,7 @@ export async function clipSearch(
     const desiredK = scope.collectionName
       ? Math.max(400, desiredCount * 6)
       : Math.max(120, desiredCount);
-    const perVariantK = Math.max(desiredK, Math.ceil(desiredK * 1.5 / variants.length));
+    const perVariantK = desiredK;
     const aggregated = new Map<number, AggregatedCandidate>();
     const RRF_K = 60;
 

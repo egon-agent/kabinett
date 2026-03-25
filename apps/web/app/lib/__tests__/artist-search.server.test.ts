@@ -19,6 +19,11 @@ beforeEach(() => {
       title_sv TEXT
     );
 
+    CREATE TABLE museums (
+      id TEXT PRIMARY KEY,
+      name TEXT
+    );
+
     CREATE TABLE broken_images (
       artwork_id INTEGER PRIMARY KEY
     );
@@ -153,5 +158,33 @@ describe("searchArtistsByScope", () => {
     });
 
     expect(results).toEqual([{ name: "Petre Bulgăraș", artwork_count: 1 }]);
+  });
+
+  it("supports prefix-only matching for autocomplete without infix hits", () => {
+    db.prepare(
+      `INSERT INTO artworks (id, source, iiif_url, title_sv) VALUES (?, ?, ?, ?)`
+    ).run(1, "nordiska", "https://example.org/iiif/nordiska-artist-prefix-1-abcdefghijklmnopqrstuvwxyz", "Verk 1");
+    db.prepare(
+      `INSERT INTO artworks (id, source, iiif_url, title_sv) VALUES (?, ?, ?, ?)`
+    ).run(2, "nordiska", "https://example.org/iiif/nordiska-artist-prefix-2-abcdefghijklmnopqrstuvwxyz", "Verk 2");
+
+    db.prepare(
+      `INSERT INTO artwork_artists (artwork_id, artist_name, artist_name_norm, position)
+       VALUES (?, ?, ?, ?)`
+    ).run(1, "Anna Blom", "anna blom", 0);
+    db.prepare(
+      `INSERT INTO artwork_artists (artwork_id, artist_name, artist_name_norm, position)
+       VALUES (?, ?, ?, ?)`
+    ).run(2, "Johanna Berg", "johanna berg", 0);
+
+    const results = searchArtistsByScope({
+      db,
+      query: "anna",
+      source: nordiskaSource,
+      limit: 10,
+      matchMode: "prefix",
+    });
+
+    expect(results).toEqual([{ name: "Anna Blom", artwork_count: 1 }]);
   });
 });

@@ -6,6 +6,8 @@ export type ArtistSearchRow = {
   artwork_count: number;
 };
 
+type ArtistSearchMatchMode = "contains" | "prefix";
+
 function normalizeArtistSearchTerm(name: string): string {
   return name
     .normalize("NFKD")
@@ -39,14 +41,53 @@ export function searchArtistsByScope(args: {
   source: SqlFragment;
   museum?: SqlFragment | null;
   limit: number;
+  matchMode?: ArtistSearchMatchMode;
 }): ArtistSearchRow[] {
-  const { db, query, source, museum, limit } = args;
+  const { db, query, source, museum, limit, matchMode = "contains" } = args;
   const normalizedQuery = normalizeArtistSearchTerm(query);
   if (!normalizedQuery) return [];
 
   const scoped = appendScopeFilters(source, museum);
   const containsPattern = `%${escapeLike(normalizedQuery)}%`;
   const prefixPattern = `${escapeLike(normalizedQuery)}%`;
+  const prefixUpperBound = `${normalizedQuery}\uffff`;
+
+  if (matchMode === "prefix") {
+    return db.prepare(
+      `SELECT MIN(aa.artist_name) as name,
+              COUNT(DISTINCT aa.artwork_id) as artwork_count
+       FROM artwork_artists aa
+       JOIN artworks a ON a.id = aa.artwork_id
+       LEFT JOIN museums m ON m.id = a.source
+       WHERE aa.artist_name_norm >= ?
+         AND aa.artist_name_norm < ?
+         AND aa.artist_name NOT LIKE '%känd%'
+         AND aa.artist_name NOT LIKE '%nonym%'
+         AND aa.artist_name NOT LIKE 'http://%'
+         AND aa.artist_name NOT LIKE 'https://%'
+         AND aa.artist_name NOT LIKE 'www.%'
+         AND aa.artist_name NOT GLOB '[0-9]*_*'
+         AND a.iiif_url IS NOT NULL
+         AND LENGTH(a.iiif_url) > 40
+         AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+         ${scoped.sql}
+       GROUP BY aa.artist_name_norm
+       ORDER BY CASE
+                  WHEN aa.artist_name_norm = ? THEN 0
+                  ELSE 1
+                END,
+                artwork_count DESC,
+                LENGTH(name) ASC,
+                name ASC
+       LIMIT ?`
+    ).all(
+      normalizedQuery,
+      prefixUpperBound,
+      ...scoped.params,
+      normalizedQuery,
+      limit
+    ) as ArtistSearchRow[];
+  }
 
   return db.prepare(
     `SELECT MIN(aa.artist_name) as name,
