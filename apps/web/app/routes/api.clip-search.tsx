@@ -162,7 +162,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       const primaryClipQuery = localEnglishQuery ?? translatedPrimaryQuery;
       const usedTranslatedPrimary = primaryClipQuery.trim().toLowerCase() !== q.toLowerCase();
       const clipOptions = type === "visual"
-        ? { variantMode: usedTranslatedPrimary || !shouldTranslate ? "balanced" as const : "strict" as const }
+        ? { variantMode: usedTranslatedPrimary ? "strict" as const : "balanced" as const }
         : undefined;
       const translatedClipOptions = type === "visual"
         ? { variantMode: "balanced" as const }

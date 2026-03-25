@@ -225,8 +225,9 @@ function SearchAutocompleteForm({
   const buildAutocompleteUrl = useCallback((value: string) => {
     const params = new URLSearchParams({ q: value });
     if (museum) params.set("museum", museum);
+    if (searchType !== "all") params.set("type", searchType);
     return `/api/autocomplete?${params.toString()}`;
-  }, [museum]);
+  }, [museum, searchType]);
 
   const placeholder = uiText(uiLocale, "Beskriv vad du letar efter…", "Describe what you're looking for…");
 

@@ -44,6 +44,8 @@ type AutocompletePayload = {
   clips: ClipSuggestion[];
 };
 
+type AutocompleteSearchType = "all" | "artwork" | "artist" | "visual";
+
 function emptyPayload(): AutocompletePayload {
   return {
     artworks: [],
@@ -64,11 +66,13 @@ function responseHeaders(): HeadersInit {
 
 function cacheKeyForQuery(
   query: string,
+  searchType: AutocompleteSearchType,
   source: { sql: string; params: string[] },
   museum?: { sql: string; params: string[] } | null
 ): string {
   return [
     query.toLowerCase(),
+    searchType,
     source.sql,
     source.params.join(","),
     museum?.sql || "",
@@ -106,6 +110,9 @@ export async function loader({ request }: Route.LoaderArgs) {
     .trim()
     .slice(0, 80);
   const museum = url.searchParams.get("museum")?.trim() || "";
+  const rawType = url.searchParams.get("type");
+  const searchType: AutocompleteSearchType =
+    rawType === "artwork" || rawType === "artist" || rawType === "visual" ? rawType : "all";
 
   if (q.length < 1) return Response.json(emptyPayload(), { headers: responseHeaders() });
 
@@ -113,7 +120,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const sourceA = sourceFilter("a");
   const qLower = q.toLowerCase();
   const museumFilter = museumFilterSql(museum, "a");
-  const cacheKey = cacheKeyForQuery(qLower, sourceA, museumFilter);
+  const cacheKey = cacheKeyForQuery(qLower, searchType, sourceA, museumFilter);
   const cachedPayload = getCachedPayload(cacheKey);
   if (cachedPayload) {
     return Response.json(cachedPayload, { headers: responseHeaders() });
@@ -186,7 +193,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   }
 
   // 1. Artist matches scoped to the active museum selection and subdomain.
-  if (q.length >= 2) {
+  if (q.length >= 2 && (searchType === "all" || searchType === "artist")) {
     try {
       const artists = searchArtistsByScope({
         db,
