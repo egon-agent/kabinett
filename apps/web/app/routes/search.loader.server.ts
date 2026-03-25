@@ -194,6 +194,7 @@ export type SearchResultsPayload = {
 export type SearchLoaderData = {
   query: string;
   museum: string;
+  initialPayload: SearchResultsPayload | null;
   results: Promise<SearchResultsPayload>;
   museumOptions: MuseumOption[];
   showMuseumBadge: boolean;
@@ -241,6 +242,43 @@ function resolveSearchMode(rawMode: string | null, query: string, searchType: Se
   return "fts";
 }
 
+function buildInitialVisualPayload(args: {
+  query: string;
+  museum: string;
+}): SearchResultsPayload {
+  const { query, museum } = args;
+  if (!query) {
+    return { results: [], total: 0, cursor: null };
+  }
+
+  try {
+    const db = getDb();
+    const sourceA = sourceFilter("a");
+    const mf = museumFilterSql(museum, "a");
+    const rows = searchArtworksText({
+      db,
+      query,
+      source: sourceA,
+      museum: mf,
+      limit: INITIAL_VISUAL_PAGE_SIZE,
+      scope: "broad",
+    }) as SearchResult[];
+
+    rows.forEach((row) => {
+      row.matchType = "fts" as MatchType;
+      row.snippet = buildArtworkSnippet(row, query);
+    });
+
+    return {
+      results: toArtworkSearchResults(rows),
+      total: rows.length,
+      cursor: null,
+    };
+  } catch {
+    return { results: [], total: 0, cursor: null };
+  }
+}
+
 async function loadSearchResults(args: {
   query: string;
   museum: string;
@@ -258,7 +296,7 @@ async function loadSearchResults(args: {
 
   const mf = museumFilterSql(museum, 'a');
 
-  const runClipSearch = async (): Promise<SearchResult[]> => {
+  const runClipSearch = async (clipLimit = PAGE_SIZE): Promise<SearchResult[]> => {
     return import("../lib/clip-search.server").then(async (clipMod) => {
       const mergeBestResults = (resultSets: Array<any[]>) => {
         const best = new Map<number, any>();
@@ -287,7 +325,7 @@ async function loadSearchResults(args: {
       const translatedClipOptions = type === "visual"
         ? { variantMode: "balanced" as const }
         : undefined;
-      const originalResults = await clipMod.clipSearch(primaryClipQuery, PAGE_SIZE, 0, museum || undefined, clipOptions);
+      const originalResults = await clipMod.clipSearch(primaryClipQuery, clipLimit, 0, museum || undefined, clipOptions);
       let merged = mergeBestResults([originalResults]);
 
       const shouldTryFallback = shouldTranslate
@@ -308,7 +346,7 @@ async function loadSearchResults(args: {
         if (isTranslated) {
           const translatedResults = await clipMod.clipSearch(
             enQuery,
-            PAGE_SIZE,
+            clipLimit,
             0,
             museum || undefined,
             translatedClipOptions
@@ -404,7 +442,8 @@ async function loadSearchResults(args: {
 
   if (query && type === "visual") {
     const visualLimit = INITIAL_VISUAL_PAGE_SIZE;
-    const clipResults = (await runClipSearch()).slice(0, visualLimit);
+    const initialClipFetchLimit = Math.max(visualLimit, 36);
+    const clipResults = (await runClipSearch(initialClipFetchLimit)).slice(0, visualLimit);
     const filteredClip = filterClipByConfidence(clipResults, { visual: true, limit: PAGE_SIZE })
       .slice(0, visualLimit);
 
@@ -755,10 +794,14 @@ export function searchLoader(request: Request): SearchLoaderData {
     : museumParam && isValidMuseumFilter(museumParam)
       ? museumParam
       : "";
+  const initialPayload = searchType === "visual"
+    ? buildInitialVisualPayload({ query, museum })
+    : null;
 
   return {
     query,
     museum,
+    initialPayload,
     results: loadSearchResults({ query, museum, mode: searchMode, type: searchType }).catch((error) => {
       console.error("[Search results error]", error);
       return { results: [], total: 0, cursor: null };

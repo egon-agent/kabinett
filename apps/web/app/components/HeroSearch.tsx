@@ -68,6 +68,14 @@ export default function HeroSearch({
     void fetch(`/api/clip-search?${params.toString()}`).catch(() => {});
   }, []);
 
+  const buildAutocompleteUrl = useCallback((value: string) => {
+    const params = new URLSearchParams({
+      q: value,
+      type: "visual",
+    });
+    return `/api/autocomplete?${params.toString()}`;
+  }, []);
+
   const goToSearch = useCallback(
     (q: string, type: "all" | "visual" = "all") => {
       const trimmed = q.trim();
@@ -139,6 +147,7 @@ export default function HeroSearch({
         query={query}
         onQueryChange={setQuery}
         onSelect={handleSelectSuggestion}
+        buildRequestUrl={buildAutocompleteUrl}
         dropdownClassName="absolute left-0 right-0 top-full mt-1 z-50 bg-white border border-rule overflow-hidden"
       >
         {({ inputProps }) => (

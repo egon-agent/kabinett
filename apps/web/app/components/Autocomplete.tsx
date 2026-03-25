@@ -71,8 +71,8 @@ function countSuggestions(groups: SuggestionGroups): number {
   return groups.artworks.length + groups.artists.length + groups.clips.length;
 }
 
-function cacheKeyForQuery(query: string): string {
-  return query.toLowerCase();
+function cacheKeyForRequest(requestUrl: string): string {
+  return requestUrl.trim().toLowerCase();
 }
 
 function getCachedSuggestions(query: string): SuggestionGroups | null {
@@ -247,7 +247,8 @@ export default function Autocomplete({
       return;
     }
 
-    const cacheKey = cacheKeyForQuery(trimmed);
+    const requestUrl = buildRequestUrl(trimmed);
+    const cacheKey = cacheKeyForRequest(requestUrl);
     const cachedSuggestions = getCachedSuggestions(cacheKey);
     if (cachedSuggestions) {
       applySuggestions(cachedSuggestions);
@@ -259,7 +260,7 @@ export default function Autocomplete({
 
     fetchTimer.current = setTimeout(async () => {
       try {
-        const response = await fetch(buildRequestUrl(trimmed), {
+        const response = await fetch(requestUrl, {
           signal: controller.signal,
         });
         if (!response.ok) throw new Error("Autocomplete request failed");

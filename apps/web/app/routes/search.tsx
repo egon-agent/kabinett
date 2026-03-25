@@ -437,6 +437,7 @@ function CollectionFilter({
 
 function SearchResultsPanel({
   initialPayload,
+  pendingPayloadPromise,
   query,
   museum,
   searchMode,
@@ -444,6 +445,7 @@ function SearchResultsPanel({
   showMuseumBadge,
 }: {
   initialPayload: SearchResultsPayload;
+  pendingPayloadPromise?: Promise<SearchResultsPayload> | null;
   query: string;
   museum: string;
   searchMode: SearchMode;
@@ -458,17 +460,51 @@ function SearchResultsPanel({
   const [loadError, setLoadError] = useState(false);
   const [cursor, setCursor] = useState<number | null>(initialCursor);
   const [hasMore, setHasMore] = useState(initialCursor !== null);
+  const [isRefining, setIsRefining] = useState(Boolean(pendingPayloadPromise));
 
   useEffect(() => {
     setResults(initialResults);
     setCursor(initialCursor);
     setHasMore(initialCursor !== null);
-  }, [initialCursor, initialResults]);
+    setIsRefining(Boolean(pendingPayloadPromise));
+  }, [initialCursor, initialResults, pendingPayloadPromise]);
+
+  useEffect(() => {
+    if (!pendingPayloadPromise) {
+      setIsRefining(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsRefining(true);
+
+    void pendingPayloadPromise
+      .then((nextPayload) => {
+        if (cancelled) return;
+
+        const keepInitialResults = initialResults.length > 0 && nextPayload.results.length === 0;
+        if (!keepInitialResults) {
+          setResults(nextPayload.results);
+        }
+        setCursor(keepInitialResults ? null : nextPayload.cursor);
+        setHasMore(!keepInitialResults && nextPayload.cursor !== null);
+        setLoadError(false);
+        setIsRefining(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setIsRefining(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialResults.length, pendingPayloadPromise]);
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const loadMore = useCallback(async () => {
-    if (loading || !hasMore || !query || cursor === null) return;
+    if (loading || isRefining || !hasMore || !query || cursor === null) return;
     setLoading(true);
     setLoadError(false);
     try {
@@ -534,21 +570,21 @@ function SearchResultsPanel({
     } finally {
       setLoading(false);
     }
-  }, [cursor, hasMore, loading, museum, query, searchMode, searchType]);
+  }, [cursor, hasMore, isRefining, loading, museum, query, searchMode, searchType]);
 
   const artistResults = results.filter((result): result is ArtistSearchResult => result.resultType === "artist");
   const artworkResults = results.filter((result): result is ArtworkSearchResult => result.resultType === "artwork");
 
   useEffect(() => {
     const el = sentinelRef.current;
-    if (!el) return;
+    if (!el || isRefining) return;
     const observer = new IntersectionObserver(
       (entries) => { if (entries[0].isIntersecting) loadMore(); },
       { rootMargin: "400px" }
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [loadMore]);
+  }, [isRefining, loadMore]);
 
   return (
     <>
@@ -560,9 +596,20 @@ function SearchResultsPanel({
               `${results.length}${hasMore ? "+" : ""} träffar${displayQuery ? ` för "${displayQuery}"` : ""}`,
               `${formatUiNumber(results.length, uiLocale)}${hasMore ? "+" : ""} results${displayQuery ? ` for "${displayQuery}"` : ""}`
             )
-            : uiText(uiLocale, `Inga träffar${displayQuery ? ` för "${displayQuery}"` : ""}`, `No results${displayQuery ? ` for "${displayQuery}"` : ""}`)}
+            : isRefining
+              ? uiText(
+                uiLocale,
+                `Söker visuellt${displayQuery ? ` efter "${displayQuery}"` : ""}…`,
+                `Searching visually${displayQuery ? ` for "${displayQuery}"` : ""}…`
+              )
+              : uiText(uiLocale, `Inga träffar${displayQuery ? ` för "${displayQuery}"` : ""}`, `No results${displayQuery ? ` for "${displayQuery}"` : ""}`)}
         </p>
-        {results.length === 0 && displayQuery && (
+        {isRefining && searchType === "visual" && results.length > 0 && (
+          <p aria-live="polite" className="text-[13px] text-secondary mb-6">
+            {uiText(uiLocale, "Visar preliminära träffar medan bildsökningen förfinas…", "Showing preliminary results while visual search is refined…")}
+          </p>
+        )}
+        {results.length === 0 && displayQuery && !isRefining && (
           <div className="py-4">
             <p className="text-[13px] text-secondary mb-3">{uiText(uiLocale, "Förslag:", "Suggestions:")}</p>
             <ul className="list-none p-0 m-0 space-y-1 text-[13px] text-secondary">
@@ -647,6 +694,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
   const {
     query,
     museum,
+    initialPayload,
     results: initialResultsPromise,
     museumOptions,
     showMuseumBadge,
@@ -657,6 +705,9 @@ export default function Search({ loaderData }: Route.ComponentProps) {
 
   const showResults = Boolean(query) || Boolean(museum);
   const showMuseumFilters = museumOptions.length > 1 && searchMode !== "theme";
+  const visualInitialPayload = searchType === "visual"
+    ? (initialPayload ?? { results: [], total: 0, cursor: null })
+    : null;
 
   const suggestedQueries = searchType === "visual"
     ? (uiLocale === "en"
@@ -766,23 +817,35 @@ export default function Search({ loaderData }: Route.ComponentProps) {
 
       {showResults && (
         <div className="pb-24">
-          <Suspense fallback={<div className="px-4 md:px-6 lg:px-10"><SearchResultsSkeleton /></div>}>
-            <Await
-              resolve={initialResultsPromise}
-              errorElement={<SearchResultsError retryUrl={retryUrl} />}
-            >
-              {(initialPayload: SearchResultsPayload) => (
-                <SearchResultsPanel
-                  initialPayload={initialPayload}
-                  query={query}
-                  museum={museum}
-                  searchMode={searchMode}
-                  searchType={searchType}
-                  showMuseumBadge={showMuseumBadge}
-                />
-              )}
-            </Await>
-          </Suspense>
+          {searchType === "visual" && visualInitialPayload ? (
+            <SearchResultsPanel
+              initialPayload={visualInitialPayload}
+              pendingPayloadPromise={initialResultsPromise}
+              query={query}
+              museum={museum}
+              searchMode={searchMode}
+              searchType={searchType}
+              showMuseumBadge={showMuseumBadge}
+            />
+          ) : (
+            <Suspense fallback={<div className="px-4 md:px-6 lg:px-10"><SearchResultsSkeleton /></div>}>
+              <Await
+                resolve={initialResultsPromise}
+                errorElement={<SearchResultsError retryUrl={retryUrl} />}
+              >
+                {(resolvedPayload: SearchResultsPayload) => (
+                  <SearchResultsPanel
+                    initialPayload={resolvedPayload}
+                    query={query}
+                    museum={museum}
+                    searchMode={searchMode}
+                    searchType={searchType}
+                    showMuseumBadge={showMuseumBadge}
+                  />
+                )}
+              </Await>
+            </Suspense>
+          )}
         </div>
       )}
     </div>

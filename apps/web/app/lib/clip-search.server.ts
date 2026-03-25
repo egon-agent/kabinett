@@ -552,9 +552,12 @@ export async function clipSearch(
     const scope = parseSearchScope(source);
     const desiredCount = offset + limit;
     const allowedSource = sourceFilter("a");
+    const baseK = variantMode === "strict" ? 60 : 120;
+    const scopedFloor = variantMode === "strict" ? 240 : 400;
+    const scopedMultiplier = variantMode === "strict" ? 4 : 6;
     const desiredK = scope.collectionName
-      ? Math.max(400, desiredCount * 6)
-      : Math.max(120, desiredCount);
+      ? Math.max(scopedFloor, desiredCount * scopedMultiplier)
+      : Math.max(baseK, desiredCount);
     const perVariantK = desiredK;
     const aggregated = new Map<number, AggregatedCandidate>();
     const RRF_K = 60;
