@@ -3,7 +3,7 @@ import { clipSearch, clipSearchFromSeedIds } from "../lib/clip-search.server";
 import { getDb } from "../lib/db.server";
 import { isValidMuseumFilter, museumFilterSql, sourceFilter } from "../lib/museums.server";
 import { buildArtworkSnippet, searchArtworksText } from "../lib/text-search.server";
-import { translateToEnglish } from "../lib/translate.server";
+import { shouldTranslateToEnglish, translateToEnglish } from "../lib/translate.server";
 
 type SearchMode = "clip" | "fts" | "color";
 type SearchType = "all" | "artwork" | "artist" | "visual";
@@ -112,6 +112,24 @@ function filterClipByConfidence<T extends { similarity?: number }>(
   return sorted.slice(0, Math.min(visual ? Math.min(limit, 24) : 8, sorted.length));
 }
 
+function shouldTryTranslatedClipFallback<T extends { similarity?: number }>(
+  clipResults: T[],
+  options?: { visual?: boolean }
+): boolean {
+  if (clipResults.length === 0) return true;
+  const visual = options?.visual === true;
+  const topSim = Number(clipResults[0]?.similarity ?? 0);
+  const probeIndex = Math.min(Math.max(clipResults.length - 1, 0), 9);
+  const probeSim = Number(clipResults[probeIndex]?.similarity ?? topSim);
+  const spread = topSim - probeSim;
+
+  if (visual) {
+    return clipResults.length < 8 || topSim < 0.26 || spread < 0.015;
+  }
+
+  return clipResults.length < 4 || topSim < 0.3 || spread < 0.02;
+}
+
 export async function loader({ request }: LoaderFunctionArgs) {
   const errorResponse = () => Response.json([], { headers: { "X-Error": "1" } });
   const url = new URL(request.url);
@@ -137,19 +155,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   if (mode === "clip") {
     try {
-      // Hybrid: CLIP + FTS in parallel, CLIP results first, FTS fills gaps
-      const enQuery = await translateToEnglish(q);
-      const isTranslated = enQuery.trim().toLowerCase() !== q.toLowerCase();
-      const preferTranslated = type === "visual" && visualIntent && isTranslated;
-      const clipPromises: Array<Promise<any[]>> = preferTranslated
-        ? [clipSearch(enQuery, limit, offset, scoped).catch(() => [] as any[])]
-        : [clipSearch(q, limit, offset, scoped).catch(() => [] as any[])];
-      if (!preferTranslated && isTranslated) {
-        clipPromises.push(clipSearch(enQuery, limit, offset, scoped).catch(() => [] as any[]));
-      }
-
-      const [clipBatches, ftsResults] = await Promise.all([
-        Promise.all(clipPromises),
+      // Hybrid: CLIP + FTS in parallel, CLIP results first, FTS fills gaps.
+      const clipOptions = type === "visual" ? { variantMode: "balanced" as const } : undefined;
+      const [originalClipResults, ftsResults] = await Promise.all([
+        clipSearch(q, limit, offset, scoped, clipOptions).catch(() => [] as any[]),
         (async () => {
           try {
             return searchArtworksText({
@@ -166,18 +175,39 @@ export async function loader({ request }: LoaderFunctionArgs) {
         })(),
       ]);
 
-      const bestClip = new Map<number, any>();
-      for (const resultSet of clipBatches) {
-        for (const row of resultSet) {
-          const current = bestClip.get(row.id);
-          if (!current || row.similarity > current.similarity) {
-            bestClip.set(row.id, row);
+      const mergeBestClipResults = (resultSets: Array<any[]>) => {
+        const bestClip = new Map<number, any>();
+        for (const resultSet of resultSets) {
+          for (const row of resultSet) {
+            const current = bestClip.get(row.id);
+            if (!current || row.similarity > current.similarity) {
+              bestClip.set(row.id, row);
+            }
           }
         }
-      }
-      const rawClip = [...bestClip.values()];
+        return [...bestClip.values()];
+      };
+
+      let rawClip = mergeBestClipResults([originalClipResults]);
       const clipFilterOptions = type === "visual" ? { visual: true, limit } : undefined;
       let clipResults = filterClipByConfidence(rawClip, clipFilterOptions);
+
+      const shouldTranslate = shouldTranslateToEnglish(q);
+      const shouldTryFallback = shouldTranslate
+        && shouldTryTranslatedClipFallback(clipResults, { visual: type === "visual" });
+
+      let isTranslated = false;
+      let translatedQuery = q;
+      if (shouldTryFallback) {
+        translatedQuery = await translateToEnglish(q);
+        isTranslated = translatedQuery.trim().toLowerCase() !== q.toLowerCase();
+        if (isTranslated) {
+          const translatedClipResults = await clipSearch(translatedQuery, limit, offset, scoped, clipOptions).catch(() => [] as any[]);
+          rawClip = mergeBestClipResults([rawClip, translatedClipResults]);
+          clipResults = filterClipByConfidence(rawClip, clipFilterOptions);
+        }
+      }
+
       let topSim = Number(clipResults[0]?.similarity ?? 0);
       let probeIndex = Math.min(Math.max(clipResults.length - 1, 0), 9);
       let probeSim = Number(clipResults[probeIndex]?.similarity ?? topSim);
@@ -192,8 +222,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
         const seeded = await clipSearchFromSeedIds(seedIds, limit, offset, scoped).catch(() => [] as any[]);
         const bestHybrid = new Map<number, any>();
         for (const row of [...clipResults, ...seeded]) {
-          const existing = bestHybrid.get(row.id);
-          if (!existing || Number(row.similarity ?? 0) > Number(existing.similarity ?? 0)) {
+          const current = bestHybrid.get(row.id);
+          if (!current || Number(row.similarity ?? 0) > Number(current.similarity ?? 0)) {
             bestHybrid.set(row.id, row);
           }
         }
@@ -218,7 +248,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
         type,
         visualIntent,
         translated: isTranslated,
-        preferTranslated,
+        translatedQuery,
+        shouldTranslate,
+        shouldTryFallback,
         clipRaw: rawClip.length,
         clipKept: clipResults.length,
         ftsCount: ftsResults.length,

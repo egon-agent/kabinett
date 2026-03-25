@@ -43,7 +43,7 @@ let enabledMuseumsCacheTime = 0;
 const ENABLED_MUSEUMS_TTL_MS = 60 * 1000;
 const sourceFilterCache = new Map<string, { sql: string; params: string[] }>();
 let hasMediaLicenseColumnCache: boolean | null = null;
-const COLLECTION_OPTIONS_TTL_MS = 60 * 1000;
+const COLLECTION_OPTIONS_TTL_MS = 10 * 60 * 1000;
 let collectionOptionsCache:
   | {
       key: string;
@@ -182,8 +182,7 @@ export function getCollectionOptions(): Array<{ id: string; name: string; count:
   const sourceA = sourceFilter("a");
   const options = db.prepare(
     `SELECT
-       COALESCE(a.sub_museum, m.name) as collection_name,
-       COUNT(*) as count
+       DISTINCT COALESCE(NULLIF(a.sub_museum, ''), m.name) as collection_name
      FROM artworks a
      LEFT JOIN museums m ON m.id = a.source
      WHERE ${sourceA.sql}
@@ -193,12 +192,11 @@ export function getCollectionOptions(): Array<{ id: string; name: string; count:
        AND a.iiif_url IS NOT NULL
        AND LENGTH(a.iiif_url) > 40
        AND a.id NOT IN (SELECT artwork_id FROM broken_images)
-     GROUP BY collection_name
      ORDER BY collection_name COLLATE NOCASE ASC`
   ).all(...sourceA.params).map((row: any) => ({
     id: encodeCollectionFilterId(row.collection_name),
     name: row.collection_name as string,
-    count: row.count as number,
+    count: 0,
   }));
 
   collectionOptionsCache = { key: cacheKey, ts: now, data: options };

@@ -167,6 +167,24 @@ function filterClipByConfidence(
   return sorted.slice(0, Math.min(visual ? Math.min(limit, 24) : 8, sorted.length));
 }
 
+function shouldTryTranslatedClipFallback(
+  clipResults: SearchResult[],
+  options?: { visual?: boolean }
+): boolean {
+  if (clipResults.length === 0) return true;
+  const visual = options?.visual === true;
+  const topSim = Number((clipResults[0] as any)?.similarity ?? 0);
+  const probeIndex = Math.min(Math.max(clipResults.length - 1, 0), 9);
+  const probeSim = Number((clipResults[probeIndex] as any)?.similarity ?? topSim);
+  const spread = topSim - probeSim;
+
+  if (visual) {
+    return clipResults.length < 8 || topSim < 0.26 || spread < 0.015;
+  }
+
+  return clipResults.length < 4 || topSim < 0.3 || spread < 0.02;
+}
+
 export type SearchResultsPayload = {
   results: SearchResultItem[];
   total: number;
@@ -242,33 +260,47 @@ async function loadSearchResults(args: {
 
   const runClipSearch = async (): Promise<SearchResult[]> => {
     return import("../lib/clip-search.server").then(async (clipMod) => {
-      // Run CLIP on both original and English translation, take best results
-      const { translateToEnglish } = await import("../lib/translate.server");
-      const enQuery = await translateToEnglish(query);
-      const isTranslated = enQuery.toLowerCase() !== query.toLowerCase();
-      logClipDebug("[CLIP translate]", { original: query, translated: enQuery, isTranslated });
-
-      const preferTranslated = visualIntent && isTranslated;
-      const queries = preferTranslated
-        ? [clipMod.clipSearch(enQuery, PAGE_SIZE, 0, museum || undefined)]
-        : [clipMod.clipSearch(query, PAGE_SIZE, 0, museum || undefined)];
-      if (!preferTranslated && isTranslated) {
-        queries.push(clipMod.clipSearch(enQuery, PAGE_SIZE, 0, museum || undefined));
-      }
-      const results = await Promise.all(queries);
-
-      // Merge: dedupe by id, keep highest similarity
-      const best = new Map<number, any>();
-      for (const resultSet of results) {
-        for (const r of resultSet as any[]) {
-          const existing = best.get(r.id);
-          if (!existing || r.similarity > existing.similarity) {
-            best.set(r.id, r);
+      const mergeBestResults = (resultSets: Array<any[]>) => {
+        const best = new Map<number, any>();
+        for (const resultSet of resultSets) {
+          for (const r of resultSet as any[]) {
+            const existing = best.get(r.id);
+            if (!existing || r.similarity > existing.similarity) {
+              best.set(r.id, r);
+            }
           }
         }
+        return [...best.values()]
+          .sort((a, b) => b.similarity - a.similarity)
+          .slice(0, PAGE_SIZE) as SearchResult[];
+      };
+
+      const clipOptions = type === "visual" ? { variantMode: "balanced" as const } : undefined;
+      const originalResults = await clipMod.clipSearch(query, PAGE_SIZE, 0, museum || undefined, clipOptions);
+      let merged = mergeBestResults([originalResults]);
+
+      const { shouldTranslateToEnglish, translateToEnglish } = await import("../lib/translate.server");
+      const shouldTranslate = shouldTranslateToEnglish(query);
+      const shouldTryFallback = shouldTranslate
+        && shouldTryTranslatedClipFallback(merged, { visual: type === "visual" });
+
+      if (shouldTryFallback) {
+        const enQuery = await translateToEnglish(query);
+        const isTranslated = enQuery.toLowerCase() !== query.toLowerCase();
+        logClipDebug("[CLIP translate]", {
+          original: query,
+          translated: enQuery,
+          isTranslated,
+          shouldTranslate,
+          shouldTryFallback,
+        });
+
+        if (isTranslated) {
+          const translatedResults = await clipMod.clipSearch(enQuery, PAGE_SIZE, 0, museum || undefined, clipOptions);
+          merged = mergeBestResults([merged as unknown as any[], translatedResults]);
+        }
       }
-      // Sort by similarity descending
-      const merged = [...best.values()].sort((a, b) => b.similarity - a.similarity).slice(0, PAGE_SIZE);
+
       const cast = merged as unknown as SearchResult[];
       cast.forEach((r) => { r.matchType = "clip" as MatchType; });
       return cast;

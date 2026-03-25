@@ -217,24 +217,29 @@ function clampSimilarity(distance: number): number {
   return distance;
 }
 
-function buildQueryVariants(query: string): string[] {
+type ClipQueryVariantMode = "strict" | "balanced" | "expanded";
+
+function buildQueryVariants(query: string, mode: ClipQueryVariantMode = "expanded"): string[] {
   const trimmed = query.trim();
   if (!trimmed) return [];
-  const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
-
-  // Keep single-word object queries strict to reduce prompt drift.
-  if (wordCount === 1) {
+  if (mode === "strict") {
     return [trimmed];
+  }
+
+  const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
+  if (mode === "balanced") {
+    if (wordCount === 1) return [trimmed];
+    return [...new Set([
+      trimmed,
+      `an artwork depicting ${trimmed}`,
+      wordCount <= 3 ? `a painting of ${trimmed}` : "",
+    ].filter(Boolean))];
   }
 
   const base = [trimmed];
 
   if (wordCount <= 4) {
     base.push(`a photo of ${trimmed}`);
-    base.push(`a close-up photo of ${trimmed}`);
-    base.push(`an object: ${trimmed}`);
-    base.push(`a painting of ${trimmed}`);
-    base.push(`a still life with ${trimmed}`);
     base.push(`an artwork depicting ${trimmed}`);
   }
 
@@ -469,9 +474,15 @@ async function runKnnQuery(
   }
 }
 
-export async function clipSearch(q: string, limit = 60, offset = 0, source?: string): Promise<ClipResult[]> {
+export async function clipSearch(
+  q: string,
+  limit = 60,
+  offset = 0,
+  source?: string,
+  options?: { variantMode?: ClipQueryVariantMode }
+): Promise<ClipResult[]> {
   initQueryEmbeddingCache();
-  const variants = buildQueryVariants(q);
+  const variants = buildQueryVariants(q, options?.variantMode ?? "expanded");
   if (variants.length === 0) return [];
 
   const scope = parseSearchScope(source);

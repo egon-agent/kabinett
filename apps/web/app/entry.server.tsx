@@ -41,6 +41,7 @@ if (startupWarmupEnabled) {
       fetch(`${origin}/discover`).then(() => console.log("[Warmup] Discover cached")),
       fetch(`${origin}/om`).then(() => console.log("[Warmup] Om cached")),
       fetch(`${origin}/timeline`).then(() => console.log("[Warmup] Timeline cached")),
+      fetch(`${origin}/search?q=portrait&type=visual`).then(() => console.log("[Warmup] Visual search warmed")),
     ]).catch((error: unknown) => {
       const msg = error instanceof Error ? error.message : String(error);
       console.warn(`[Warmup] Failed: ${msg}`);
