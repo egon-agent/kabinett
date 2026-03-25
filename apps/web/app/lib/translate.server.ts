@@ -76,6 +76,33 @@ const ENGLISH_HINTS = new Set([
   "life",
 ]);
 
+const LOCAL_SWEDISH_TO_ENGLISH = new Map<string, string>([
+  ["apple", "apple"],
+  ["hav", "sea"],
+  ["havet", "sea"],
+  ["sjo", "lake"],
+  ["sjon", "lake"],
+  ["bat", "boat"],
+  ["skepp", "ship"],
+  ["solnedgang", "sunset"],
+  ["barn som leker", "children playing"],
+  ["rod klanning", "red dress"],
+  ["bla klanning", "blue dress"],
+  ["gron klanning", "green dress"],
+  ["guld", "gold"],
+  ["portratt", "portrait"],
+  ["landskap", "landscape"],
+  ["stilleben", "still life"],
+  ["skulptur", "sculpture"],
+  ["blommor", "flowers"],
+  ["skog", "forest"],
+  ["vinter", "winter"],
+  ["hast", "horse"],
+  ["hund", "dog"],
+  ["katt", "cat"],
+  ["fagel", "bird"],
+]);
+
 function normalizeToken(input: string): string {
   return input
     .toLowerCase()
@@ -125,6 +152,12 @@ async function fetchWithHardTimeout(url: string): Promise<Response> {
   }
 }
 
+export function getLocalEnglishTranslation(text: string): string | null {
+  const normalized = normalizeToken(text);
+  if (!normalized) return null;
+  return LOCAL_SWEDISH_TO_ENGLISH.get(normalized) ?? null;
+}
+
 export function shouldTranslateToEnglish(text: string): boolean {
   const trimmed = text.trim();
   if (!trimmed) return false;
@@ -132,6 +165,10 @@ export function shouldTranslateToEnglish(text: string): boolean {
 
   const normalized = normalizeToken(trimmed);
   if (!normalized) return false;
+  const localTranslation = LOCAL_SWEDISH_TO_ENGLISH.get(normalized);
+  if (localTranslation && normalizeToken(localTranslation) !== normalized) {
+    return true;
+  }
   const words = normalized.split(/\s+/).filter(Boolean);
   if (words.length === 0) return false;
 
@@ -172,6 +209,13 @@ export async function translateToEnglish(text: string): Promise<string> {
 
   if (cache.has(trimmed)) {
     return cache.get(trimmed) ?? trimmed;
+  }
+
+  const localTranslation = getLocalEnglishTranslation(trimmed);
+  if (localTranslation) {
+    cache.set(trimmed, localTranslation);
+    trimBoundedMap(cache);
+    return localTranslation;
   }
 
   if (hasRecentTranslationFailure(trimmed)) {

@@ -3,7 +3,7 @@ import { clipSearch, clipSearchFromSeedIds } from "../lib/clip-search.server";
 import { getDb } from "../lib/db.server";
 import { isValidMuseumFilter, museumFilterSql, sourceFilter } from "../lib/museums.server";
 import { buildArtworkSnippet, searchArtworksText } from "../lib/text-search.server";
-import { shouldTranslateToEnglish, translateToEnglish } from "../lib/translate.server";
+import { getLocalEnglishTranslation, shouldTranslateToEnglish, translateToEnglish } from "../lib/translate.server";
 
 type SearchMode = "clip" | "fts" | "color";
 type SearchType = "all" | "artwork" | "artist" | "visual";
@@ -156,15 +156,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
   if (mode === "clip") {
     try {
       // Hybrid: CLIP + FTS in parallel, CLIP results first, FTS fills gaps.
-      const shouldTranslate = shouldTranslateToEnglish(q);
+      const localEnglishQuery = getLocalEnglishTranslation(q);
+      const primaryClipQuery = localEnglishQuery ?? q;
+      const shouldTranslate = !localEnglishQuery && shouldTranslateToEnglish(q);
       const clipOptions = type === "visual"
-        ? { variantMode: shouldTranslate ? "strict" as const : "balanced" as const }
+        ? { variantMode: localEnglishQuery || !shouldTranslate ? "balanced" as const : "strict" as const }
         : undefined;
       const translatedClipOptions = type === "visual"
         ? { variantMode: "balanced" as const }
         : undefined;
       const [originalClipResults, ftsResults] = await Promise.all([
-        clipSearch(q, limit, offset, scoped, clipOptions).catch(() => [] as any[]),
+        clipSearch(primaryClipQuery, limit, offset, scoped, clipOptions).catch(() => [] as any[]),
         (async () => {
           try {
             return searchArtworksText({
@@ -201,8 +203,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       const shouldTryFallback = shouldTranslate
         && shouldTryTranslatedClipFallback(clipResults, { visual: type === "visual" });
 
-      let isTranslated = false;
-      let translatedQuery = q;
+      let isTranslated = Boolean(localEnglishQuery && localEnglishQuery.trim().toLowerCase() !== q.toLowerCase());
+      let translatedQuery = localEnglishQuery ?? q;
       if (shouldTryFallback) {
         translatedQuery = await translateToEnglish(q);
         isTranslated = translatedQuery.trim().toLowerCase() !== q.toLowerCase();

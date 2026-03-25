@@ -275,15 +275,17 @@ async function loadSearchResults(args: {
           .slice(0, PAGE_SIZE) as SearchResult[];
       };
 
-      const { shouldTranslateToEnglish, translateToEnglish } = await import("../lib/translate.server");
-      const shouldTranslate = shouldTranslateToEnglish(query);
+      const { getLocalEnglishTranslation, shouldTranslateToEnglish, translateToEnglish } = await import("../lib/translate.server");
+      const localEnglishQuery = getLocalEnglishTranslation(query);
+      const primaryClipQuery = localEnglishQuery ?? query;
+      const shouldTranslate = !localEnglishQuery && shouldTranslateToEnglish(query);
       const clipOptions = type === "visual"
-        ? { variantMode: shouldTranslate ? "strict" as const : "balanced" as const }
+        ? { variantMode: localEnglishQuery || !shouldTranslate ? "balanced" as const : "strict" as const }
         : undefined;
       const translatedClipOptions = type === "visual"
         ? { variantMode: "balanced" as const }
         : undefined;
-      const originalResults = await clipMod.clipSearch(query, PAGE_SIZE, 0, museum || undefined, clipOptions);
+      const originalResults = await clipMod.clipSearch(primaryClipQuery, PAGE_SIZE, 0, museum || undefined, clipOptions);
       let merged = mergeBestResults([originalResults]);
 
       const shouldTryFallback = shouldTranslate

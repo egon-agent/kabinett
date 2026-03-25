@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { shouldTranslateToEnglish, translateToEnglish } from "../translate.server";
+import { getLocalEnglishTranslation, shouldTranslateToEnglish, translateToEnglish } from "../translate.server";
 
 describe("translate.server", () => {
   const originalFetch = globalThis.fetch;
@@ -33,13 +33,23 @@ describe("translate.server", () => {
   it("keeps translating Swedish queries", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => [[["red dress"]]],
+      json: async () => [[["red painting"]]],
     });
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-    expect(shouldTranslateToEnglish("röd klänning")).toBe(true);
-    await expect(translateToEnglish("röd klänning")).resolves.toBe("red dress");
+    expect(shouldTranslateToEnglish("röd tavla")).toBe(true);
+    await expect(translateToEnglish("röd tavla")).resolves.toBe("red painting");
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("translates common Swedish visual terms locally", async () => {
+    const fetchMock = vi.fn();
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    expect(getLocalEnglishTranslation("hav")).toBe("sea");
+    expect(shouldTranslateToEnglish("hav")).toBe(true);
+    await expect(translateToEnglish("hav")).resolves.toBe("sea");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("deduplicates concurrent translations for the same query", async () => {
