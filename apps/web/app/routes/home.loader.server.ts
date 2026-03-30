@@ -10,6 +10,7 @@ import { getDb } from "../lib/db.server";
 import { buildDirectImageUrl, buildImageUrl } from "../lib/images";
 import { getEnabledMuseums, shouldShowCollectionLabels, sourceFilter } from "../lib/museums.server";
 import { getCachedSiteStats } from "../lib/stats.server";
+import { getCanonicalUrl, getPublicOrigin } from "../lib/public-url.server";
 import { formatUiNumber, resolveUiLocale } from "../lib/ui-language";
 
 export type HomeLoaderData = {
@@ -74,8 +75,8 @@ function cloneHomePayload(payload: CachedHomePayload): CachedHomePayload {
 }
 
 export async function homeLoader(request: Request): Promise<HomeLoaderData> {
-  const url = new URL(request.url);
-  const canonicalUrl = `${url.origin}${url.pathname}`;
+  const canonicalUrl = getCanonicalUrl(request);
+  const origin = getPublicOrigin(request);
   const enabledMuseums = getEnabledMuseums();
   const campaign = getCampaignConfig();
   const cacheKey = `${campaign.id}:${enabledMuseums.join(",")}`;
@@ -85,7 +86,7 @@ export async function homeLoader(request: Request): Promise<HomeLoaderData> {
     return {
       ...cloneHomePayload(cached.data),
       canonicalUrl,
-      origin: url.origin,
+      origin,
     };
   }
 
@@ -136,7 +137,7 @@ export async function homeLoader(request: Request): Promise<HomeLoaderData> {
   };
   const ogPath = OG_IMAGES[campaign.id];
   const ogImageUrl = ogPath
-    ? `${url.origin}${ogPath}`
+    ? `${origin}${ogPath}`
     : initialItems[0]?.iiif_url
       ? buildDirectImageUrl(initialItems[0].iiif_url, 800)
       : null;
@@ -208,6 +209,6 @@ export async function homeLoader(request: Request): Promise<HomeLoaderData> {
   return {
     ...cloneHomePayload(payload),
     canonicalUrl,
-    origin: url.origin,
+    origin,
   };
 }

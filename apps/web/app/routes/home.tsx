@@ -44,9 +44,6 @@ export function meta({ data }: Route.MetaArgs) {
       { name: "twitter:image", content: data.ogImageUrl }
     );
   }
-  if (data?.noindex) {
-    tags.push({ name: "robots", content: "noindex,nofollow" });
-  }
   return tags;
 }
 

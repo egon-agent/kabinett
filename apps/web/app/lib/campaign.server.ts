@@ -36,7 +36,7 @@ const CAMPAIGNS: Record<CampaignId, CampaignBase> = {
     heroSubline: "100 000 European artworks. Search in any language.",
     heroIntro: "Paintings, sculptures, prints and photographs from Europe's greatest museums — searchable with AI.",
     metaTitle: "Kabinett × Europeana",
-    metaDescription: null,
+    metaDescription: "100,000 European artworks. Search in any language.",
     noindex: true,
   },
   nationalmuseum: {

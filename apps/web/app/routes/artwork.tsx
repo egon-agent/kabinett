@@ -6,6 +6,7 @@ import { buildImageUrl, buildDirectImageUrl } from "../lib/images";
 import { sourceFilter } from "../lib/museums.server";
 import { normalizeArtworkCategory, parseArtist, parseArtists } from "../lib/parsing";
 import { getCampaignConfig } from "../lib/campaign.server";
+import { getCanonicalUrl } from "../lib/public-url.server";
 import { resolveUiLocale, uiText, useUiLocale } from "../lib/ui-language";
 
 export function headers() {
@@ -215,7 +216,6 @@ function parseDescriptionSections(raw: string | null): DescriptionSection[] {
 
 export async function loader({ params, request }: Route.LoaderArgs) {
   const uiLocale = resolveUiLocale(getCampaignConfig().id);
-  const url = new URL(request.url);
   const artworkId = Number.parseInt(params.id || "", 10);
   if (!Number.isFinite(artworkId) || artworkId === 0) {
     throw new Response("Ogiltigt id", { status: 400 });
@@ -292,7 +292,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
   };
 
   const artistName = artists[0]?.name;
-  return { artwork, artistName, canonicalUrl: `${url.origin}${url.pathname}`, uiLocale };
+  return { artwork, artistName, canonicalUrl: getCanonicalUrl(request), uiLocale };
 }
 
 export default function Artwork({ loaderData }: Route.ComponentProps) {

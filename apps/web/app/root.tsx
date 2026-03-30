@@ -7,6 +7,7 @@ import {
   ScrollRestoration,
   useLocation,
   useNavigation,
+  useRouteLoaderData,
 } from "react-router";
 
 import type { Route } from "./+types/root";
@@ -30,6 +31,7 @@ export function loader({ request }: Route.LoaderArgs) {
   return {
     campaignId: campaign.id,
     uiLocale,
+    noindex: campaign.noindex,
   };
 }
 
@@ -40,6 +42,7 @@ export const links: Route.LinksFunction = () => [
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const uiLocale = useUiLocale();
+  const rootData = useRouteLoaderData("root") as { noindex?: boolean } | undefined;
 
   return (
     <html lang={uiLocale}>
@@ -49,7 +52,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="theme-color" content="#FFFFFF" />
         <meta property="og:locale" content={getOgLocale(uiLocale)} />
         <meta property="og:site_name" content="Kabinett" />
-        <meta name="robots" content="index,follow" />
+        <meta name="robots" content={rootData?.noindex ? "noindex,nofollow" : "index,follow"} />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <link rel="manifest" href="/manifest.json" />
@@ -152,8 +155,7 @@ function Header() {
   const location = useLocation();
   const path = location.pathname;
   const isHome = path === "/";
-  const isLight = useIsLightPage();
-  const isDark = !isLight;
+  const isDark = !useIsLightPage();
   const uiLocale = useUiLocale();
   const showSchool = uiLocale !== "en";
   const navItems = [
@@ -205,9 +207,7 @@ function Header() {
 function BottomNav() {
   const { count } = useFavorites();
   const path = useLocation().pathname;
-
-  const isLight = useIsLightPage();
-  const isDark = !isLight;
+  const isDark = !useIsLightPage();
   const uiLocale = useUiLocale();
 
   const tabs: Array<{
