@@ -57,12 +57,15 @@ export default function HeroSearch({
   }, []);
 
   const buildAutocompleteUrl = useCallback((value: string) => {
-    const params = new URLSearchParams({ q: value });
+    const params = new URLSearchParams({
+      q: value,
+      type: "visual",
+    });
     return `/api/autocomplete?${params.toString()}`;
   }, []);
 
   const goToSearch = useCallback(
-    (q: string, type: "all" | "visual" = "all") => {
+    (q: string, type: "all" | "visual" = "visual") => {
       const trimmed = q.trim();
       if (!trimmed) return;
       inputRef.current?.blur();
@@ -85,7 +88,7 @@ export default function HeroSearch({
         navigate(`/artist/${encodeURIComponent(suggestion.value)}`);
         return;
       }
-      goToSearch(suggestion.value);
+      goToSearch(suggestion.value, "visual");
     },
     [goToSearch, navigate]
   );
@@ -94,7 +97,7 @@ export default function HeroSearch({
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
       const inputValue = inputRef.current?.value || query;
-      goToSearch(inputValue);
+      goToSearch(inputValue, "visual");
     },
     [query, goToSearch]
   );
@@ -178,7 +181,7 @@ export default function HeroSearch({
           <button
             key={`${campaignId}-${chip}`}
             type="button"
-            onClick={() => goToSearch(chip)}
+            onClick={() => goToSearch(chip, "visual")}
             className="cursor-pointer px-4 py-2 bg-paper text-[13px] text-secondary hover:text-primary transition-colors focus-ring rounded-card"
           >
             {chip}
