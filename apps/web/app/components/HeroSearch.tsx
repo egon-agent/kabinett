@@ -109,7 +109,7 @@ export default function HeroSearch({
           <h1 className="text-[clamp(3rem,10vw,9rem)] font-medium text-primary leading-[0.95] tracking-[-0.03em] uppercase">
             KABINETT
           </h1>
-          <div className="mt-4 mb-1 mx-auto w-8 border-t border-secondary/25" />
+          <div className="mt-4 mb-1 mx-auto h-px w-12 bg-secondary/35" />
           <p className="text-[clamp(1.25rem,3vw,1.75rem)] text-secondary/70 leading-[1.2] tracking-[0.04em]">
             {headline || defaultHeadline}
           </p>
