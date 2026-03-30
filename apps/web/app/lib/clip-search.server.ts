@@ -77,6 +77,7 @@ type ClipSearchCacheEntry = {
 };
 
 let textEncoderPromise: Promise<TextEncoder> | null = null;
+let clipWarmupPromise: Promise<void> | null = null;
 let queryCacheInitAttempted = false;
 let queryCacheWritable = false;
 let queryCacheWarningShown = false;
@@ -660,8 +661,18 @@ export async function clipSearchFromSeedIds(
 }
 
 /** Pre-load the CLIP text model so the first search is instant */
-export function warmupClip(): void {
-  getTextEncoder()
+export function warmupClip(): Promise<void> {
+  if (clipWarmupPromise) {
+    return clipWarmupPromise;
+  }
+
+  clipWarmupPromise = getTextEncoder()
     .then(() => console.log("[CLIP] Model loaded and ready"))
-    .catch((err) => console.error("[CLIP] Warmup failed:", err));
+    .catch((err) => {
+      clipWarmupPromise = null;
+      console.error("[CLIP] Warmup failed:", err);
+      throw err;
+    });
+
+  return clipWarmupPromise;
 }

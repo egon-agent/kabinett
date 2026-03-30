@@ -162,28 +162,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
       const primaryClipQuery = localEnglishQuery ?? translatedPrimaryQuery;
       const usedTranslatedPrimary = primaryClipQuery.trim().toLowerCase() !== q.toLowerCase();
       const clipOptions = type === "visual"
-        ? { variantMode: usedTranslatedPrimary ? "strict" as const : "balanced" as const }
+        ? { variantMode: "strict" as const }
         : undefined;
       const translatedClipOptions = type === "visual"
-        ? { variantMode: "balanced" as const }
+        ? { variantMode: "strict" as const }
         : undefined;
-      const [originalClipResults, ftsResults] = await Promise.all([
-        clipSearch(primaryClipQuery, limit, offset, scoped, clipOptions).catch(() => [] as any[]),
-        (async () => {
-          try {
-            return searchArtworksText({
-              db,
-              query: q,
-              source: sourceA,
-              museum: museumSql,
-              limit,
-              offset,
-            }) as any[];
-          } catch {
-            return [];
-          }
-        })(),
-      ]);
+      const originalClipResults = await clipSearch(primaryClipQuery, limit, offset, scoped, clipOptions)
+        .catch(() => [] as any[]);
 
       const mergeBestClipResults = (resultSets: Array<any[]>) => {
         const bestClip = new Map<number, any>();
@@ -224,11 +209,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
         }
       }
 
+      let ftsResults: any[] = [];
       let topSim = Number(clipResults[0]?.similarity ?? 0);
       let probeIndex = Math.min(Math.max(clipResults.length - 1, 0), 9);
       let probeSim = Number(clipResults[probeIndex]?.similarity ?? topSim);
       let spread = topSim - probeSim;
-      const shouldSeedFromFts = ftsResults.length >= 4
+      const shouldSeedFromFts = type !== "visual"
+        && ftsResults.length >= 4
         && (
           (visualIntent && clipResults.length < 8)
           || (!visualIntent && (clipResults.length === 0 || spread < 0.02))
@@ -279,6 +266,20 @@ export async function loader({ request }: LoaderFunctionArgs) {
       // Visual-only: return pure CLIP results sorted by similarity
       if (type === "visual") {
         if (clipResults.length === 0) {
+          try {
+            ftsResults = searchArtworksText({
+              db,
+              query: q,
+              source: sourceA,
+              museum: museumSql,
+              limit,
+              offset,
+              scope: "title",
+            }) as any[];
+          } catch {
+            ftsResults = [];
+          }
+
           const fallback = ftsResults
             .slice(0, limit)
             .map((row: any) => ({
@@ -292,6 +293,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
           (a, b) => Number(b.similarity ?? 0) - Number(a.similarity ?? 0)
         );
         return Response.json(sorted.slice(0, limit));
+      }
+
+      try {
+        ftsResults = searchArtworksText({
+          db,
+          query: q,
+          source: sourceA,
+          museum: museumSql,
+          limit,
+          offset,
+        }) as any[];
+      } catch {
+        ftsResults = [];
       }
 
       // Merge: overlap first, then adaptive CLIP/FTS interleaving

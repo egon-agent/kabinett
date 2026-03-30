@@ -20,6 +20,9 @@ installServerFetchInstrumentation();
 
 const isProduction = process.env.NODE_ENV === "production";
 const startupWarmupEnabled = isProduction && process.env.KABINETT_STARTUP_WARMUP !== "0";
+const idleClipWarmupEnabled = process.env.KABINETT_IDLE_CLIP_WARMUP !== "0";
+const idleClipWarmupDelayMs = Number(process.env.KABINETT_IDLE_CLIP_WARMUP_MS ?? "1000");
+let idleClipWarmupScheduled = false;
 
 function normalizedOrigin(raw: string): string {
   return raw.replace(/\/+$/, "");
@@ -30,6 +33,35 @@ function getWarmupOrigin(): string {
   if (configured) return normalizedOrigin(configured);
   const port = (process.env.PORT || "3000").trim();
   return `http://127.0.0.1:${port}`;
+}
+
+function shouldScheduleClipWarmup(request: Request): boolean {
+  if (!idleClipWarmupEnabled || idleClipWarmupScheduled) return false;
+  if (request.method.toUpperCase() !== "GET") return false;
+
+  const accept = request.headers.get("accept") || "";
+  if (!accept.includes("text/html")) return false;
+
+  const userAgent = request.headers.get("user-agent");
+  if (userAgent && isbot(userAgent)) return false;
+
+  const url = new URL(request.url);
+  return !url.pathname.startsWith("/api/");
+}
+
+function scheduleIdleClipWarmup(): void {
+  if (idleClipWarmupScheduled) return;
+  idleClipWarmupScheduled = true;
+
+  setTimeout(() => {
+    void import("./lib/clip-search.server")
+      .then(({ warmupClip }) => warmupClip())
+      .catch((error: unknown) => {
+        idleClipWarmupScheduled = false;
+        const msg = error instanceof Error ? error.message : String(error);
+        console.warn(`[Warmup] CLIP warmup failed: ${msg}`);
+      });
+  }, Math.max(0, idleClipWarmupDelayMs));
 }
 
 if (startupWarmupEnabled) {
@@ -99,6 +131,7 @@ export default function handleRequest(
   return new Promise((resolve, reject) => {
       let shellRendered = false;
       let userAgent = request.headers.get("user-agent");
+      const shouldWarmClipAfterResponse = shouldScheduleClipWarmup(request);
 
       // Ensure requests from bots and SPA Mode renders wait for all content to load before responding
       // https://react.dev/reference/react-dom/server/renderToPipeableStream#waiting-for-all-content-to-load-for-crawlers-and-static-generation
@@ -147,6 +180,10 @@ export default function handleRequest(
                   durationMs: Math.round(durationMs * 100) / 100,
                   shellMs: Math.round(shellMs * 100) / 100,
                 });
+
+                if (shouldWarmClipAfterResponse) {
+                  scheduleIdleClipWarmup();
+                }
 
                 // Clear the timeout to prevent retaining the closure and memory leak
                 clearTimeout(timeoutId);

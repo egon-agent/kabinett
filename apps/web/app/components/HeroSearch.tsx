@@ -4,7 +4,6 @@ import Autocomplete from "./Autocomplete";
 import type { AutocompleteSuggestion } from "./Autocomplete";
 import type { CampaignId } from "../lib/campaign.server";
 import { formatUiNumber, uiText, useUiLocale } from "../lib/ui-language";
-import { INITIAL_VISUAL_PAGE_SIZE } from "../lib/search-constants";
 
 const HERO_SUGGESTIONS: Record<CampaignId, readonly string[]> = {
   default: ["äpple", "röd klänning", "solnedgång", "guld", "barn som leker", "hav"],
@@ -55,17 +54,6 @@ export default function HeroSearch({
         el.setSelectionRange(len, len);
       });
     }
-  }, []);
-
-  const prefetchVisualSearch = useCallback((q: string) => {
-    const trimmed = q.trim();
-    if (!trimmed) return;
-    const params = new URLSearchParams({
-      q: trimmed,
-      type: "visual",
-      limit: String(INITIAL_VISUAL_PAGE_SIZE),
-    });
-    void fetch(`/api/clip-search?${params.toString()}`).catch(() => {});
   }, []);
 
   const buildAutocompleteUrl = useCallback((value: string) => {
@@ -194,8 +182,6 @@ export default function HeroSearch({
             key={`${campaignId}-${chip}`}
             type="button"
             onClick={() => goToSearch(chip, "visual")}
-            onPointerEnter={() => prefetchVisualSearch(chip)}
-            onFocus={() => prefetchVisualSearch(chip)}
             className="cursor-pointer px-4 py-2 bg-paper text-[13px] text-secondary hover:text-primary transition-colors focus-ring rounded-card"
           >
             {chip}

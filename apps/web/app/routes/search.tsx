@@ -17,7 +17,7 @@ import {
   type ArtistSearchResult,
   type SearchResultItem,
 } from "./search.loader.server";
-import { INITIAL_VISUAL_PAGE_SIZE, PAGE_SIZE } from "../lib/search-constants";
+import { PAGE_SIZE } from "../lib/search-constants";
 import { formatUiNumber, uiText, useUiLocale } from "../lib/ui-language";
 
 const THEME_FILTERS: Record<string, string> = {
@@ -46,17 +46,6 @@ const THEME_FILTERS: Record<string, string> = {
 
 function resolveThemeFilter(query: string): string | null {
   return THEME_FILTERS[query.trim().toLowerCase()] || null;
-}
-
-function prefetchVisualSearch(query: string): void {
-  const trimmed = query.trim();
-  if (!trimmed) return;
-  const params = new URLSearchParams({
-    q: trimmed,
-    type: "visual",
-    limit: String(INITIAL_VISUAL_PAGE_SIZE),
-  });
-  void fetch(`/api/clip-search?${params.toString()}`).catch(() => {});
 }
 
 export function headers() {
@@ -758,12 +747,6 @@ export default function Search({ loaderData }: Route.ComponentProps) {
                 <Link
                   key={s}
                   to={buildSearchUrl({ queryValue: s, museumId: museum, type: searchType })}
-                  onPointerEnter={() => {
-                    if (searchType === "visual") prefetchVisualSearch(s);
-                  }}
-                  onFocus={() => {
-                    if (searchType === "visual") prefetchVisualSearch(s);
-                  }}
                   className="px-4 py-2 bg-paper text-[13px] text-secondary hover:text-primary transition-colors focus-ring rounded-card no-underline"
                 >{s}</Link>
               ))}
