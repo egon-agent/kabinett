@@ -20,6 +20,8 @@ import {
 import { PAGE_SIZE } from "../lib/search-constants";
 import { formatUiNumber, uiText, useUiLocale } from "../lib/ui-language";
 
+const VISUAL_SEARCH_TIMEOUT_MS = 45_000;
+
 const THEME_FILTERS: Record<string, string> = {
   "djur": "Djur",
   "animals": "Djur",
@@ -501,7 +503,7 @@ function SearchResultsPanel({
 
     let cancelled = false;
     const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), 12_000);
+    const timeoutId = window.setTimeout(() => controller.abort(), VISUAL_SEARCH_TIMEOUT_MS);
     setIsRefining(true);
     setLoadError(false);
 

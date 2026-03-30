@@ -65,6 +65,12 @@ function scheduleIdleClipWarmup(): void {
 }
 
 if (startupWarmupEnabled) {
+  if (idleClipWarmupEnabled) {
+    setTimeout(() => {
+      scheduleIdleClipWarmup();
+    }, Math.max(0, Math.min(idleClipWarmupDelayMs, 1000)));
+  }
+
   // Pre-warm cached pages shortly after server starts.
   setTimeout(() => {
     const origin = getWarmupOrigin();
