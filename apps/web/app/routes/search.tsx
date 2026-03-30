@@ -500,6 +500,8 @@ function SearchResultsPanel({
     }
 
     let cancelled = false;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 12_000);
     setIsRefining(true);
     setLoadError(false);
 
@@ -510,7 +512,7 @@ function SearchResultsPanel({
     });
     if (museum) params.set("museum", museum);
 
-    void fetch(`/api/clip-search?${params.toString()}`)
+    void fetch(`/api/clip-search?${params.toString()}`, { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error("Kunde inte ladda bildsökning");
         const data = await response.json() as SearchResult[];
@@ -520,27 +522,32 @@ function SearchResultsPanel({
           ...item,
           resultType: "artwork",
         }));
-        setResults(mapped);
-        setCursor(data.length >= PAGE_SIZE ? data.length : null);
-        setHasMore(data.length >= PAGE_SIZE);
+        const keepInitialResults = initialResults.length > 0 && mapped.length === 0;
+        if (!keepInitialResults) {
+          setResults(mapped);
+        }
+        setCursor(keepInitialResults ? null : data.length >= PAGE_SIZE ? data.length : null);
+        setHasMore(!keepInitialResults && data.length >= PAGE_SIZE);
         setLoadError(false);
       })
       .catch(() => {
         if (cancelled) return;
-        setResults([]);
         setCursor(null);
         setHasMore(false);
-        setLoadError(true);
+        setLoadError(initialResults.length === 0);
       })
       .finally(() => {
         if (cancelled) return;
+        window.clearTimeout(timeoutId);
         setIsRefining(false);
       });
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timeoutId);
+      controller.abort();
     };
-  }, [museum, query, searchType]);
+  }, [initialResults.length, museum, query, searchType]);
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 

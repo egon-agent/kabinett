@@ -4,7 +4,7 @@ import json
 import struct
 import time
 import os
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 import numpy as np
 import faiss
@@ -108,6 +108,6 @@ class KNNHandler(BaseHTTPRequestHandler):
 
 
 print(f"[FAISS] Server starting on port {PORT}...")
-server = HTTPServer(("127.0.0.1", PORT), KNNHandler)
+server = ThreadingHTTPServer(("127.0.0.1", PORT), KNNHandler)
 print(f"[FAISS] Ready!")
 server.serve_forever()

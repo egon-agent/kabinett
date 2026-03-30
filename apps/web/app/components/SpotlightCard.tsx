@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import {
   buildArtworkAltText,
   focalObjectPosition,
@@ -22,18 +23,20 @@ export default function SpotlightCard({ spotlight }: { spotlight: SpotlightCardD
         <h2 className="text-[24px] text-primary leading-[1.3] mt-2">
           {spotlight.artistName}
         </h2>
-        <a
-          href={`/artist/${encodeURIComponent(spotlight.artistName)}`}
+        <Link
+          to={`/artist/${encodeURIComponent(spotlight.artistName)}`}
+          prefetch="intent"
           className="inline-block mt-4 text-[13px] text-secondary hover:text-primary transition-colors no-underline focus-ring"
         >
           {uiText(uiLocale, "Utforska konstnären", "Explore artist")} →
-        </a>
+        </Link>
       </div>
       <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
         {spotlight.items.map((item) => (
-          <a
+          <Link
             key={item.id}
-            href={`/artwork/${item.id}`}
+            to={`/artwork/${item.id}`}
+            prefetch="intent"
             className="shrink-0 w-[8.5rem] h-[8.5rem] overflow-hidden rounded-card block hover:opacity-85 transition-opacity duration-200 focus-ring"
             style={{ backgroundColor: item.dominant_color || "#E0DEDA" }}
           >
@@ -49,7 +52,7 @@ export default function SpotlightCard({ spotlight }: { spotlight: SpotlightCardD
               className="w-full h-full object-cover"
               style={{ objectPosition: focalObjectPosition(item.focal_x, item.focal_y) }}
             />
-          </a>
+          </Link>
         ))}
       </div>
     </section>

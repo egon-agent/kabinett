@@ -364,6 +364,12 @@ export function searchArtworksText(args: {
     scope = "broad",
   } = args;
 
+  // Broad FTS probes can be catastrophically slow on miss-heavy natural language queries.
+  // Use the lexical scorer directly for broad search so search stays responsive.
+  if (scope === "broad") {
+    return searchByLike({ db, query, scope, source, museum, limit, offset });
+  }
+
   if (hasAnyFtsHits({ db, query, scope, source, museum })) {
     const ftsRows = searchByFts({ db, query, scope, source, museum, limit, offset });
     if (ftsRows.length >= minReliableFtsHits(scope, limit)) {

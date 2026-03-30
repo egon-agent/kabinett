@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router";
 import { buildImageUrl } from "../lib/images";
 import { uiText, useUiLocale } from "../lib/ui-language";
 import type { MatchType } from "../lib/search-types";
@@ -34,8 +35,9 @@ const ArtworkCard = React.memo(function ArtworkCard({
   const secondaryColor = variant === "dark" ? "text-dark-secondary" : "text-secondary";
 
   return (
-    <a
-      href={`/artwork/${item.id}`}
+    <Link
+      to={`/artwork/${item.id}`}
+      prefetch="intent"
       className="block no-underline text-inherit hover:opacity-85 transition-opacity duration-200 focus-ring"
     >
       <div
@@ -72,7 +74,7 @@ const ArtworkCard = React.memo(function ArtworkCard({
           <p className={`text-[11px] ${secondaryColor} mt-1 line-clamp-2`}>{snippet}</p>
         )}
       </div>
-    </a>
+    </Link>
   );
 });
 

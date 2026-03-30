@@ -204,6 +204,44 @@ export type SearchLoaderData = {
   uiLocale: UiLocale;
 };
 
+function loadInitialVisualPayload(args: {
+  query: string;
+  museum: string;
+}): SearchResultsPayload {
+  const { query, museum } = args;
+  if (!query) {
+    return { results: [], total: 0, cursor: null };
+  }
+
+  try {
+    const db = getDb();
+    const sourceA = sourceFilter("a");
+    const mf = museum ? museumFilterSql(museum, "a") : null;
+    const rows = searchArtworksText({
+      db,
+      query,
+      source: sourceA,
+      museum: mf,
+      limit: INITIAL_VISUAL_PAGE_SIZE,
+      scope: "broad",
+    }) as SearchResult[];
+
+    rows.forEach((row) => {
+      row.matchType = "fts" as MatchType;
+      row.snippet = buildArtworkSnippet(row, query);
+    });
+
+    return {
+      results: toArtworkSearchResults(rows),
+      total: rows.length,
+      cursor: null,
+    };
+  } catch (error) {
+    console.error("[Initial visual fallback error]", error);
+    return { results: [], total: 0, cursor: null };
+  }
+}
+
 function parseMode(rawMode: string | null): SearchMode | null {
   if (rawMode === "fts" || rawMode === "clip" || rawMode === "color" || rawMode === "theme") return rawMode;
   return null;
@@ -758,7 +796,7 @@ export function searchLoader(request: Request): SearchLoaderData {
       ? museumParam
       : "";
   const initialPayload = searchType === "visual"
-    ? { results: [], total: 0, cursor: null }
+    ? loadInitialVisualPayload({ query, museum })
     : null;
   const resultsPromise = searchType === "visual"
     ? Promise.resolve({ results: [], total: 0, cursor: null } satisfies SearchResultsPayload)

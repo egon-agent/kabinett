@@ -17,6 +17,9 @@ RUN pnpm install --frozen-lockfile
 COPY apps/web/ apps/web/
 COPY packages/data/scripts/ packages/data/scripts/
 
+# Bundle the CLIP text model into the image so production never downloads it on first search.
+RUN node apps/web/scripts/prefetch-clip-model.mjs
+
 # Build
 RUN pnpm --filter web build
 
@@ -38,6 +41,7 @@ COPY --from=base /app/packages/data/scripts/ packages/data/scripts/
 COPY --from=base /app/apps/web/build apps/web/build
 COPY --from=base /app/apps/web/public apps/web/public
 COPY --from=base /app/apps/web/app/lib/clip-projection.bin apps/web/build/server/clip-projection.bin
+COPY --from=base /app/models /app/models
 
 # DB will be mounted as a volume at /data/kabinett.db
 # Create minimal fallback DB
@@ -47,6 +51,9 @@ RUN apt-get update -qq && apt-get install -y -qq sqlite3 python3 python3-pip cur
     rm -rf /var/lib/apt/lists/*
 
 ENV DATABASE_PATH=/data/kabinett.db
+ENV KABINETT_CLIP_MODEL_PATH=/app/models
+ENV KABINETT_CLIP_ALLOW_REMOTE=0
+ENV KABINETT_IDLE_CLIP_WARMUP_MS=0
 ENV NODE_ENV=production
 ENV PORT=3000
 

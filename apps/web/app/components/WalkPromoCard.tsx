@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import type { CampaignId } from "../lib/campaign.server";
 
 const COPY_BY_CAMPAIGN: Record<CampaignId, { eyebrow: string; title: string; body: string; cta: string }> = {
@@ -46,13 +47,14 @@ export default function WalkPromoCard({ campaignId = "default" }: { campaignId?:
       <p className="mt-2.5 text-[0.82rem] text-dark-secondary leading-[1.5] relative">
         {copy.body}
       </p>
-      <a
-        href="/vandringar"
+      <Link
+        to="/vandringar"
+        prefetch="intent"
         className="inline-flex items-center gap-1 mt-5 text-[0.72rem] tracking-[0.08em] uppercase text-dark-secondary hover:text-accent transition-colors no-underline focus-ring relative group/link"
       >
         {copy.cta.replace(" →", "")}
         <span className="inline-block transition-transform duration-300 group-hover/link:translate-x-1" style={{ transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)" }}> →</span>
-      </a>
+      </Link>
     </section>
   );
 }

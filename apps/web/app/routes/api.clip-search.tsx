@@ -274,7 +274,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
               museum: museumSql,
               limit,
               offset,
-              scope: "title",
+              scope: "broad",
             }) as any[];
           } catch {
             ftsResults = [];

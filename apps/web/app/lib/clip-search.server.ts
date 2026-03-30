@@ -1,12 +1,32 @@
+import { existsSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { getDb } from "./db.server";
 import { buildImageUrl } from "./images";
 import { sourceFilter } from "./museums.server";
 import { parseArtist } from "./parsing";
 import { AutoTokenizer, CLIPTextModelWithProjection, env } from "@xenova/transformers";
 
-env.allowLocalModels = false;
-
 export const CLIP_TEXT_MODEL = "Xenova/clip-vit-base-patch32";
+const configuredClipModelPath = process.env.KABINETT_CLIP_MODEL_PATH?.trim();
+const clipModelPathCandidates = [
+  configuredClipModelPath,
+  resolve(process.cwd(), "models"),
+  resolve(process.cwd(), "../../models"),
+].filter((value): value is string => Boolean(value));
+const clipModelPath = clipModelPathCandidates.find((value) => existsSync(value)) || clipModelPathCandidates[0];
+const bundledClipModelPath = clipModelPath ? join(clipModelPath, CLIP_TEXT_MODEL) : null;
+const hasBundledClipModel = bundledClipModelPath ? existsSync(bundledClipModelPath) : false;
+
+env.allowLocalModels = true;
+if (clipModelPath) {
+  env.localModelPath = clipModelPath;
+}
+env.allowRemoteModels = process.env.KABINETT_CLIP_ALLOW_REMOTE === "1" || process.env.NODE_ENV !== "production";
+
+if (process.env.NODE_ENV === "production" && !hasBundledClipModel) {
+  console.warn("[CLIP] Bundled model files not found; production visual search requires local model files or KABINETT_CLIP_ALLOW_REMOTE=1.");
+}
+
 const QUERY_EMBEDDING_VERSION = "clip-b32-v2";
 const QUERY_PROMPT_VERSION = "prompt-ensemble-v1";
 const ENABLE_DB_QUERY_CACHE = process.env.KABINETT_CLIP_QUERY_CACHE === "1";
@@ -76,6 +96,11 @@ type ClipSearchCacheEntry = {
   results: ClipResult[];
 };
 
+type QueryEmbeddingMemoryCacheEntry = {
+  ts: number;
+  embedding: Buffer;
+};
+
 let textEncoderPromise: Promise<TextEncoder> | null = null;
 let clipWarmupPromise: Promise<void> | null = null;
 let queryCacheInitAttempted = false;
@@ -86,8 +111,50 @@ let localVecWarningShown = false;
 let faissFallbackWarningShown = false;
 const clipSearchCache = new Map<string, ClipSearchCacheEntry>();
 const clipSearchInFlight = new Map<string, Promise<ClipResult[]>>();
+const queryEmbeddingMemoryCache = new Map<string, QueryEmbeddingMemoryCacheEntry>();
+const queryEmbeddingInFlight = new Map<string, Promise<Buffer>>();
 const CLIP_SEARCH_CACHE_TTL_MS = Number(process.env.KABINETT_CLIP_SEARCH_CACHE_MS ?? "600000");
 const CLIP_SEARCH_CACHE_MAX_ENTRIES = Number(process.env.KABINETT_CLIP_SEARCH_CACHE_MAX ?? "200");
+const QUERY_EMBEDDING_MEMORY_CACHE_TTL_MS = Number(process.env.KABINETT_CLIP_EMBED_CACHE_MS ?? "1800000");
+const QUERY_EMBEDDING_MEMORY_CACHE_MAX_ENTRIES = Number(process.env.KABINETT_CLIP_EMBED_CACHE_MAX ?? "256");
+const CLIP_WARMUP_QUERIES = [...new Set(
+  (process.env.KABINETT_CLIP_WARMUP_QUERIES
+    ?? process.env.KABINETT_CLIP_WARMUP_QUERY
+    ?? "portrait,apple,stormy sea")
+    .split(",")
+    .map((query) => query.trim())
+    .filter(Boolean)
+)];
+
+function readQueryEmbeddingMemoryCache(key: string): Buffer | null {
+  const cached = queryEmbeddingMemoryCache.get(key);
+  if (!cached) return null;
+  if (Date.now() - cached.ts > QUERY_EMBEDDING_MEMORY_CACHE_TTL_MS) {
+    queryEmbeddingMemoryCache.delete(key);
+    return null;
+  }
+
+  // Refresh insertion order for simple LRU behaviour.
+  queryEmbeddingMemoryCache.delete(key);
+  queryEmbeddingMemoryCache.set(key, cached);
+  return Buffer.from(cached.embedding);
+}
+
+function writeQueryEmbeddingMemoryCache(key: string, embedding: Buffer): void {
+  queryEmbeddingMemoryCache.set(key, {
+    ts: Date.now(),
+    embedding: Buffer.from(embedding),
+  });
+
+  if (queryEmbeddingMemoryCache.size <= QUERY_EMBEDDING_MEMORY_CACHE_MAX_ENTRIES) {
+    return;
+  }
+
+  const oldestKey = queryEmbeddingMemoryCache.keys().next().value;
+  if (oldestKey) {
+    queryEmbeddingMemoryCache.delete(oldestKey);
+  }
+}
 
 function logQueryCacheWarning(error: unknown): void {
   if (queryCacheWarningShown) return;
@@ -153,6 +220,8 @@ function logFaissFallbackWarning(error: unknown): void {
 }
 
 function getCachedQueryEmbedding(query: string): Buffer | null {
+  const memoryCached = readQueryEmbeddingMemoryCache(query);
+  if (memoryCached) return memoryCached;
   if (!ENABLE_DB_QUERY_CACHE) return null;
   const db = getDb();
 
@@ -160,14 +229,16 @@ function getCachedQueryEmbedding(query: string): Buffer | null {
     const row = db
       .prepare("SELECT embedding FROM query_embeddings WHERE query = ?")
       .get(query) as QueryEmbeddingRow | undefined;
-
-    return row?.embedding ?? null;
+    if (!row?.embedding) return null;
+    writeQueryEmbeddingMemoryCache(query, row.embedding);
+    return Buffer.from(row.embedding);
   } catch {
     return null;
   }
 }
 
 function storeQueryEmbedding(query: string, embedding: Buffer): void {
+  writeQueryEmbeddingMemoryCache(query, embedding);
   if (!ENABLE_DB_QUERY_CACHE) return;
   initQueryEmbeddingCache();
   if (!queryCacheWritable) return;
@@ -191,6 +262,29 @@ function normalize(vec: Float32Array): Float32Array {
   const out = new Float32Array(vec.length);
   for (let i = 0; i < vec.length; i++) out[i] = vec[i] / denom;
   return out;
+}
+
+async function getOrCreateQueryEmbedding(queryKey: string, queryText: string): Promise<Buffer> {
+  const cached = getCachedQueryEmbedding(queryKey);
+  if (cached) return cached;
+
+  const inflight = queryEmbeddingInFlight.get(queryKey);
+  if (inflight) {
+    return Buffer.from(await inflight);
+  }
+
+  const request = embedQuery(queryText)
+    .then((embedding) => {
+      storeQueryEmbedding(queryKey, embedding);
+      return embedding;
+    });
+
+  queryEmbeddingInFlight.set(queryKey, request);
+  try {
+    return Buffer.from(await request);
+  } finally {
+    queryEmbeddingInFlight.delete(queryKey);
+  }
 }
 
 async function getTextEncoder(): Promise<TextEncoder> {
@@ -565,11 +659,7 @@ export async function clipSearch(
 
     for (const variant of variants) {
       const variantKey = `${QUERY_EMBEDDING_VERSION}:${QUERY_PROMPT_VERSION}:${variant.trim().toLowerCase()}`;
-      let queryBuffer = getCachedQueryEmbedding(variantKey);
-      if (!queryBuffer) {
-        queryBuffer = await embedQuery(variant);
-        storeQueryEmbedding(variantKey, queryBuffer);
-      }
+      const queryBuffer = await getOrCreateQueryEmbedding(variantKey, variant);
 
       const rows = await runKnnQuery(
         queryBuffer,
@@ -667,7 +757,20 @@ export function warmupClip(): Promise<void> {
   }
 
   clipWarmupPromise = getTextEncoder()
-    .then(() => console.log("[CLIP] Model loaded and ready"))
+    .then(async () => {
+      const allowedSource = sourceFilter("a");
+      for (const query of CLIP_WARMUP_QUERIES) {
+        const warmupKey = `${QUERY_EMBEDDING_VERSION}:${QUERY_PROMPT_VERSION}:${query.toLowerCase()}`;
+        const queryBuffer = await getOrCreateQueryEmbedding(warmupKey, query);
+        try {
+          await runKnnQuery(queryBuffer, 12, allowedSource);
+        } catch (error) {
+          console.warn("[CLIP] Warmup KNN probe failed:", error);
+        }
+      }
+
+      console.log("[CLIP] Model loaded and ready");
+    })
     .catch((err) => {
       clipWarmupPromise = null;
       console.error("[CLIP] Warmup failed:", err);

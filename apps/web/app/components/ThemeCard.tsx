@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import { buildImageUrl } from "../lib/images";
 import { uiText, useUiLocale } from "../lib/ui-language";
 import {
@@ -47,9 +48,10 @@ export default function ThemeCard({ section, showMuseumBadge }: { section: Theme
 
       <div className="flex gap-3 overflow-x-auto no-scrollbar px-4 md:px-6 lg:px-10 mt-5 pb-1">
         {section.items.map((item) => (
-          <a
+          <Link
             key={item.id}
-            href={`/artwork/${item.id}`}
+            to={`/artwork/${item.id}`}
+            prefetch="intent"
             className="shrink-0 w-[140px] md:w-[160px] block no-underline text-inherit hover:opacity-85 transition-opacity duration-200 focus-ring"
           >
             <div
@@ -84,17 +86,18 @@ export default function ThemeCard({ section, showMuseumBadge }: { section: Theme
                 </p>
               )}
             </div>
-          </a>
+          </Link>
         ))}
       </div>
 
       <div className="px-4 md:px-6 lg:px-10 mt-4">
-        <a
-          href={searchHref}
+        <Link
+          to={searchHref}
+          prefetch="intent"
           className="text-[13px] text-secondary hover:text-primary transition-colors no-underline focus-ring"
         >
           {uiText(uiLocale, "Visa fler", "View more")} →
-        </a>
+        </Link>
       </div>
     </div>
   );
