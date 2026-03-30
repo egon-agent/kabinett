@@ -242,43 +242,6 @@ function resolveSearchMode(rawMode: string | null, query: string, searchType: Se
   return "fts";
 }
 
-function buildInitialVisualPayload(args: {
-  query: string;
-  museum: string;
-}): SearchResultsPayload {
-  const { query, museum } = args;
-  if (!query) {
-    return { results: [], total: 0, cursor: null };
-  }
-
-  try {
-    const db = getDb();
-    const sourceA = sourceFilter("a");
-    const mf = museumFilterSql(museum, "a");
-    const rows = searchArtworksText({
-      db,
-      query,
-      source: sourceA,
-      museum: mf,
-      limit: INITIAL_VISUAL_PAGE_SIZE,
-      scope: "broad",
-    }) as SearchResult[];
-
-    rows.forEach((row) => {
-      row.matchType = "fts" as MatchType;
-      row.snippet = buildArtworkSnippet(row, query);
-    });
-
-    return {
-      results: toArtworkSearchResults(rows),
-      total: rows.length,
-      cursor: null,
-    };
-  } catch {
-    return { results: [], total: 0, cursor: null };
-  }
-}
-
 async function loadSearchResults(args: {
   query: string;
   museum: string;
@@ -795,17 +758,20 @@ export function searchLoader(request: Request): SearchLoaderData {
       ? museumParam
       : "";
   const initialPayload = searchType === "visual"
-    ? buildInitialVisualPayload({ query, museum })
+    ? { results: [], total: 0, cursor: null }
     : null;
+  const resultsPromise = searchType === "visual"
+    ? Promise.resolve({ results: [], total: 0, cursor: null } satisfies SearchResultsPayload)
+    : loadSearchResults({ query, museum, mode: searchMode, type: searchType }).catch((error) => {
+      console.error("[Search results error]", error);
+      return { results: [], total: 0, cursor: null };
+    });
 
   return {
     query,
     museum,
     initialPayload,
-    results: loadSearchResults({ query, museum, mode: searchMode, type: searchType }).catch((error) => {
-      console.error("[Search results error]", error);
-      return { results: [], total: 0, cursor: null };
-    }),
+    results: resultsPromise,
     museumOptions,
     showMuseumBadge,
     searchMode,

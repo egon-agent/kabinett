@@ -449,16 +449,20 @@ function SearchResultsPanel({
   const [loadError, setLoadError] = useState(false);
   const [cursor, setCursor] = useState<number | null>(initialCursor);
   const [hasMore, setHasMore] = useState(initialCursor !== null);
-  const [isRefining, setIsRefining] = useState(Boolean(pendingPayloadPromise));
+  const [isRefining, setIsRefining] = useState(searchType === "visual" && Boolean(query));
 
   useEffect(() => {
     setResults(initialResults);
     setCursor(initialCursor);
     setHasMore(initialCursor !== null);
-    setIsRefining(Boolean(pendingPayloadPromise));
-  }, [initialCursor, initialResults, pendingPayloadPromise]);
+    setIsRefining(searchType === "visual" && Boolean(query));
+  }, [initialCursor, initialResults, pendingPayloadPromise, query, searchType]);
 
   useEffect(() => {
+    if (searchType === "visual") {
+      return;
+    }
+
     if (!pendingPayloadPromise) {
       setIsRefining(false);
       return;
@@ -488,7 +492,55 @@ function SearchResultsPanel({
     return () => {
       cancelled = true;
     };
-  }, [initialResults.length, pendingPayloadPromise]);
+  }, [initialResults.length, pendingPayloadPromise, searchType]);
+
+  useEffect(() => {
+    if (searchType !== "visual" || !query) {
+      return;
+    }
+
+    let cancelled = false;
+    setIsRefining(true);
+    setLoadError(false);
+
+    const params = new URLSearchParams({
+      q: query,
+      limit: String(PAGE_SIZE),
+      type: "visual",
+    });
+    if (museum) params.set("museum", museum);
+
+    void fetch(`/api/clip-search?${params.toString()}`)
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Kunde inte ladda bildsökning");
+        const data = await response.json() as SearchResult[];
+        if (cancelled) return;
+
+        const mapped: ArtworkSearchResult[] = data.map((item) => ({
+          ...item,
+          resultType: "artwork",
+        }));
+        setResults(mapped);
+        setCursor(data.length >= PAGE_SIZE ? data.length : null);
+        setHasMore(data.length >= PAGE_SIZE);
+        setLoadError(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setResults([]);
+        setCursor(null);
+        setHasMore(false);
+        setLoadError(true);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setIsRefining(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [museum, query, searchType]);
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
