@@ -17,6 +17,18 @@ export default defineConfig({
     fs: {
       allow: ["../.."],
     },
+    watch: {
+      ignored: [
+        "**/.git/**",
+        "**/.venv/**",
+        "**/node_modules/**",
+        "**/.react-router/**",
+        "**/build/**",
+        "**/*.db",
+        "**/*.db-*",
+        "../../packages/data/**",
+      ],
+    },
     proxy: {
       "/api/nm": {
         target: "https://api.nationalmuseum.se",

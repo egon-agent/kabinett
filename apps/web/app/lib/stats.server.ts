@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { getCollectionOptions, sourceFilter } from "./museums.server";
+import { sourceFilter } from "./museums.server";
 
 export type SiteStats = {
   totalWorks: number;
@@ -14,6 +14,47 @@ const statsCache = new Map<string, { stats: SiteStats; ts: number }>();
 const STATS_CACHE_TTL_MS = 3_600_000;
 let hasMaterializedStatsTables: boolean | null = null;
 
+function queryCollectionCountLive(
+  db: Database.Database,
+  source: ReturnType<typeof sourceFilter>,
+): number {
+  const row = db.prepare(
+    `SELECT COUNT(*) as c
+     FROM (
+       SELECT DISTINCT COALESCE(NULLIF(a.sub_museum, ''), m.name) as collection_name
+       FROM artworks a
+       LEFT JOIN museums m ON m.id = a.source
+       WHERE ${source.sql}
+         AND COALESCE(NULLIF(a.sub_museum, ''), m.name) IS NOT NULL
+         AND TRIM(COALESCE(NULLIF(a.sub_museum, ''), m.name)) != ''
+         AND COALESCE(NULLIF(a.sub_museum, ''), m.name) != 'Statens historiska museer'
+         AND a.iiif_url IS NOT NULL
+         AND LENGTH(a.iiif_url) > 40
+         AND a.id NOT IN (SELECT artwork_id FROM broken_images)
+     ) collections`
+  ).get(...source.params) as { c: number };
+
+  return row.c;
+}
+
+function queryCollectionCountMaterialized(
+  db: Database.Database,
+  source: ReturnType<typeof sourceFilter>,
+): number {
+  if (source.params.length === 0) {
+    return 0;
+  }
+
+  const placeholders = source.params.map(() => "?").join(",");
+  const row = db.prepare(
+    `SELECT COUNT(*) as c
+     FROM source_collections_materialized
+     WHERE source IN (${placeholders})`
+  ).get(...source.params) as { c: number };
+
+  return row.c;
+}
+
 function querySiteStatsLive(db: Database.Database): SiteStats {
   const source = sourceFilter();
   const minYear = (db.prepare(`SELECT MIN(year_start) as c FROM artworks WHERE year_start > 0 AND ${source.sql}`).get(...source.params) as any).c as number | null;
@@ -22,7 +63,7 @@ function querySiteStatsLive(db: Database.Database): SiteStats {
 
   return {
     totalWorks: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE ${source.sql}`).get(...source.params) as any).c as number,
-    museums: getCollectionOptions().length,
+    museums: queryCollectionCountLive(db, source),
     paintings: (db.prepare(`SELECT COUNT(*) as c FROM artworks WHERE category LIKE '%Måleri%' AND ${source.sql}`).get(...source.params) as any).c as number,
     minYear,
     maxYear,
@@ -88,7 +129,7 @@ function querySiteStatsMaterialized(db: Database.Database): SiteStats {
 
   return {
     totalWorks: summary.total_works,
-    museums: getCollectionOptions().length,
+    museums: queryCollectionCountMaterialized(db, source),
     paintings: summary.paintings,
     minYear: summary.min_year,
     maxYear: summary.max_year,

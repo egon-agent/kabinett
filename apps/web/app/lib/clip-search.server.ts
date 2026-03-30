@@ -665,6 +665,3 @@ export function warmupClip(): void {
     .then(() => console.log("[CLIP] Model loaded and ready"))
     .catch((err) => console.error("[CLIP] Warmup failed:", err));
 }
-
-// Auto-warmup on module import
-warmupClip();
