@@ -1,12 +1,12 @@
 # MEMORY.md - Egons långtidsminne
 
-## Om Nathalie
-- Namn: Nathalie Wassgren
-- Telegram: 8050081892
+## Om [User]
+- Namn: [REDACTED]
+- Telegram: [REDACTED]
 - Tidszon: Europe/Stockholm
 - Föredrar svenska i konversation
-- Grupp "Kabinett" på Telegram (-1003690757639)
-- GitHub: nath-san
+- Grupp "[Group Name]" på Telegram ([REDACTED])
+- GitHub: [REDACTED]
 
 ## Projekt (Kabinett-topics)
 - **Topic 2 — Mandat:** Huvudprojekt, stort (2748 msgs)
@@ -26,15 +26,17 @@
 - Skriv alltid ner saker i filer. "Mentala anteckningar" överlever inte sessioner.
 - Kontrollera att memory/-mappen och MEMORY.md faktiskt existerar vid uppstart.
 - Vid migration/uppgradering: verifiera att workspace och sessionsdata överlevde.
-- **DUBBLA SVAR-BUGG:** När meddelanden köas under omstarter/config-ändringar, skicka ALDRIG samma innehåll två gånger. Kolla alltid om svaret redan levererats innan du skickar. Nathalie har påpekat detta — det är irriterande.
-- **Voice/STT-status (2026-04-02):** tools.media.audio.enabled=true är satt, men transkribering funkar inte ännu. Väntar på OpenClaw-uppdatering som fixar ogg-transcoding (finns i beta). Whisper-cli installerat via brew men modell borttagen. OPENAI_API_KEY är satt via launchctl setenv.
+- **DUBBLA SVAR-BUGG:** När meddelanden köas under omstarter/config-ändringar, skicka ALDRIG samma innehåll två gånger. Kolla alltid om svaret redan levererats innan du skickar.
+- **Voice/STT-status:** tools.media.audio.enabled=true är satt, men transkribering funkar inte ännu. Väntar på OpenClaw-uppdatering som fixar ogg-transcoding (finns i beta). Whisper-cli installerat via brew men modell borttagen. OPENAI_API_KEY är satt via launchctl setenv.
 
-## Config-ändringar (2026-04-01/02)
-- maxTokens: Opus 32768, Sonnet 16384
-- Heartbeat-modell: Sonnet 4.5
-- Elevated tools: aktiverat
-- tools.media.audio.enabled: true (väntar på fungerande transcoding)
-- OPENAI_API_KEY: satt i ~/.zshrc + launchctl setenv
-- Cron: Daily Tech & AI Digest (08:30), OpenClaw Auto-Update (04:00)
-- Borttagna cron: slack-reminder, vercel-webhook, loka-faktura
-- Fantasy Allsvenskan cron: fixade delivery-adresser
+## Config-ändringar (senaste)
+- **2026-04-09:** Morgonkomplimang-cron skapad (ersätter trasig kalenderanalys)
+- **2026-04-07:** Slack enabled (men fungerar ej, token saknas)
+- **2026-04-05:** Modellstrategy → Sonnet 4.5 för allt utom kod
+- **2026-04-02:** Fantasy cron aktivt (21:00 kvällsrapport)
+- **2026-04-02:** De flesta cron-jobb disabled (kostnadsbesparing)
+- **2026-04-01:** Elevated tools aktiverat, maxTokens ökade
+
+## Ej önskat
+- Gmail-integration
+- Voice transcription (väntar på OpenClaw-uppdatering, låg prioritet)

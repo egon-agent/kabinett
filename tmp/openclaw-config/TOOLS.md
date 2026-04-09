@@ -11,39 +11,25 @@ Skills define _how_ tools work. This file is for _your_ specifics — the stuff 
 - **Allt (chatt, heartbeats, sub-agents):** Claude Sonnet 4.5
 - **Kodning:** Codex 5.4 (via coding-agent skill) — ALLTID
 
-## What Goes Here
+## Lokalt installerat
+- **icalBuddy:** Kalendertillgång (macOS)
+- **Ollama:** Inte installerat än (planerat för Gemma 4-test)
+- **whisper-cpp:** Installerat men oanvänt (modell borttagen)
 
-Things like:
+## API-nycklar
+- ✅ **OpenAI:** Satt (via launchctl setenv)
+- ✅ **Brave Search:** Satt
+- ⚠️ **Slack:** Plugin enabled men token saknas
+- ❌ **Gmail:** Inte önskat, skippa setup
 
-- Camera names and locations
-- SSH hosts and aliases
-- Preferred voices for TTS
-- Speaker/room names
-- Device nicknames
-- Anything environment-specific
+## SSH/Remotes
+- Ingen konfiguration ännu
 
-## Examples
-
-```markdown
-### Cameras
-
-- living-room → Main area, 180° wide angle
-- front-door → Entrance, motion-triggered
-
-### SSH
-
-- home-server → 192.168.1.100, user: admin
-
-### TTS
-
-- Preferred voice: "Nova" (warm, slightly British)
-- Default speaker: Kitchen HomePod
-```
-
-## Why Separate?
-
-Skills are shared. Your setup is yours. Keeping them apart means you can update skills without losing your notes, and share skills without leaking your infrastructure.
+## Kameror/IoT
+- Ingen konfiguration ännu
 
 ---
 
-Add whatever helps you do your job. This is your cheat sheet.
+## Why This File?
+
+Skills are shared. Your setup is yours. Keeping them apart means you can update skills without losing your notes, and share skills without leaking your infrastructure.

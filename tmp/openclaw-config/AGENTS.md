@@ -10,10 +10,11 @@ Before doing anything else:
 4. **Main session:** Also read `MEMORY.md`
 5. **Topic sessions (Kabinett):** Read matching memory file (see table below)
 
-| Topic | Memory file |
-|-------|-------------|
-| 2696 | `memory/kabinett-portfolio.md` |
-| 9227 | `memory/fantasy-allsvenskan.md` |
+**Topic sessions:** Read `memory/{topic-name}.md` if it exists.
+
+Currently available:
+- `memory/kabinett-portfolio.md` (Topic 2696)
+- `memory/fantasy-allsvenskan.md` (Topic 9227)
 
 ## Memory
 
