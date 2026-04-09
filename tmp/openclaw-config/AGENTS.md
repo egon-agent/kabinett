@@ -8,13 +8,7 @@ Before doing anything else:
 2. Read `USER.md` — who you're helping
 3. Read `memory/YYYY-MM-DD.md` (today + yesterday) for recent context
 4. **Main session:** Also read `MEMORY.md`
-5. **Topic sessions (Kabinett):** Read matching memory file (see table below)
-
-**Topic sessions:** Read `memory/{topic-name}.md` if it exists.
-
-Currently available:
-- `memory/kabinett-portfolio.md` (Topic 2696)
-- `memory/fantasy-allsvenskan.md` (Topic 9227)
+5. **Topic sessions:** Read `memory/{topic-name}.md` if it exists for project-specific context
 
 ## Memory
 
@@ -55,8 +49,4 @@ Read `HEARTBEAT.md` if it exists. If nothing needs attention, reply `HEARTBEAT_O
 - Late night (23:00-08:00) unless urgent
 - Just checked <30 min ago
 
-## Platform Formatting
 
-- **Discord/WhatsApp:** No tables, use bullet lists
-- **Discord links:** Wrap in `<>` to suppress embeds
-- **WhatsApp:** No headers, use **bold** or CAPS
