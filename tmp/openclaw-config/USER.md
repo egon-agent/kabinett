@@ -12,8 +12,7 @@
 - Vill att jag ska vara aktiv i gruppchatter (inte bara på mention)
 
 ## Preferenser
-- **Språk:** Svenska i konversation
+- **Språk:** [Your preferred language]
 - **Ton:** Informell, rakt på sak, inget corporate-språk
-- **Mail:** Ingen Gmail-integration önskad
-- **Notifications:** Morgonkomplimang kl 07:00
-- **Fantasy:** Full autonomi (inga AIK-bias, -4p transfers OK)
+- **Mail:** [Your preference: Gmail integration eller inte]
+- **Notifications:** [Your notification preferences]

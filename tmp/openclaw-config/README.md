@@ -16,9 +16,10 @@ This directory contains **sanitized** OpenClaw workspace configuration files.
 
 - User's real name, Telegram ID, group IDs
 - GitHub username
-- Project-specific memory files (kabinett-portfolio.md, fantasy-allsvenskan.md)
+- Agent name and project names (replaced with generic placeholders)
+- Project-specific memory files
 - Daily logs (memory/YYYY-MM-DD.md)
-- ALL_CONFIG_FILES.md (combined file)
+- Personal preferences and specific examples
 
 ## How to Use
 
