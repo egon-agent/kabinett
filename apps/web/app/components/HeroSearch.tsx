@@ -13,6 +13,13 @@ const HERO_SUGGESTIONS: Record<CampaignId, readonly string[]> = {
   shm: ["vikingasvärd", "krona", "runsten", "rustning", "silver", "medeltid"],
 };
 
+export function buildHeroAutocompleteUrl(value: string): string {
+  const params = new URLSearchParams({
+    q: value,
+  });
+  return `/api/autocomplete?${params.toString()}`;
+}
+
 export default function HeroSearch({
   totalWorks,
   headline,
@@ -56,13 +63,7 @@ export default function HeroSearch({
     }
   }, []);
 
-  const buildAutocompleteUrl = useCallback((value: string) => {
-    const params = new URLSearchParams({
-      q: value,
-      type: "visual",
-    });
-    return `/api/autocomplete?${params.toString()}`;
-  }, []);
+  const buildAutocompleteUrl = useCallback((value: string) => buildHeroAutocompleteUrl(value), []);
 
   const goToSearch = useCallback(
     (q: string, type: "all" | "visual" = "visual") => {

@@ -6,6 +6,11 @@ import ArtworkCard from "../components/ArtworkCard";
 import type { ArtworkDisplayItem } from "../components/artwork-meta";
 import { buildImageUrl } from "../lib/images";
 import {
+  buildSearchAutocompleteUrl,
+  buildSearchUrl,
+  resolveSearchAutocompletePath,
+} from "../lib/search-autocomplete";
+import {
   searchLoader,
   type SearchLoaderData,
   type SearchResult,
@@ -199,25 +204,15 @@ function SearchAutocompleteForm({
   }, [autoFocus]);
 
   const submitSearch = useCallback((value: string) => {
-    const trimmed = value.trim();
-    const params = new URLSearchParams();
-    if (trimmed) params.set("q", trimmed);
-    if (museum) params.set("museum", museum);
-    if (searchType !== "all") params.set("type", searchType);
-    const qs = params.toString();
-    navigate(qs ? `/search?${qs}` : "/search");
+    navigate(buildSearchUrl(value, { museum, searchType }));
   }, [museum, navigate, searchType]);
 
   const handleSelect = useCallback((suggestion: AutocompleteSuggestion) => {
-    const value = suggestion.type === "artwork" ? suggestion.title : suggestion.value;
-    submitSearch(value);
-  }, [submitSearch]);
+    navigate(resolveSearchAutocompletePath(suggestion, { museum, searchType }));
+  }, [museum, navigate, searchType]);
 
   const buildAutocompleteUrl = useCallback((value: string) => {
-    const params = new URLSearchParams({ q: value });
-    if (museum) params.set("museum", museum);
-    if (searchType !== "all") params.set("type", searchType);
-    return `/api/autocomplete?${params.toString()}`;
+    return buildSearchAutocompleteUrl(value, { museum, searchType });
   }, [museum, searchType]);
 
   const placeholder = uiText(uiLocale, "Beskriv vad du letar efter…", "Describe what you're looking for…");
