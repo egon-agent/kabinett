@@ -337,7 +337,7 @@ function CollectionFilter({
             setIsOpen(true);
           }
         }}
-        className="flex w-full items-center justify-between rounded-card border border-[#C8C3BC] bg-white px-4 py-2 text-left text-[14px] text-primary transition-colors shadow-[0_1px_4px_rgba(0,0,0,0.06)] hover:border-secondary focus-ring"
+        className="flex w-full cursor-pointer items-center justify-between rounded-card border border-[#C8C3BC] bg-white px-4 py-2 text-left text-[14px] text-primary transition-colors shadow-[0_1px_4px_rgba(0,0,0,0.06)] hover:border-secondary focus-ring"
       >
         <span className="truncate pr-4">{currentLabel}</span>
         <svg
@@ -379,7 +379,7 @@ function CollectionFilter({
                 onSelect(undefined);
               }}
               className={[
-                "flex w-full items-center px-4 py-2.5 text-left text-[14px] transition-colors",
+                "flex w-full cursor-pointer items-center px-4 py-2.5 text-left text-[14px] transition-colors",
                 value === ""
                   ? "bg-paper text-primary"
                   : "text-primary hover:bg-paper",
@@ -400,7 +400,7 @@ function CollectionFilter({
                     onSelect(option.id);
                   }}
                   className={[
-                    "flex w-full items-center px-4 py-2.5 text-left text-[14px] transition-colors",
+                    "flex w-full cursor-pointer items-center px-4 py-2.5 text-left text-[14px] transition-colors",
                     value === option.id
                       ? "bg-paper text-primary"
                       : "text-primary hover:bg-paper",

@@ -77,7 +77,7 @@ export default function InfiniteArtworkGrid({ fetchUrl, heading = "Alla verk" }:
           <button
             type="button"
             onClick={() => { setLoadError(false); loadMore(); }}
-            className="px-4 py-2 rounded-full border border-rule/30 text-sm text-primary font-medium hover:bg-paper transition-colors focus-ring"
+            className="px-4 py-2 rounded-full border border-rule/30 text-sm text-primary font-medium cursor-pointer hover:bg-paper transition-colors focus-ring"
           >
             {uiText(uiLocale, "Försök igen", "Try again")}
           </button>

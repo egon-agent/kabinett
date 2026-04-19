@@ -320,7 +320,7 @@ export default function Timeline({ loaderData }: Route.ComponentProps) {
               <button
                 type="button"
                 onClick={() => { setLoadError(false); loadMore(); }}
-                className="px-4 py-2 bg-paper text-secondary text-sm font-medium hover:bg-rule hover:text-primary transition-colors focus-ring"
+                className="px-4 py-2 cursor-pointer bg-paper text-secondary text-sm font-medium hover:bg-rule hover:text-primary transition-colors focus-ring"
               >
                 {uiText(uiLocale, "Försök igen", "Try again")}
               </button>

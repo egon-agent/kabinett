@@ -170,7 +170,7 @@ export default function About({ loaderData }: Route.ComponentProps) {
               <button
                 type="button"
                 onClick={() => setShowAllCollections((value) => !value)}
-                className="shrink-0 text-[0.82rem] px-3.5 py-[0.45rem] border border-[rgba(255,255,255,0.08)] bg-paper text-primary hover:bg-rule transition-colors focus-ring"
+                className="shrink-0 cursor-pointer text-[0.82rem] px-3.5 py-[0.45rem] border border-[rgba(255,255,255,0.08)] bg-paper text-primary hover:bg-rule transition-colors focus-ring"
               >
                 {showAllCollections
                   ? uiText(uiLocale, "Visa färre", "Show fewer")

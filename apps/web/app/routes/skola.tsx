@@ -803,7 +803,7 @@ export default function Skola({ loaderData }: Route.ComponentProps) {
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="border border-primary bg-primary px-4 py-2 text-[11px] tracking-[0.08em] uppercase text-white hover:opacity-85 transition-opacity focus-ring rounded-card"
+                  className="border border-primary bg-primary px-4 py-2 text-[11px] tracking-[0.08em] uppercase text-white cursor-pointer hover:opacity-85 transition-opacity focus-ring rounded-card"
                 >
                   Skriv ut upplägg
                 </button>
