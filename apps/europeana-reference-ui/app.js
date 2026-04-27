@@ -340,11 +340,10 @@ async function runSearch(reset = true) {
   }), reset);
 }
 
-async function runSimilar(reset = true) {
-  const recordIdInput = document.querySelector("#similar-record");
-  const recordId = recordIdInput.value.trim();
+async function runSimilar(reset = true, recordIdOverride = null) {
+  const recordId = (recordIdOverride ?? state.similar.lastRecordId ?? "").trim();
   if (!recordId) {
-    setStatus("similar", "Enter a Europeana record ID first.", true);
+    setStatus("similar", "Pick a reference image first.", true);
     return;
   }
 
@@ -409,11 +408,6 @@ document.querySelector('[data-role="search-form"]').addEventListener("submit", (
   void runSearch(true);
 });
 
-document.querySelector('[data-role="similar-form"]').addEventListener("submit", (event) => {
-  event.preventDefault();
-  void runSimilar(true);
-});
-
 document.querySelector('[data-role="color-form"]').addEventListener("submit", (event) => {
   event.preventDefault();
   void runColor(true);
@@ -445,6 +439,27 @@ document.querySelector('[data-role="color-chips"]').addEventListener("click", (e
   void runColor(true);
 });
 
+const colorPicker = document.querySelector("#color-picker");
+const colorHexInput = document.querySelector("#color-hex");
+
+if (colorPicker && colorHexInput) {
+  colorPicker.addEventListener("input", () => {
+    colorHexInput.value = colorPicker.value.toUpperCase();
+  });
+
+  colorPicker.addEventListener("change", () => {
+    colorHexInput.value = colorPicker.value.toUpperCase();
+    void runColor(true);
+  });
+
+  colorHexInput.addEventListener("input", () => {
+    const value = colorHexInput.value.trim();
+    if (/^#[0-9a-fA-F]{6}$/.test(value)) {
+      colorPicker.value = value.toLowerCase();
+    }
+  });
+}
+
 document.querySelector('[data-role="similar-random"]').addEventListener("click", () => {
   void loadSimilarSeeds();
 });
@@ -452,8 +467,7 @@ document.querySelector('[data-role="similar-random"]').addEventListener("click",
 document.querySelector('[data-role="similar-seeds"]').addEventListener("click", (event) => {
   const target = event.target.closest("[data-record-id]");
   if (!target) return;
-  document.querySelector("#similar-record").value = target.dataset.recordId || "";
-  void runSimilar(true);
+  void runSimilar(true, target.dataset.recordId || "");
 });
 
 document.querySelectorAll("[data-flow-tab]").forEach((button) => {
