@@ -18,6 +18,10 @@ const MIME_TYPES = {
 };
 
 function resolveFilePath(urlPath) {
+  if (urlPath === "/api-contract" || urlPath === "/api-contract/") {
+    return join(ROOT, "api-contract.html");
+  }
+
   const safePath = normalize(urlPath)
     .replace(/^(\.\.(\/|\\|$))+/, "")
     .replace(/^[/\\]+/, "");
