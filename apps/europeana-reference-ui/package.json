@@ -1,0 +1,8 @@
+{
+  "name": "@kabinett/europeana-reference-ui",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs"
+  }
+}

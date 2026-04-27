@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "pnpm --filter @kabinett/web dev",
     "sync": "pnpm --filter @kabinett/data sync",
-    "build": "pnpm --filter @kabinett/web build"
+    "build": "pnpm --filter @kabinett/web build",
+    "demo:europeana:service": "pnpm --filter @kabinett/europeana-visual-service start",
+    "demo:europeana:ui": "pnpm --filter @kabinett/europeana-reference-ui start"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

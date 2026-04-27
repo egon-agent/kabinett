@@ -1,0 +1,183 @@
+openapi: 3.1.0
+info:
+  title: Europeana Visual Layer
+  version: 1.0.0-demo
+  description: Europeana-only visual search layer. Product endpoints return Europeana record IDs and scores only.
+servers:
+  - url: /api
+paths:
+  /v1/visual/search:
+    post:
+      summary: Text-to-image visual search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+                  example: apple
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 48
+                  default: 24
+                cursor:
+                  type: string
+                  nullable: true
+                filters:
+                  $ref: "#/components/schemas/VisualFilters"
+      responses:
+        "200":
+          description: Visual matches
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisualResponse"
+  /v1/visual/similar/{recordId}:
+    get:
+      summary: Visually similar Europeana records
+      parameters:
+        - name: recordId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: /966/europeana_fashion_500063023
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 48
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Visual matches
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisualResponse"
+  /v1/visual/color:
+    get:
+      summary: Color match using the local dominant-colour index
+      parameters:
+        - name: hex
+          in: query
+          required: true
+          schema:
+            type: string
+          example: C62F32
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 48
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Color matches
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisualResponse"
+  /v1/demo/hydrate:
+    post:
+      summary: Demo-only hydration for the reference UI
+      description: Not part of the product integration contract. Europeana-owned clients should hydrate records through Europeana APIs.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recordIds]
+              properties:
+                recordIds:
+                  type: array
+                  items:
+                    type: string
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 24
+      responses:
+        "200":
+          description: Demo card data
+  /v1/demo/seeds:
+    get:
+      summary: Demo-only random seed records for the reference UI
+      description: Not part of the product integration contract. Used only to make the similar-works demo easier to operate.
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+            default: 6
+      responses:
+        "200":
+          description: Demo seed card data
+components:
+  schemas:
+    VisualFilters:
+      type: object
+      properties:
+        reusability:
+          type: string
+          enum: [open, restricted, permission]
+          nullable: true
+        theme:
+          type: string
+          nullable: true
+        provider:
+          type: string
+          nullable: true
+        dataset:
+          type: string
+          nullable: true
+        hasThumbnail:
+          type: boolean
+          nullable: true
+        hasMedia:
+          type: boolean
+          nullable: true
+        hasLandingPage:
+          type: boolean
+          nullable: true
+    VisualItem:
+      type: object
+      required: [recordId, score]
+      properties:
+        recordId:
+          type: string
+          example: /117/_1592a5ed_62c9_4064_9cbf_d0626bd4db84
+        score:
+          type: number
+          minimum: 0
+          maximum: 1
+    VisualResponse:
+      type: object
+      required: [items, nextCursor, meta]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/VisualItem"
+        nextCursor:
+          type: string
+          nullable: true
+        meta:
+          type: object
+          additionalProperties: true

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Europeana Visual Search Demo</title>
+    <meta
+      name="description"
+      content="Reference UI for a standalone Europeana-only visual search layer."
+    >
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Reference UI</p>
+          <h1>Europeana visual search demo</h1>
+        </div>
+      </header>
+
+      <p class="scope-strip">
+        Demo index: 100,000 Europeana image records, not all of Europeana.
+      </p>
+
+      <nav class="flow-tabs" aria-label="Demo flows">
+        <button type="button" class="flow-tab is-active" data-flow-tab="search">Text to image</button>
+        <button type="button" class="flow-tab" data-flow-tab="similar">Similar works</button>
+        <button type="button" class="flow-tab" data-flow-tab="color">Colour match</button>
+      </nav>
+
+      <main class="flow-stage">
+        <section class="flow-panel is-active" data-flow="search">
+          <div class="panel-heading">
+            <h2>Text to image</h2>
+            <p>Search by visual concepts, not metadata.</p>
+          </div>
+
+          <form class="flow-form" data-role="search-form">
+            <label class="field-label" for="search-query">Visual query</label>
+            <div class="field-row">
+              <input id="search-query" name="query" type="text" value="apple" autocomplete="off">
+              <button type="submit" class="primary-button">Search</button>
+            </div>
+            <div class="chip-row" data-role="search-chips">
+              <button type="button" class="chip" data-value="apple">apple</button>
+              <button type="button" class="chip" data-value="stormy sea">stormy sea</button>
+              <button type="button" class="chip" data-value="red dress">red dress</button>
+            </div>
+          </form>
+
+          <div class="panel-status" data-role="search-status">No search has run yet.</div>
+          <div class="results-grid" data-role="search-results"></div>
+          <button type="button" class="secondary-button hidden" data-role="search-more">Show more</button>
+        </section>
+
+        <section class="flow-panel" data-flow="similar">
+          <div class="panel-heading">
+            <h2>Similar works</h2>
+            <p>Pick an image and find visually similar works.</p>
+          </div>
+
+          <div class="seed-picker" aria-labelledby="seed-picker-heading">
+            <div class="seed-picker-heading">
+              <div>
+                <h3 id="seed-picker-heading">Pick a reference image</h3>
+                <p>Random records from the demo index.</p>
+              </div>
+              <button type="button" class="secondary-button" data-role="similar-random">Shuffle</button>
+            </div>
+            <div class="seed-options" data-role="similar-seeds"></div>
+          </div>
+
+          <details class="manual-seed">
+            <summary>Use a Europeana record ID manually</summary>
+            <form class="flow-form" data-role="similar-form">
+              <label class="field-label" for="similar-record">Seed Europeana record ID</label>
+              <div class="field-row">
+                <input
+                  id="similar-record"
+                  name="recordId"
+                  type="text"
+                  value="/966/europeana_fashion_500063023"
+                  spellcheck="false"
+                >
+                <button type="submit" class="primary-button">Find similar</button>
+              </div>
+              <p class="inline-note">
+                Uses <code>GET /v1/visual/similar/:recordId</code>.
+              </p>
+            </form>
+          </details>
+
+          <div class="seed-preview hidden" data-role="similar-seed"></div>
+          <div class="panel-status" data-role="similar-status">No seed record selected yet.</div>
+          <div class="results-grid" data-role="similar-results"></div>
+          <button type="button" class="secondary-button hidden" data-role="similar-more">Show more</button>
+        </section>
+
+        <section class="flow-panel" data-flow="color">
+          <div class="panel-heading">
+            <h2>Colour match</h2>
+            <p>Match by dominant colour in the local visual index.</p>
+          </div>
+
+          <form class="flow-form" data-role="color-form">
+            <label class="field-label" for="color-hex">Hex colour</label>
+            <div class="field-row">
+              <input id="color-hex" name="hex" type="text" value="#C62F32" spellcheck="false">
+              <button type="submit" class="primary-button">Match</button>
+            </div>
+            <div class="chip-row" data-role="color-chips">
+              <button type="button" class="swatch" data-value="#C62F32" style="--swatch:#C62F32"><span>Red</span></button>
+              <button type="button" class="swatch" data-value="#1B4E8A" style="--swatch:#1B4E8A"><span>Blue</span></button>
+              <button type="button" class="swatch" data-value="#D7A737" style="--swatch:#D7A737"><span>Gold</span></button>
+              <button type="button" class="swatch" data-value="#2E6A56" style="--swatch:#2E6A56"><span>Green</span></button>
+            </div>
+          </form>
+
+          <div class="panel-status" data-role="color-status">No colour selected yet.</div>
+          <div class="results-grid" data-role="color-results"></div>
+          <button type="button" class="secondary-button hidden" data-role="color-more">Show more</button>
+        </section>
+      </main>
+    </div>
+
+    <template id="result-card-template">
+      <article class="result-card">
+        <a class="result-link" href="#" target="_blank" rel="noreferrer noopener">
+          <div class="result-media"></div>
+          <div class="result-body">
+            <div class="result-topline">
+              <span class="result-provider"></span>
+              <span class="result-score"></span>
+            </div>
+            <h3 class="result-title"></h3>
+            <p class="result-year"></p>
+            <p class="result-description"></p>
+            <div class="result-meta">
+              <span class="result-rights"></span>
+              <span class="result-record"></span>
+            </div>
+          </div>
+        </a>
+      </article>
+    </template>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
