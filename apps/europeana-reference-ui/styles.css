@@ -463,13 +463,13 @@ input:focus {
 
 .seed-options {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
 .seed-option {
   display: grid;
-  grid-template-rows: 130px auto;
+  grid-template-rows: 92px auto;
   gap: 8px;
   min-width: 0;
   border: 1px solid var(--border);
@@ -504,7 +504,7 @@ input:focus {
 .seed-option-media img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .seed-option-body {
