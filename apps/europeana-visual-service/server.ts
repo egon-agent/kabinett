@@ -52,9 +52,21 @@ async function warmVisualIndex(): Promise<void> {
   if (seedIds.length === 0) return;
 
   await vectorIndex.searchBySeedArtworkIds(seedIds, 8);
-  await vectorIndex.searchByText("apple", 8, { variantMode: "balanced" });
-  await vectorIndex.searchByText("stormy sea", 8, { variantMode: "balanced" });
-  await vectorIndex.searchByText("red dress", 8, { variantMode: "balanced" });
+  for (const query of [
+    "apple",
+    "stormy sea",
+    "red dress",
+    "horse",
+    "ship",
+    "portrait",
+    "flowers",
+    "vase",
+    "blue sea",
+    "gold dress",
+    "bird",
+  ]) {
+    await vectorIndex.searchByText(query, 8, { variantMode: "balanced" });
+  }
   console.log(`[europeana-visual-service] warmed visual index with ${recordId}`);
 }
 
