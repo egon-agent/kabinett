@@ -356,18 +356,34 @@ async function runSimilar(reset = true, recordIdOverride = null) {
 
   state.similar.lastRecordId = recordId;
   if (reset) {
-    setStatus("similar", "Loading reference item…");
-    try {
-      const seedRecords = await hydrateItems([{ recordId, score: 1 }]);
-      state.similar.seedRecord = seedRecords[0] || {
-        recordId,
-        score: 1,
-        title: "Selected Europeana record",
-        provider: "Europeana",
-        thumbnailUrl: null,
-        europeanaUrl: `https://www.europeana.eu/en/item${recordId}`,
-      };
-    } catch {
+    const selectedSeed = state.similar.seedOptions.find((record) => record.recordId === recordId);
+    if (selectedSeed) {
+      state.similar.seedRecord = selectedSeed;
+    } else {
+      setStatus("similar", "Loading reference item…");
+      try {
+        const seedRecords = await hydrateItems([{ recordId, score: 1 }]);
+        state.similar.seedRecord = seedRecords[0] || {
+          recordId,
+          score: 1,
+          title: "Selected Europeana record",
+          provider: "Europeana",
+          thumbnailUrl: null,
+          europeanaUrl: `https://www.europeana.eu/en/item${recordId}`,
+        };
+      } catch {
+        state.similar.seedRecord = {
+          recordId,
+          score: 1,
+          title: "Selected Europeana record",
+          provider: "Europeana",
+          thumbnailUrl: null,
+          europeanaUrl: `https://www.europeana.eu/en/item${recordId}`,
+        };
+      }
+    }
+
+    if (!state.similar.seedRecord) {
       state.similar.seedRecord = {
         recordId,
         score: 1,

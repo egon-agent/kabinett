@@ -5,8 +5,12 @@ import Database from "better-sqlite3";
 import * as sqliteVec from "sqlite-vec";
 import { AutoTokenizer, CLIPTextModelWithProjection, env } from "@xenova/transformers";
 import {
+  buildEuropeanaItemUrl,
   clampVisualScore,
   EUROPEANA_SOURCE,
+  normalizeRecordId,
+  type EuropeanaHydratedRecord,
+  type HydrationAdapter,
   type LocalVisualCandidate,
   type VectorIndex,
   type VisualSearchOptions,
@@ -47,6 +51,19 @@ type VectorRow = {
   distance: number;
 };
 
+type HydrationRow = {
+  recordId: string | null;
+  titleEn: string | null;
+  titleSv: string | null;
+  provider: string | null;
+  descriptionEn: string | null;
+  descriptionSv: string | null;
+  thumbnailUrl: string | null;
+  yearStart: number | null;
+  datingText: string | null;
+  category: string | null;
+};
+
 type ClipEmbeddingSeedRow = {
   artwork_id: number;
   embedding: Buffer;
@@ -61,6 +78,15 @@ type AggregatedCandidate = {
 let db: Database.Database | null = null;
 let textEncoderPromise: Promise<TextEncoder> | null = null;
 const queryEmbeddingCache = new Map<string, Buffer>();
+
+const DEMO_SEED_RECORD_IDS = [
+  "/966/europeana_fashion_500063023",
+  "/966/europeana_fashion_500063039",
+  "/966/europeana_fashion_500063075",
+  "/966/europeana_fashion_500065152",
+  "/966/europeana_fashion_500065180",
+  "/966/europeana_fashion_500065237",
+];
 
 function tryPragma(database: Database.Database, pragma: string): void {
   try {
@@ -172,6 +198,26 @@ function toCandidate(row: VectorRow): LocalVisualCandidate | null {
     recordId: row.recordId,
     provider: row.provider,
     score: vecDistanceToScore(row.distance),
+  };
+}
+
+function toHydratedRecord(row: HydrationRow): EuropeanaHydratedRecord | null {
+  const recordId = normalizeRecordId(row.recordId);
+  if (!recordId) return null;
+
+  const year = row.datingText?.trim()
+    || (Number.isInteger(row.yearStart) ? String(row.yearStart) : null);
+
+  return {
+    recordId,
+    title: row.titleEn?.trim() || row.titleSv?.trim() || "Untitled",
+    provider: row.provider?.trim() || null,
+    description: row.descriptionEn?.trim() || row.descriptionSv?.trim() || null,
+    rights: null,
+    thumbnailUrl: row.thumbnailUrl?.trim() || null,
+    europeanaUrl: buildEuropeanaItemUrl(recordId),
+    year,
+    type: row.category?.trim() || null,
   };
 }
 
@@ -325,10 +371,13 @@ export function createSqliteVectorIndex(): VectorIndex {
 }
 
 export function getDemoSeedRecordIds(limit: number): string[] {
+  if (limit <= DEMO_SEED_RECORD_IDS.length) {
+    return DEMO_SEED_RECORD_IDS.slice(0, limit);
+  }
+
   const rows = getDb().prepare(
     `SELECT a.inventory_number AS recordId
      FROM artworks a
-     JOIN vec_artwork_map map ON map.artwork_id = a.id
      WHERE a.source = ?
        AND a.inventory_number IS NOT NULL
        AND a.inventory_number != ''
@@ -336,9 +385,59 @@ export function getDemoSeedRecordIds(limit: number): string[] {
        AND LENGTH(a.iiif_url) > 40
        AND a.id NOT IN (SELECT artwork_id FROM broken_images)
      GROUP BY a.inventory_number
-     ORDER BY RANDOM()
+     ORDER BY a.inventory_number
      LIMIT ?`
-  ).all(EUROPEANA_SOURCE, limit) as Array<{ recordId: string }>;
+  ).all(EUROPEANA_SOURCE, limit - DEMO_SEED_RECORD_IDS.length) as Array<{ recordId: string }>;
 
-  return rows.map((row) => row.recordId);
+  return [...DEMO_SEED_RECORD_IDS, ...rows.map((row) => row.recordId)]
+    .filter((recordId, index, all) => all.indexOf(recordId) === index)
+    .slice(0, limit);
+}
+
+export function createSqliteDemoHydrationAdapter(fallback?: HydrationAdapter): HydrationAdapter {
+  return {
+    async hydrateRecords(recordIds) {
+      const uniqueIds = [...new Set(
+        recordIds
+          .map((recordId) => normalizeRecordId(recordId))
+          .filter((recordId): recordId is string => Boolean(recordId)),
+      )];
+      if (uniqueIds.length === 0) return [];
+
+      const placeholders = uniqueIds.map(() => "?").join(",");
+      const rows = getDb().prepare(
+        `SELECT a.inventory_number AS recordId,
+                a.title_en AS titleEn,
+                a.title_sv AS titleSv,
+                a.sub_museum AS provider,
+                a.descriptions_en AS descriptionEn,
+                a.descriptions_sv AS descriptionSv,
+                a.iiif_url AS thumbnailUrl,
+                a.year_start AS yearStart,
+                a.dating_text AS datingText,
+                a.category AS category
+         FROM artworks a
+         WHERE a.source = ?
+           AND a.inventory_number IN (${placeholders})
+         GROUP BY a.inventory_number`
+      ).all(EUROPEANA_SOURCE, ...uniqueIds) as HydrationRow[];
+
+      const localRecords = rows
+        .map((row) => toHydratedRecord(row))
+        .filter((record): record is EuropeanaHydratedRecord => Boolean(record));
+      const recordMap = new Map(localRecords.map((record) => [record.recordId, record]));
+
+      const missingIds = uniqueIds.filter((recordId) => !recordMap.has(recordId));
+      if (fallback && missingIds.length > 0) {
+        const fallbackRecords = await fallback.hydrateRecords(missingIds);
+        for (const record of fallbackRecords) {
+          recordMap.set(record.recordId, record);
+        }
+      }
+
+      return uniqueIds
+        .map((recordId) => recordMap.get(recordId))
+        .filter((record): record is EuropeanaHydratedRecord => Boolean(record));
+    },
+  };
 }

@@ -7,7 +7,11 @@ import {
 } from "../../packages/europeana-visual-core/src/index";
 import { createEuropeanaApiAdapter } from "./europeana-api-adapter";
 import { createSqliteColorSearch } from "./sqlite-color-search";
-import { createSqliteVectorIndex, getDemoSeedRecordIds } from "./sqlite-vector-index";
+import {
+  createSqliteDemoHydrationAdapter,
+  createSqliteVectorIndex,
+  getDemoSeedRecordIds,
+} from "./sqlite-vector-index";
 
 const PORT = Number(process.env.PORT || process.env.EUROPEANA_VISUAL_PORT || 4318);
 const HOST = process.env.HOST || "0.0.0.0";
@@ -20,11 +24,12 @@ const ALLOWED_ORIGINS = (process.env.EUROPEANA_VISUAL_ALLOWED_ORIGINS || "*")
   .filter(Boolean);
 
 const europeanaApi = createEuropeanaApiAdapter();
+const demoHydration = createSqliteDemoHydrationAdapter(europeanaApi);
 const vectorIndex = createSqliteVectorIndex();
 const visualLayer = createEuropeanaVisualLayer({
   vectorIndex,
   colorSearch: createSqliteColorSearch(),
-  hydration: europeanaApi,
+  hydration: demoHydration,
 }, {
   maxLocalWindow: Number(process.env.EUROPEANA_VISUAL_MAX_WINDOW ?? "480"),
   searchFetchFloor: Number(process.env.EUROPEANA_VISUAL_FETCH_FLOOR ?? "72"),
@@ -38,6 +43,17 @@ const visualLayer = createEuropeanaVisualLayer({
 });
 
 const rateLimitBuckets = new Map<string, { resetAt: number; count: number }>();
+
+async function warmVisualIndex(): Promise<void> {
+  const [recordId] = getDemoSeedRecordIds(1);
+  if (!recordId) return;
+
+  const seedIds = vectorIndex.getArtworkIdsForRecordId(recordId);
+  if (seedIds.length === 0) return;
+
+  await vectorIndex.searchBySeedArtworkIds(seedIds, 8);
+  console.log(`[europeana-visual-service] warmed similar index with ${recordId}`);
+}
 
 function getAllowedOrigin(origin: string | undefined): string | null {
   if (ALLOWED_ORIGINS.includes("*")) return origin || "*";
@@ -255,4 +271,7 @@ const server = createServer(async (request, response) => {
 
 server.listen(PORT, HOST, () => {
   console.log(`[europeana-visual-service] listening on http://${HOST}:${PORT}`);
+  void warmVisualIndex().catch((error) => {
+    console.warn("[europeana-visual-service] similar index warmup failed:", error);
+  });
 });
