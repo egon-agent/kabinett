@@ -1,5 +1,16 @@
 const DEFAULT_SERVICE_URL = "/api";
 const DEFAULT_LIMIT = 8;
+const FLOW_ROUTES = {
+  search: "/visual-search",
+  similar: "/similar-works",
+  color: "/colour-match",
+};
+const FLOW_BY_PATH = {
+  "/": "search",
+  "/visual-search": "search",
+  "/similar-works": "similar",
+  "/colour-match": "color",
+};
 
 const state = {
   serviceUrl: DEFAULT_SERVICE_URL,
@@ -29,6 +40,10 @@ const state = {
 
 const cardTemplate = document.querySelector("#result-card-template");
 
+function getFlowFromLocation() {
+  return FLOW_BY_PATH[window.location.pathname] || "search";
+}
+
 function normalizeServiceUrl(value) {
   return value.trim().replace(/\/+$/, "") || DEFAULT_SERVICE_URL;
 }
@@ -37,20 +52,30 @@ function getServiceUrl() {
   return normalizeServiceUrl(state.serviceUrl);
 }
 
-function setActiveFlow(flow) {
-  state.activeFlow = flow;
+function setActiveFlow(flow, options = {}) {
+  const nextFlow = state[flow] ? flow : "search";
+  const updatePath = options.updatePath ?? true;
+
+  state.activeFlow = nextFlow;
 
   document.querySelectorAll("[data-flow-tab]").forEach((button) => {
-    const isActive = button.dataset.flowTab === flow;
+    const isActive = button.dataset.flowTab === nextFlow;
     button.classList.toggle("is-active", isActive);
     button.setAttribute("aria-selected", String(isActive));
   });
 
   document.querySelectorAll("[data-flow]").forEach((panel) => {
-    panel.classList.toggle("is-active", panel.dataset.flow === flow);
+    panel.classList.toggle("is-active", panel.dataset.flow === nextFlow);
   });
 
-  if (flow === "similar" && state.similar.seedOptions.length === 0) {
+  if (updatePath) {
+    const nextPath = FLOW_ROUTES[nextFlow] || "/";
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState({ flow: nextFlow }, "", nextPath);
+    }
+  }
+
+  if (nextFlow === "similar" && state.similar.seedOptions.length === 0) {
     void loadSimilarSeeds();
   }
 }
@@ -492,7 +517,11 @@ document.querySelectorAll("[data-flow-tab]").forEach((button) => {
   });
 });
 
+window.addEventListener("popstate", () => {
+  setActiveFlow(getFlowFromLocation(), { updatePath: false });
+});
+
 setStatus("search", "");
 setStatus("similar", "");
 setStatus("color", "");
-setActiveFlow("search");
+setActiveFlow(getFlowFromLocation(), { updatePath: false });

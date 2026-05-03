@@ -81,17 +81,17 @@ const queryEmbeddingCache = new Map<string, Buffer>();
 
 const DEMO_SEED_RECORD_IDS = [
   "/1101/https___www_searchculture_gr_aggregator_edm_theocharakis_000163_103110",
-  "/1101/https___www_searchculture_gr_aggregator_edm_theocharakis_000163_103161",
-  "/1316/https___www_searchculture_gr_aggregator_edm_momus_000179_10892",
-  "/1316/https___www_searchculture_gr_aggregator_edm_momus_000179_10850",
-  "/1101/https___www_searchculture_gr_aggregator_edm_theocharakis_000163_103038",
-  "/966/europeana_fashion_500063023",
-  "/1254/item_4OTYCL3TRU5XETCFYBFVNBVHHTSQO6XG",
+  "/1200/030a_Id_5",
   "/117/_CB548E94_A076_447A_A22A_161692CCC366",
+  "/966/europeana_fashion_500063023",
+  "/1100/851",
+  "/1223/item_3SHXCY43J4CMDWTXV5JYIDMYTL636PXX",
+  "/1101/https___www_searchculture_gr_aggregator_edm_theocharakis_000163_103161",
+  "/1101/https___www_searchculture_gr_aggregator_edm_theocharakis_000163_103038",
+  "/1100/1708",
+  "/1254/item_4OTYCL3TRU5XETCFYBFVNBVHHTSQO6XG",
+  "/1223/item_CYCA57JXVMB5ZCSTYAWWJQBNSQCMNRME",
   "/966/europeana_fashion_500063039",
-  "/966/europeana_fashion_500065180",
-  "/1101/https___www_searchculture_gr_aggregator_edm_theocharakis_000163_103183",
-  "/1101/https___www_searchculture_gr_aggregator_edm_theocharakis_000163_103204",
 ];
 
 function tryPragma(database: Database.Database, pragma: string): void {
