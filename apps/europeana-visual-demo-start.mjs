@@ -11,7 +11,7 @@ const processes = [
     env: {
       PORT: "4318",
       HOST: "0.0.0.0",
-      DATABASE_PATH: process.env.DATABASE_PATH || "/app/data/europeana-demo.db",
+      DATABASE_PATH: process.env.DATABASE_PATH || "/app/apps/europeana-visual-service/data/europeana-demo.db",
       KABINETT_CLIP_ALLOW_REMOTE: process.env.KABINETT_CLIP_ALLOW_REMOTE || "1",
       EUROPEANA_VISUAL_ALLOWED_ORIGINS: process.env.EUROPEANA_VISUAL_ALLOWED_ORIGINS || "*",
     },

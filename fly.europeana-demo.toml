@@ -6,7 +6,7 @@ primary_region = "arn"
 
 [env]
   NODE_ENV = "production"
-  DATABASE_PATH = "/app/data/europeana-demo.db"
+  DATABASE_PATH = "/app/apps/europeana-visual-service/data/europeana-demo.db"
   KABINETT_CLIP_ALLOW_REMOTE = "1"
   VISUAL_SERVICE_URL = "http://127.0.0.1:4318"
   EUROPEANA_VISUAL_RATE_LIMIT_MAX = "180"
