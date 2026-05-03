@@ -254,14 +254,14 @@ function renderSimilarSeedOptions() {
   }
 }
 
-async function loadSimilarSeeds() {
+async function loadSimilarSeeds(shuffle = false) {
   if (state.similar.seedsLoading) return;
 
   state.similar.seedsLoading = true;
   setStatus("similar", "Loading reference images…");
 
   try {
-    const payload = await requestJson("/v1/demo/seeds?limit=6");
+    const payload = await requestJson(`/v1/demo/seeds?limit=6${shuffle ? "&shuffle=1" : ""}`);
     state.similar.seedOptions = payload.items || [];
     renderSimilarSeedOptions();
     setStatus("similar", "");
@@ -477,7 +477,7 @@ if (colorPicker && colorHexInput) {
 }
 
 document.querySelector('[data-role="similar-random"]').addEventListener("click", () => {
-  void loadSimilarSeeds();
+  void loadSimilarSeeds(true);
 });
 
 document.querySelector('[data-role="similar-seeds"]').addEventListener("click", (event) => {

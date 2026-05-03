@@ -80,12 +80,18 @@ let textEncoderPromise: Promise<TextEncoder> | null = null;
 const queryEmbeddingCache = new Map<string, Buffer>();
 
 const DEMO_SEED_RECORD_IDS = [
+  "/1101/https___www_searchculture_gr_aggregator_edm_theocharakis_000163_103110",
+  "/1101/https___www_searchculture_gr_aggregator_edm_theocharakis_000163_103161",
+  "/1316/https___www_searchculture_gr_aggregator_edm_momus_000179_10892",
+  "/1316/https___www_searchculture_gr_aggregator_edm_momus_000179_10850",
+  "/1101/https___www_searchculture_gr_aggregator_edm_theocharakis_000163_103038",
   "/966/europeana_fashion_500063023",
+  "/1254/item_4OTYCL3TRU5XETCFYBFVNBVHHTSQO6XG",
+  "/117/_CB548E94_A076_447A_A22A_161692CCC366",
   "/966/europeana_fashion_500063039",
-  "/966/europeana_fashion_500063075",
-  "/966/europeana_fashion_500065152",
   "/966/europeana_fashion_500065180",
-  "/966/europeana_fashion_500065237",
+  "/1101/https___www_searchculture_gr_aggregator_edm_theocharakis_000163_103183",
+  "/1101/https___www_searchculture_gr_aggregator_edm_theocharakis_000163_103204",
 ];
 
 function tryPragma(database: Database.Database, pragma: string): void {
@@ -370,9 +376,18 @@ export function createSqliteVectorIndex(): VectorIndex {
   };
 }
 
-export function getDemoSeedRecordIds(limit: number): string[] {
-  if (limit <= DEMO_SEED_RECORD_IDS.length) {
-    return DEMO_SEED_RECORD_IDS.slice(0, limit);
+function shuffledRecordIds(recordIds: string[]): string[] {
+  return recordIds
+    .map((recordId) => ({ recordId, sort: Math.random() }))
+    .sort((a, b) => a.sort - b.sort)
+    .map((entry) => entry.recordId);
+}
+
+export function getDemoSeedRecordIds(limit: number, shuffle = false): string[] {
+  const seedPool = shuffle ? shuffledRecordIds(DEMO_SEED_RECORD_IDS) : DEMO_SEED_RECORD_IDS;
+
+  if (limit <= seedPool.length) {
+    return seedPool.slice(0, limit);
   }
 
   const rows = getDb().prepare(
@@ -387,9 +402,9 @@ export function getDemoSeedRecordIds(limit: number): string[] {
      GROUP BY a.inventory_number
      ORDER BY a.inventory_number
      LIMIT ?`
-  ).all(EUROPEANA_SOURCE, limit - DEMO_SEED_RECORD_IDS.length) as Array<{ recordId: string }>;
+  ).all(EUROPEANA_SOURCE, limit - seedPool.length) as Array<{ recordId: string }>;
 
-  return [...DEMO_SEED_RECORD_IDS, ...rows.map((row) => row.recordId)]
+  return [...seedPool, ...rows.map((row) => row.recordId)]
     .filter((recordId, index, all) => all.indexOf(recordId) === index)
     .slice(0, limit);
 }

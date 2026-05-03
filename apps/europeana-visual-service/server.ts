@@ -37,7 +37,7 @@ const visualLayer = createEuropeanaVisualLayer({
     ? "strict"
     : process.env.EUROPEANA_VISUAL_VARIANT_MODE === "balanced"
       ? "balanced"
-      : "expanded",
+      : "balanced",
   similarOverfetch: Number(process.env.EUROPEANA_VISUAL_SIMILAR_OVERFETCH ?? "72"),
   hydrateLimit: Number(process.env.EUROPEANA_VISUAL_HYDRATE_LIMIT ?? "24"),
 });
@@ -52,7 +52,10 @@ async function warmVisualIndex(): Promise<void> {
   if (seedIds.length === 0) return;
 
   await vectorIndex.searchBySeedArtworkIds(seedIds, 8);
-  console.log(`[europeana-visual-service] warmed similar index with ${recordId}`);
+  await vectorIndex.searchByText("apple", 8, { variantMode: "balanced" });
+  await vectorIndex.searchByText("stormy sea", 8, { variantMode: "balanced" });
+  await vectorIndex.searchByText("red dress", 8, { variantMode: "balanced" });
+  console.log(`[europeana-visual-service] warmed visual index with ${recordId}`);
 }
 
 function getAllowedOrigin(origin: string | undefined): string | null {
@@ -231,7 +234,7 @@ const server = createServer(async (request, response) => {
 
     if (request.method === "GET" && pathname === "/v1/demo/seeds") {
       const limit = coerceLimit(url.searchParams.get("limit"), 6, 12);
-      const recordIds = getDemoSeedRecordIds(limit);
+      const recordIds = getDemoSeedRecordIds(limit, url.searchParams.get("shuffle") === "1");
       const result = await visualLayer.hydrateDemoRecords({
         recordIds,
         limit,
