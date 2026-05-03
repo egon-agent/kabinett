@@ -92,6 +92,17 @@ const DEMO_SEED_RECORD_IDS = [
   "/1254/item_4OTYCL3TRU5XETCFYBFVNBVHHTSQO6XG",
   "/1223/item_CYCA57JXVMB5ZCSTYAWWJQBNSQCMNRME",
   "/966/europeana_fashion_500063039",
+  "/1100/1647",
+  "/1100/1649",
+  "/1200/031_Id_6",
+  "/1200/032_Id_7",
+  "/1101/https___www_searchculture_gr_aggregator_edm_theocharakis_000163_103183",
+  "/1101/https___www_searchculture_gr_aggregator_edm_theocharakis_000163_103204",
+  "/1223/item_DNNNGW2RDNRBYGQDTQYQHAFUVSO5QDIL",
+  "/1223/item_H3DLJGNQSIWPZISLWGQAH27CZ36JLTUU",
+  "/1223/item_3BALWLZT5PI45GDFQAQ4AFTEVRBONALJ",
+  "/1223/item_5SOEPXBQ5O6KUWRCXLDHAAQAWUXLTHBL",
+  "/1223/item_5NYQVK3NA73Q2JAD56YO7OXQS7I4BD2B",
 ];
 
 function tryPragma(database: Database.Database, pragma: string): void {
