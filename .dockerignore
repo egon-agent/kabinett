@@ -2,7 +2,6 @@ node_modules
 **/node_modules
 .git
 packages/data
-apps/europeana-visual-service/.cache
 *.db
 *.db-*
 *.db.gz
