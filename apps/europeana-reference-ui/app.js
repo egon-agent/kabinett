@@ -139,6 +139,20 @@ function setMoreButton(flow, visible) {
   button.disabled = false;
 }
 
+function setSelectedColor(value) {
+  const normalized = value.startsWith("#") ? value.toUpperCase() : `#${value.toUpperCase()}`;
+  const colorInput = document.querySelector(".color-input");
+  if (colorInput) {
+    colorInput.style.setProperty("--selected-color", normalized);
+  }
+  if (colorPicker && /^#[0-9a-fA-F]{6}$/.test(normalized)) {
+    colorPicker.value = normalized.toLowerCase();
+  }
+  if (colorHexInput) {
+    colorHexInput.value = normalized;
+  }
+}
+
 function renderResults(flow) {
   const container = document.querySelector(`[data-role="${flow}-results"]`);
   if (!container) return;
@@ -476,7 +490,7 @@ document.querySelector('[data-role="search-chips"]').addEventListener("click", (
 document.querySelector('[data-role="color-chips"]').addEventListener("click", (event) => {
   const target = event.target.closest("[data-value]");
   if (!target) return;
-  document.querySelector("#color-hex").value = target.dataset.value || "";
+  setSelectedColor(target.dataset.value || "");
   void runColor(true);
 });
 
@@ -485,20 +499,22 @@ const colorHexInput = document.querySelector("#color-hex");
 
 if (colorPicker && colorHexInput) {
   colorPicker.addEventListener("input", () => {
-    colorHexInput.value = colorPicker.value.toUpperCase();
+    setSelectedColor(colorPicker.value);
   });
 
   colorPicker.addEventListener("change", () => {
-    colorHexInput.value = colorPicker.value.toUpperCase();
+    setSelectedColor(colorPicker.value);
     void runColor(true);
   });
 
   colorHexInput.addEventListener("input", () => {
     const value = colorHexInput.value.trim();
     if (/^#[0-9a-fA-F]{6}$/.test(value)) {
-      colorPicker.value = value.toLowerCase();
+      setSelectedColor(value);
     }
   });
+
+  setSelectedColor(colorHexInput.value);
 }
 
 document.querySelector('[data-role="similar-random"]').addEventListener("click", () => {

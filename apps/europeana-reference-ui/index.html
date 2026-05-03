@@ -106,24 +106,36 @@
             <label class="field-label" for="color-hex">Colour</label>
             <div class="field-row">
               <div class="color-input">
+                <label class="color-picker-control" for="color-picker">
+                  <span class="color-preview" aria-hidden="true"></span>
+                  <span>
+                    <span class="color-label">Selected colour</span>
+                    <input
+                      id="color-hex"
+                      name="hex"
+                      type="text"
+                      value="#C62F32"
+                      spellcheck="false"
+                      autocomplete="off"
+                    />
+                  </span>
+                </label>
                 <input
                   type="color"
                   id="color-picker"
                   value="#C62F32"
                   aria-label="Pick a colour"
                 />
-                <input
-                  id="color-hex"
-                  name="hex"
-                  type="text"
-                  value="#C62F32"
-                  spellcheck="false"
-                  autocomplete="off"
-                />
               </div>
               <button type="submit" class="primary-button">Match</button>
             </div>
-            <div class="chip-row" data-role="color-chips" hidden></div>
+            <div class="swatch-row" data-role="color-chips">
+              <button type="button" class="swatch swatch-red" data-value="#C62F32">red</button>
+              <button type="button" class="swatch swatch-blue" data-value="#245A9C">blue</button>
+              <button type="button" class="swatch swatch-gold" data-value="#D7A93F">gold</button>
+              <button type="button" class="swatch swatch-green" data-value="#3D765E">green</button>
+              <button type="button" class="swatch swatch-black" data-value="#111111">black</button>
+            </div>
           </form>
 
           <div class="panel-status" data-role="color-status">No colour selected yet.</div>
