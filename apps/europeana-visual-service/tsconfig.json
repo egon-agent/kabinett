@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM"],
+    "types": ["node"],
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "strict": true
+  },
+  "include": ["*.ts", "../../packages/europeana-visual-core/src/**/*.ts"],
+  "exclude": ["../../packages/europeana-visual-core/src/__tests__/**"]
+}

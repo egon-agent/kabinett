@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Europeana visual search API</title>
+    <meta
+      name="description"
+      content="API contract for the Europeana visual search demo."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="page-head">
+        <div class="page-head-top">
+          <h1>API integration</h1>
+          <a class="top-link" href="/">Back to demo</a>
+        </div>
+      </header>
+
+      <main class="api-contract api-contract-page" aria-label="Product API endpoints">
+        <div class="api-contract-head">
+          <p>3 product paths</p>
+        </div>
+
+        <div class="api-paths">
+          <article class="api-path">
+            <div class="api-path-line">
+              <span class="method method-post">POST</span>
+              <code>/v1/visual/search</code>
+            </div>
+            <p>Text-to-image visual search.</p>
+            <div class="api-example-grid">
+              <div>
+                <span class="api-example-label">Example request</span>
+                <pre class="api-example"><code>{
+  "query": "apple",
+  "limit": 12
+}</code></pre>
+              </div>
+              <div>
+                <span class="api-example-label">Example response</span>
+                <pre class="api-example"><code>{
+  "items": [
+    { "recordId": "/2021009/_ULAN_500115493", "score": 0.83 },
+    { "recordId": "/2064107/Museu_ProvidedCHO", "score": 0.81 }
+  ],
+  "nextCursor": "eyJvZmZzZXQiOjEyfQ",
+  "meta": { "query": "apple", "limit": 12 }
+}</code></pre>
+              </div>
+            </div>
+          </article>
+
+          <article class="api-path">
+            <div class="api-path-line">
+              <span class="method method-get">GET</span>
+              <code>/v1/visual/similar/{recordId}</code>
+            </div>
+            <p>Visually similar works from one Europeana record.</p>
+            <div class="api-example-grid">
+              <div>
+                <span class="api-example-label">Example request</span>
+                <pre class="api-example"><code>GET /v1/visual/similar/%2F966%2Feuropeana_fashion_500063023?limit=12</code></pre>
+              </div>
+              <div>
+                <span class="api-example-label">Example response</span>
+                <pre class="api-example"><code>{
+  "items": [
+    { "recordId": "/966/europeana_fashion_500063039", "score": 0.91 },
+    { "recordId": "/966/europeana_fashion_500063044", "score": 0.89 }
+  ],
+  "nextCursor": "eyJvZmZzZXQiOjEyfQ",
+  "meta": { "recordId": "/966/europeana_fashion_500063023" }
+}</code></pre>
+              </div>
+            </div>
+          </article>
+
+          <article class="api-path">
+            <div class="api-path-line">
+              <span class="method method-get">GET</span>
+              <code>/v1/visual/color?hex=</code>
+            </div>
+            <p>Dominant-colour matching in the visual index.</p>
+            <div class="api-example-grid">
+              <div>
+                <span class="api-example-label">Example request</span>
+                <pre class="api-example"><code>GET /v1/visual/color?hex=C62F32&amp;limit=12</code></pre>
+              </div>
+              <div>
+                <span class="api-example-label">Example response</span>
+                <pre class="api-example"><code>{
+  "items": [
+    { "recordId": "/2048221/europeana_fashion_123", "score": 0.94 },
+    { "recordId": "/2024903/photography_456", "score": 0.92 }
+  ],
+  "nextCursor": "eyJvZmZzZXQiOjEyfQ",
+  "meta": { "hex": "#C62F32", "limit": 12 }
+}</code></pre>
+              </div>
+            </div>
+          </article>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

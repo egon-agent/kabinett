@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Europeana visual search</title>
+    <meta
+      name="description"
+      content="Reference UI for a standalone Europeana-only visual search layer."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="page-head">
+        <div class="page-head-top">
+          <h1>Europeana visual search</h1>
+          <a class="top-link" href="/api-contract">API contract</a>
+        </div>
+        <p>Three ways to find images in the Europeana collection.</p>
+        <p class="note">Demo index: 100,000 sampled image records.</p>
+      </header>
+
+      <nav class="flow-tabs" aria-label="Demo flows">
+        <button type="button" class="flow-tab is-active" data-flow-tab="search">
+          Text to image
+        </button>
+        <button type="button" class="flow-tab" data-flow-tab="similar">
+          Similar works
+        </button>
+        <button type="button" class="flow-tab" data-flow-tab="color">
+          Colour match
+        </button>
+      </nav>
+
+      <main class="flow-stage">
+        <section class="flow-panel is-active" data-flow="search">
+          <form class="flow-form" data-role="search-form">
+            <label class="field-label" for="search-query">Visual query</label>
+            <div class="field-row">
+              <input
+                id="search-query"
+                name="query"
+                type="text"
+                value="apple"
+                autocomplete="off"
+              />
+              <button type="submit" class="primary-button">Search</button>
+            </div>
+            <div class="chip-row" data-role="search-chips">
+              <button type="button" class="chip" data-value="apple">apple</button>
+              <button type="button" class="chip" data-value="stormy sea">stormy sea</button>
+              <button type="button" class="chip" data-value="red dress">red dress</button>
+            </div>
+          </form>
+
+          <div class="panel-status" data-role="search-status">No search has run yet.</div>
+          <div class="results-grid" data-role="search-results"></div>
+          <div class="panel-foot">
+            <button type="button" class="secondary-button hidden" data-role="search-more">
+              Show more
+            </button>
+          </div>
+        </section>
+
+        <section class="flow-panel" data-flow="similar">
+          <div class="seed-picker" aria-labelledby="seed-picker-heading">
+            <div class="seed-picker-heading">
+              <div>
+                <h3 id="seed-picker-heading">Pick a reference image</h3>
+                <p>Random records from the demo index.</p>
+              </div>
+              <button type="button" class="secondary-button" data-role="similar-random">
+                Shuffle
+              </button>
+            </div>
+            <div class="seed-options" data-role="similar-seeds"></div>
+          </div>
+
+          <div class="seed-preview hidden" data-role="similar-seed"></div>
+          <div class="panel-status" data-role="similar-status">No seed record selected yet.</div>
+          <div class="results-grid" data-role="similar-results"></div>
+          <div class="panel-foot">
+            <button type="button" class="secondary-button hidden" data-role="similar-more">
+              Show more
+            </button>
+          </div>
+        </section>
+
+        <section class="flow-panel" data-flow="color">
+          <form class="flow-form" data-role="color-form">
+            <label class="field-label" for="color-hex">Colour</label>
+            <div class="field-row">
+              <div class="color-input">
+                <input
+                  type="color"
+                  id="color-picker"
+                  value="#C62F32"
+                  aria-label="Pick a colour"
+                />
+                <input
+                  id="color-hex"
+                  name="hex"
+                  type="text"
+                  value="#C62F32"
+                  spellcheck="false"
+                  autocomplete="off"
+                />
+              </div>
+              <button type="submit" class="primary-button">Match</button>
+            </div>
+            <div class="chip-row" data-role="color-chips" hidden></div>
+          </form>
+
+          <div class="panel-status" data-role="color-status">No colour selected yet.</div>
+          <div class="results-grid" data-role="color-results"></div>
+          <div class="panel-foot">
+            <button type="button" class="secondary-button hidden" data-role="color-more">
+              Show more
+            </button>
+          </div>
+        </section>
+      </main>
+
+    </div>
+
+    <template id="result-card-template">
+      <article class="result-card">
+        <a class="result-link" href="#" target="_blank" rel="noreferrer noopener">
+          <div class="result-media"></div>
+          <div class="result-body">
+            <div class="result-topline">
+              <span class="result-provider"></span>
+              <span class="result-score"></span>
+            </div>
+            <h3 class="result-title"></h3>
+            <p class="result-year"></p>
+            <p class="result-description"></p>
+            <div class="result-meta">
+              <span class="result-rights"></span>
+              <span class="result-record"></span>
+            </div>
+          </div>
+        </a>
+      </article>
+    </template>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

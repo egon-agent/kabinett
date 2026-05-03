@@ -1,0 +1,25 @@
+services:
+  europeana-visual-service:
+    build:
+      context: .
+      dockerfile: apps/europeana-visual-service/Dockerfile
+    environment:
+      DATABASE_PATH: /data/kabinett.db
+      EUROPEANA_API_KEY: ${EUROPEANA_API_KEY:-api2demo}
+      KABINETT_CLIP_ALLOW_REMOTE: ${KABINETT_CLIP_ALLOW_REMOTE:-1}
+      EUROPEANA_VISUAL_ALLOWED_ORIGINS: ${EUROPEANA_VISUAL_ALLOWED_ORIGINS:-http://localhost:4320}
+    ports:
+      - "4318:4318"
+    volumes:
+      - ${DATABASE_PATH:-./packages/data/kabinett.db}:/data/kabinett.db:ro
+
+  europeana-reference-ui:
+    build:
+      context: .
+      dockerfile: apps/europeana-reference-ui/Dockerfile
+    ports:
+      - "4320:4320"
+    environment:
+      VISUAL_SERVICE_URL: http://europeana-visual-service:4318
+    depends_on:
+      - europeana-visual-service

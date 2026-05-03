@@ -7,3 +7,4 @@ build/
 .venv/
 *.db*
 *.png
+apps/europeana-visual-service/.cache/
