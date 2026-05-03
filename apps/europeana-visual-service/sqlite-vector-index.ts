@@ -62,14 +62,21 @@ let db: Database.Database | null = null;
 let textEncoderPromise: Promise<TextEncoder> | null = null;
 const queryEmbeddingCache = new Map<string, Buffer>();
 
+function tryPragma(database: Database.Database, pragma: string): void {
+  try {
+    database.pragma(pragma);
+  } catch (error) {
+    console.warn(`[Europeana Visual] Could not apply SQLite pragma "${pragma}":`, error);
+  }
+}
+
 function getDb(): Database.Database {
   if (!db) {
     db = new Database(DB_PATH, { readonly: true });
     sqliteVec.load(db);
-    db.pragma("journal_mode = WAL");
-    db.pragma("cache_size = -512000");
-    db.pragma("mmap_size = 3221225472");
-    db.pragma("temp_store = memory");
+    tryPragma(db, "cache_size = -512000");
+    tryPragma(db, "mmap_size = 3221225472");
+    tryPragma(db, "temp_store = memory");
   }
   return db;
 }

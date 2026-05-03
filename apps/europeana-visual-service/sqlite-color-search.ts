@@ -44,12 +44,19 @@ type ColorRow = {
 let db: Database.Database | null = null;
 let colorIndex: ColorIndexRecord[] | null = null;
 
+function tryPragma(database: Database.Database, pragma: string): void {
+  try {
+    database.pragma(pragma);
+  } catch (error) {
+    console.warn(`[Europeana Visual] Could not apply SQLite pragma "${pragma}":`, error);
+  }
+}
+
 function getDb(): Database.Database {
   if (!db) {
     db = new Database(DB_PATH, { readonly: true });
-    db.pragma("journal_mode = WAL");
-    db.pragma("cache_size = -256000");
-    db.pragma("mmap_size = 1073741824");
+    tryPragma(db, "cache_size = -256000");
+    tryPragma(db, "mmap_size = 1073741824");
   }
   return db;
 }
