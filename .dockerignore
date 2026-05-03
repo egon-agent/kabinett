@@ -1,8 +1,11 @@
 node_modules
 .git
-packages/data/kabinett.db
-packages/data/*.db-journal
-packages/data/*.db-wal
+*.db
+*.db-*
+*.db.gz
+*.sqlite
+*.sqlite-*
+!apps/europeana-visual-service/data/europeana-demo.db
 *.log
 .env
 .env.local
